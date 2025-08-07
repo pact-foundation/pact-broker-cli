@@ -244,7 +244,7 @@ mod create_webhook_tests {
                     .json_body(json_pattern!({
                         "_links": {
                             "pb:webhooks": {
-                                "href": term!("http://localhost/webhooks", r"http://localhost/webhooks"),
+                                "href": term!(r"http://localhost/webhooks", "http://localhost/webhooks"),
                             }
                         }
                     }));

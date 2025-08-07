@@ -83,7 +83,6 @@ pub fn create_version_tag(args: &clap::ArgMatches) -> Result<String, PactBrokerE
     }
 }
 
-
 #[cfg(test)]
 mod create_version_tag_tests {
     use std::vec;
@@ -92,16 +91,26 @@ mod create_version_tag_tests {
     use crate::cli::pact_broker::main::tags::create_version_tag::create_version_tag;
     use pact_consumer::prelude::*;
     use pact_models::PactSpecification;
-    use serde_json::json;
     use serde_json::Value;
+    use serde_json::json;
 
-    fn setup_args(pacticipant: &str, version: &str, tag: &str, broker_url: &str, auto_create: Option<&bool>) -> clap::ArgMatches {
+    fn setup_args(
+        pacticipant: &str,
+        version: &str,
+        tag: &str,
+        broker_url: &str,
+        auto_create: Option<&bool>,
+    ) -> clap::ArgMatches {
         let mut args = vec![
             "create-version-tag",
-            "--pacticipant", pacticipant,
-            "--version", version,
-            "--tag", tag,
-            "-b", broker_url,
+            "--pacticipant",
+            pacticipant,
+            "--version",
+            version,
+            "--tag",
+            tag,
+            "-b",
+            broker_url,
         ];
         if *auto_create.unwrap_or(&false) {
             args.push("--auto-create-version");
@@ -120,7 +129,7 @@ mod create_version_tag_tests {
                         "href": term!(r"http:\/\/.*(pacticipants).*(versions).*(tags).*","http://localhost:1234/pacticipants/Condor/versions/1.3.0/tags/prod"),
                     }
                 }
-            })
+            }),
         )
     }
 
@@ -138,26 +147,41 @@ mod create_version_tag_tests {
         let (status, body) = build_tag_response(201);
 
         let pact_broker_service = PactBuilder::new("pact-broker-cli", "Pact Broker")
-            .interaction("a request to check the production version of Condor", "", |mut i| {
-                i.given("'Condor' exists in the pact-broker");
-                i.request
-                    .get()
-                    .path(format!("/pacticipants/{}/versions/{}", pacticipant, version));
-                i.response.status(200).header("Content-Type", "application/hal+json;charset=utf-8").json_body(json_pattern!(like!({})));
-                i
-            })
-            .interaction("a request to tag the production version of Condor", "", |mut i| {
-                i.given("'Condor' exists in the pact-broker");
-                i.request
-                    .put()
-                    .header("Content-Type", "application/json")
-                    .path(format!("/pacticipants/{}/versions/{}/tags/{}", pacticipant, version, tag));
-                i.response
-                    .status(status)
-                    .header("Content-Type", "application/hal+json;charset=utf-8")
-                    .json_body(body);
-                i
-            })
+            .interaction(
+                "a request to check the production version of Condor",
+                "",
+                |mut i| {
+                    i.given("'Condor' exists in the pact-broker");
+                    i.request.get().path(format!(
+                        "/pacticipants/{}/versions/{}",
+                        pacticipant, version
+                    ));
+                    i.response
+                        .status(200)
+                        .header("Content-Type", "application/hal+json;charset=utf-8")
+                        .json_body(json_pattern!(like!({})));
+                    i
+                },
+            )
+            .interaction(
+                "a request to tag the production version of Condor",
+                "",
+                |mut i| {
+                    i.given("'Condor' exists in the pact-broker");
+                    i.request
+                        .put()
+                        .header("Content-Type", "application/json")
+                        .path(format!(
+                            "/pacticipants/{}/versions/{}/tags/{}",
+                            pacticipant, version, tag
+                        ));
+                    i.response
+                        .status(status)
+                        .header("Content-Type", "application/hal+json;charset=utf-8")
+                        .json_body(body);
+                    i
+                },
+            )
             .start_mock_server(None, Some(config));
 
         let broker_url = pact_broker_service.url();
@@ -183,30 +207,39 @@ mod create_version_tag_tests {
         let (status, body) = build_tag_response(201);
 
         let pact_broker_service = PactBuilder::new("pact-broker-cli", "PactFlow")
-            .interaction("a request to check the production version of Condor", "", |mut i| {
-                i.given("'Condor' does not exist in the pact-broker");
-                i.request
-                    .get()
-                    .path(format!("/pacticipants/{}/versions/{}", pacticipant, version));
-                i.response.status(404);
-                i
-            })
-            .interaction("a request to tag the production version of Condor", "", |mut i| {
-                i.given("'Condor' does not exist in the pact-broker");
-                i.request
-                    .put()
-                    .path(format!("/pacticipants/{}/versions/{}/tags/{}", pacticipant, version, tag));
-                i.response
-                    .status(status)
-                    .header("Content-Type", "application/hal+json;charset=utf-8")
-                    .json_body(body);
-                i
-            })
+            .interaction(
+                "a request to check the production version of Condor",
+                "",
+                |mut i| {
+                    i.given("'Condor' does not exist in the pact-broker");
+                    i.request.get().path(format!(
+                        "/pacticipants/{}/versions/{}",
+                        pacticipant, version
+                    ));
+                    i.response.status(404);
+                    i
+                },
+            )
+            .interaction(
+                "a request to tag the production version of Condor",
+                "",
+                |mut i| {
+                    i.given("'Condor' does not exist in the pact-broker");
+                    i.request.put().path(format!(
+                        "/pacticipants/{}/versions/{}/tags/{}",
+                        pacticipant, version, tag
+                    ));
+                    i.response
+                        .status(status)
+                        .header("Content-Type", "application/hal+json;charset=utf-8")
+                        .json_body(body);
+                    i
+                },
+            )
             .start_mock_server(None, Some(config));
 
         let broker_url = pact_broker_service.url();
-        let mut args = setup_args(pacticipant, version, tag , broker_url.as_str(), Some(&true));
-
+        let mut args = setup_args(pacticipant, version, tag, broker_url.as_str(), Some(&true));
 
         let result = create_version_tag(&args);
         assert!(result.is_ok());
@@ -228,27 +261,45 @@ mod create_version_tag_tests {
         let (status, body) = build_tag_response(200);
 
         let pact_broker_service = PactBuilder::new("pact-broker-cli", "PactFlow")
-            .interaction("a request to check the production version of Condor", "", |mut i| {
-                i.given("'Condor' exists in the pact-broker with version 1.3.0, tagged with 'prod'");
-                i.request
-                    .get()
-                    .path(format!("/pacticipants/{}/versions/{}", pacticipant, version));
-                i.response.status(200).header("Content-Type", "application/hal+json;charset=utf-8").json_body(json_pattern!(like!({})));;
-                i
-            })
-            .interaction("a request to tag the production version of Condor", "", |mut i| {
-                i.given("'Condor' exists in the pact-broker with version 1.3.0, tagged with 'prod'");
-                i.request
-                    .put()
-                    .header("Content-Type", "application/json")
-                    .path(format!("/pacticipants/{}/versions/{}/tags/{}", pacticipant, version, tag));
-                i.response
-                
-                    .status(status)
-                    .header("Content-Type", "application/hal+json;charset=utf-8")
-                    .json_body(body);
-                i
-            })
+            .interaction(
+                "a request to check the production version of Condor",
+                "",
+                |mut i| {
+                    i.given(
+                        "'Condor' exists in the pact-broker with version 1.3.0, tagged with 'prod'",
+                    );
+                    i.request.get().path(format!(
+                        "/pacticipants/{}/versions/{}",
+                        pacticipant, version
+                    ));
+                    i.response
+                        .status(200)
+                        .header("Content-Type", "application/hal+json;charset=utf-8")
+                        .json_body(json_pattern!(like!({})));
+                    i
+                },
+            )
+            .interaction(
+                "a request to tag the production version of Condor",
+                "",
+                |mut i| {
+                    i.given(
+                        "'Condor' exists in the pact-broker with version 1.3.0, tagged with 'prod'",
+                    );
+                    i.request
+                        .put()
+                        .header("Content-Type", "application/json")
+                        .path(format!(
+                            "/pacticipants/{}/versions/{}/tags/{}",
+                            pacticipant, version, tag
+                        ));
+                    i.response
+                        .status(status)
+                        .header("Content-Type", "application/hal+json;charset=utf-8")
+                        .json_body(body);
+                    i
+                },
+            )
             .start_mock_server(None, Some(config));
 
         let broker_url = pact_broker_service.url();

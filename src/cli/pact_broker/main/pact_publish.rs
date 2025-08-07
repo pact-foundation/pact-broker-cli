@@ -315,127 +315,121 @@ pub fn publish_pacts(args: &ArgMatches) -> Result<Value, i32> {
                                 .await
                         });
                         match res {
-                            Ok(res) => {
-                                match output {
-                                    Ok(Some(output)) => {
-                                        if output == "pretty" {
-                                            let json = serde_json::to_string_pretty(&res).unwrap();
-                                            println!("{}", json);
-                                        } else if output == "json" {
-                                            let json: String =
-                                                serde_json::to_string(&res.clone()).unwrap();
-                                            println!("{}", json);
-                                        } else {
-                                            let parsed_res = serde_json::from_value::<Root>(res);
-                                            match parsed_res {
-                                                Ok(parsed_res) => {
-                                                    print!("✅ ");
-                                                    parsed_res.notices.iter().for_each(|notice| {
-                                                        match notice.type_field.as_str() {
-                                                            "success" => {
-                                                                let notice_text =
-                                                                    notice.text.to_string();
-                                                                let formatted_text = notice_text
-                                                                    .split_whitespace()
-                                                                    .map(|word| {
-                                                                        if word.starts_with("https")
-                                                                            || word
-                                                                                .starts_with("http")
-                                                                        {
-                                                                            format!(
-                                                                                "{}",
-                                                                                utils::CYAN
-                                                                                    .apply_to(word)
-                                                                            )
-                                                                        } else {
-                                                                            format!(
-                                                                                "{}",
-                                                                                utils::GREEN
-                                                                                    .apply_to(word)
-                                                                            )
-                                                                        }
-                                                                    })
-                                                                    .collect::<Vec<String>>()
-                                                                    .join(" ");
-                                                                println!("{}", formatted_text)
-                                                            }
-                                                            "warning" | "prompt" => {
-                                                                let notice_text =
-                                                                    notice.text.to_string();
-                                                                let formatted_text = notice_text
-                                                                    .split_whitespace()
-                                                                    .map(|word| {
-                                                                        if word.starts_with("https")
-                                                                            || word
-                                                                                .starts_with("http")
-                                                                        {
-                                                                            format!(
-                                                                                "{}",
-                                                                                utils::CYAN
-                                                                                    .apply_to(word)
-                                                                            )
-                                                                        } else {
-                                                                            format!(
-                                                                                "{}",
-                                                                                utils::YELLOW
-                                                                                    .apply_to(word)
-                                                                            )
-                                                                        }
-                                                                    })
-                                                                    .collect::<Vec<String>>()
-                                                                    .join(" ");
-                                                                println!("{}", formatted_text)
-                                                            }
-                                                            "error" | "danger" => {
-                                                                let notice_text =
-                                                                    notice.text.to_string();
-                                                                let formatted_text = notice_text
-                                                                    .split_whitespace()
-                                                                    .map(|word| {
-                                                                        if word.starts_with("https")
-                                                                            || word
-                                                                                .starts_with("http")
-                                                                        {
-                                                                            format!(
-                                                                                "{}",
-                                                                                utils::CYAN
-                                                                                    .apply_to(word)
-                                                                            )
-                                                                        } else {
-                                                                            format!(
-                                                                                "{}",
-                                                                                utils::RED
-                                                                                    .apply_to(word)
-                                                                            )
-                                                                        }
-                                                                    })
-                                                                    .collect::<Vec<String>>()
-                                                                    .join(" ");
-                                                                println!("{}", formatted_text)
-                                                            }
-                                                            _ => println!("{}", notice.text),
+                            Ok(res) => match output {
+                                Ok(Some(output)) => {
+                                    if output == "pretty" {
+                                        let json = serde_json::to_string_pretty(&res).unwrap();
+                                        println!("{}", json);
+                                    } else if output == "json" {
+                                        let json: String =
+                                            serde_json::to_string(&res.clone()).unwrap();
+                                        println!("{}", json);
+                                    } else {
+                                        let parsed_res = serde_json::from_value::<Root>(res);
+                                        match parsed_res {
+                                            Ok(parsed_res) => {
+                                                print!("✅ ");
+                                                parsed_res.notices.iter().for_each(|notice| {
+                                                    match notice.type_field.as_str() {
+                                                        "success" => {
+                                                            let notice_text =
+                                                                notice.text.to_string();
+                                                            let formatted_text = notice_text
+                                                                .split_whitespace()
+                                                                .map(|word| {
+                                                                    if word.starts_with("https")
+                                                                        || word.starts_with("http")
+                                                                    {
+                                                                        format!(
+                                                                            "{}",
+                                                                            utils::CYAN
+                                                                                .apply_to(word)
+                                                                        )
+                                                                    } else {
+                                                                        format!(
+                                                                            "{}",
+                                                                            utils::GREEN
+                                                                                .apply_to(word)
+                                                                        )
+                                                                    }
+                                                                })
+                                                                .collect::<Vec<String>>()
+                                                                .join(" ");
+                                                            println!("{}", formatted_text)
                                                         }
-                                                    });
-                                                }
-                                                Err(err) => {
-                                                    println!(
-                                                        "✅ Pact published successfully for consumer: {} against provider: {}",
-                                                        consumer_name, provider_name
-                                                    );
-                                                    println!(
-                                                        "⚠️ Warning: Failed to process response notices - Error: {:?}",
-                                                        err
-                                                    );
-                                                }
+                                                        "warning" | "prompt" => {
+                                                            let notice_text =
+                                                                notice.text.to_string();
+                                                            let formatted_text = notice_text
+                                                                .split_whitespace()
+                                                                .map(|word| {
+                                                                    if word.starts_with("https")
+                                                                        || word.starts_with("http")
+                                                                    {
+                                                                        format!(
+                                                                            "{}",
+                                                                            utils::CYAN
+                                                                                .apply_to(word)
+                                                                        )
+                                                                    } else {
+                                                                        format!(
+                                                                            "{}",
+                                                                            utils::YELLOW
+                                                                                .apply_to(word)
+                                                                        )
+                                                                    }
+                                                                })
+                                                                .collect::<Vec<String>>()
+                                                                .join(" ");
+                                                            println!("{}", formatted_text)
+                                                        }
+                                                        "error" | "danger" => {
+                                                            let notice_text =
+                                                                notice.text.to_string();
+                                                            let formatted_text = notice_text
+                                                                .split_whitespace()
+                                                                .map(|word| {
+                                                                    if word.starts_with("https")
+                                                                        || word.starts_with("http")
+                                                                    {
+                                                                        format!(
+                                                                            "{}",
+                                                                            utils::CYAN
+                                                                                .apply_to(word)
+                                                                        )
+                                                                    } else {
+                                                                        format!(
+                                                                            "{}",
+                                                                            utils::RED
+                                                                                .apply_to(word)
+                                                                        )
+                                                                    }
+                                                                })
+                                                                .collect::<Vec<String>>()
+                                                                .join(" ");
+                                                            println!("{}", formatted_text)
+                                                        }
+                                                        _ => println!("{}", notice.text),
+                                                    }
+                                                });
                                             }
-
+                                            Err(err) => {
+                                                println!(
+                                                    "✅ Pact published successfully for consumer: {} against provider: {}",
+                                                    consumer_name, provider_name
+                                                );
+                                                println!(
+                                                    "⚠️ Warning: Failed to process response notices - Error: {:?}",
+                                                    err
+                                                );
+                                            }
                                         }
                                     }
-                                    _ => {
-                                        println!("{:?}", res.clone());
-                                    }
                                 }
-                            }
+                                _ => {
+                                    println!("{:?}", res.clone());
+                                }
+                            },
                             Err(err) => {
                                 println!("❌ {}", err.to_string());
                             }

@@ -212,7 +212,6 @@ pub fn can_i_deploy(args: &clap::ArgMatches, can_i_merge: bool) -> Result<String
                             println!("{}", json);
                             Ok(json)
                         } else {
-
                             let data: Data = match serde_json::from_str(&res.clone().to_string()) {
                                 Ok(data) => data,
                                 Err(err) => {

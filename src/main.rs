@@ -38,7 +38,12 @@ fn generate_completions(args: &ArgMatches) {
         .to_string();
     let mut cmd = cli::build_cli();
     let shell_enum = Shell::from_str(&shell).unwrap();
-    let _ = generate_to(shell_enum, &mut cmd, "pact-broker-cli".to_string(), &out_dir);
+    let _ = generate_to(
+        shell_enum,
+        &mut cmd,
+        "pact-broker-cli".to_string(),
+        &out_dir,
+    );
     println!(
         "ℹ️  {} shell completions for pact-broker-cli written to {}",
         &shell_enum, &out_dir
