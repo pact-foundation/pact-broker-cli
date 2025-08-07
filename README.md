@@ -1043,8 +1043,8 @@ Options:
           Provider label, mutually exclusive with provider name
       --description <DESCRIPTION>
           Webhook description
-      --contract-content-changed <contract-content-changed>
-          Trigger this webhook when the pact content changes [default: false] [possible values: true, false]
+      --contract-content-changed
+          Trigger this webhook when the pact content changes
       --contract-published
           Trigger this webhook when a pact is published
       --provider-verification-published
