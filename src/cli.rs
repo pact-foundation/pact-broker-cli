@@ -7,9 +7,14 @@ mod utils;
 
 pub fn build_cli() -> Command {
     let app = Command::new("pact-broker-cli")
+        .version(env!("CARGO_PKG_VERSION"))
         .about("A pact cli tool")
-        .subcommand(pact_broker_client::add_pact_broker_client_command())
-        .subcommand(pactflow_client::add_pactflow_client_command())
+        .subcommand(
+            pact_broker_client::add_pact_broker_client_command().version(env!("CARGO_PKG_VERSION")),
+        )
+        .subcommand(
+            pactflow_client::add_pactflow_client_command().version(env!("CARGO_PKG_VERSION")),
+        )
         .subcommand(add_completions_subcommand());
     app
 }
