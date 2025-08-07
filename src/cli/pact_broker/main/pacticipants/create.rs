@@ -316,7 +316,7 @@ mod create_or_update_pacticipant_tests {
 
         // PATCH /pacticipants/Foo updates the pacticipant
         let update_pacticipant_interaction = |mut i: InteractionBuilder| {
-            i.given("a pacticipant with name Foo exists");
+            i.given("a pacticipant with name Foo exists!");
             i.request
                 .method("PATCH")
                 .path("/pacticipants/Foo")
