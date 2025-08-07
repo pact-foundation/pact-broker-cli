@@ -1,0 +1,72 @@
+#!/bin/bash
+set -e
+DOCKER_TAG=$(echo "$DOCKER_TAG" | sed 's/^refs\/tags\/v//')
+echo "Building version $DOCKER_TAG"
+docker buildx create --name multiarch --use || true
+
+PUSH_IMAGE=${PUSH_IMAGE:-false}
+if [ ${PUSH_IMAGE} = "true" ]; then
+  PUSH_CMD="--push "
+fi
+# ppc64le
+PLATFORMS_ALPINE=${PLATFORMS_ALPINE:-linux/amd64,linux/arm64,linux/arm,linux/arm/v8,linux/arm/v7,linux/arm/v6,linux/i386,linux/s390x}
+PLATFORMS_DEBIAN=${PLATFORMS_ALPINE:-linux/amd64,linux/arm64,linux/arm,linux/arm/v8,linux/arm/v7,linux/arm/v6,linux/arm/v5,linux/i386,linux/s390x}
+
+docker buildx build -t you54f/pact-broker-cli:$DOCKER_TAG --build-arg VERSION=$DOCKER_TAG --platform ${PLATFORMS_ALPINE} ${PUSH_CMD}. -f Dockerfile.alpine
+docker buildx build -t you54f/pact-broker-cli:$DOCKER_TAG-alpine --build-arg VERSION=$DOCKER_TAG --platform ${PLATFORMS_ALPINE} ${PUSH_CMD}. -f Dockerfile.alpine
+docker buildx build -t you54f/pact-broker-cli:$DOCKER_TAG-riscv64 --build-arg BASE_IMAGE=riscv64/alpine:20230901 --build-arg VERSION=$DOCKER_TAG --platform linux/riscv64 ${PUSH_CMD}. -f Dockerfile.alpine
+docker buildx build -t you54f/pact-broker-cli:$DOCKER_TAG-alpine-riscv64 --build-arg BASE_IMAGE=riscv64/alpine:20230901 --build-arg VERSION=$DOCKER_TAG --platform linux/riscv64 ${PUSH_CMD}. -f Dockerfile.alpine
+if [ ${PUSH_IMAGE} = "true" ]; then
+  docker buildx imagetools create --tag you54f/pact-broker-cli:$DOCKER_TAG --append you54f/pact-broker-cli:$DOCKER_TAG-riscv64
+fi
+
+docker buildx build -t you54f/pact-broker-cli:latest --build-arg VERSION=$DOCKER_TAG --platform ${PLATFORMS_ALPINE} ${PUSH_CMD}. -f Dockerfile.alpine
+docker buildx build -t you54f/pact-broker-cli:latest-alpine --build-arg VERSION=$DOCKER_TAG --platform ${PLATFORMS_ALPINE} ${PUSH_CMD}. -f Dockerfile.alpine
+docker buildx build -t you54f/pact-broker-cli:latest-riscv64 --build-arg BASE_IMAGE=riscv64/alpine:20230901 --build-arg VERSION=$DOCKER_TAG --platform linux/riscv64 ${PUSH_CMD}. -f Dockerfile.alpine
+docker buildx build -t you54f/pact-broker-cli:latest-alpine-riscv64 --build-arg BASE_IMAGE=riscv64/alpine:20230901 --build-arg VERSION=$DOCKER_TAG --platform linux/riscv64 ${PUSH_CMD}. -f Dockerfile.alpine
+if [ ${PUSH_IMAGE} = "true" ]; then
+  docker buildx imagetools create --tag you54f/pact-broker-cli:latest --append you54f/pact-broker-cli:latest-riscv64
+  docker buildx imagetools create --tag you54f/pact-broker-cli:latest-alpine --append you54f/pact-broker-cli:latest-alpine-riscv64
+fi
+
+docker buildx build -t ghcr.io/you54f/pact-broker-cli:$DOCKER_TAG --build-arg VERSION=$DOCKER_TAG --platform ${PLATFORMS_ALPINE} ${PUSH_CMD}. -f Dockerfile.alpine
+docker buildx build -t ghcr.io/you54f/pact-broker-cli:$DOCKER_TAG-alpine --build-arg VERSION=$DOCKER_TAG --platform ${PLATFORMS_ALPINE} ${PUSH_CMD}. -f Dockerfile.alpine
+docker buildx build -t ghcr.io/you54f/pact-broker-cli:$DOCKER_TAG-riscv64 --build-arg BASE_IMAGE=riscv64/alpine:20230901 --build-arg VERSION=$DOCKER_TAG --platform linux/riscv64 ${PUSH_CMD}. -f Dockerfile.alpine
+docker buildx build -t ghcr.io/you54f/pact-broker-cli:$DOCKER_TAG-alpine-riscv64 --build-arg BASE_IMAGE=riscv64/alpine:20230901 --build-arg VERSION=$DOCKER_TAG --platform linux/riscv64 ${PUSH_CMD}. -f Dockerfile.alpine
+if [ ${PUSH_IMAGE} = "true" ]; then
+  docker buildx imagetools create --tag ghcr.io/you54f/pact-broker-cli:$DOCKER_TAG --append you54f/pact-broker-cli:$DOCKER_TAG-riscv64
+  docker buildx imagetools create --tag ghcr.io/you54f/pact-broker-cli:$DOCKER_TAG-alpine --append you54f/pact-broker-cli:$DOCKER_TAG-alpine-riscv64
+fi
+
+docker buildx build -t ghcr.io/you54f/pact-broker-cli:latest --build-arg VERSION=$DOCKER_TAG --platform ${PLATFORMS_ALPINE} ${PUSH_CMD}. -f Dockerfile.alpine
+docker buildx build -t ghcr.io/you54f/pact-broker-cli:latest-alpine --build-arg VERSION=$DOCKER_TAG --platform ${PLATFORMS_ALPINE} ${PUSH_CMD}. -f Dockerfile.alpine
+docker buildx build -t ghcr.io/you54f/pact-broker-cli:latest-riscv64 --build-arg BASE_IMAGE=riscv64/alpine:20230901 --build-arg VERSION=$DOCKER_TAG --platform linux/riscv64 ${PUSH_CMD}. -f Dockerfile.alpine
+docker buildx build -t ghcr.io/you54f/pact-broker-cli:latest-alpine-riscv64 --build-arg BASE_IMAGE=riscv64/alpine:20230901 --build-arg VERSION=$DOCKER_TAG --platform linux/riscv64 ${PUSH_CMD}. -f Dockerfile.alpine
+if [ ${PUSH_IMAGE} = "true" ]; then
+  docker buildx imagetools create --tag ghcr.io/you54f/pact-broker-cli:latest --append ghcr.io/you54f/pact-broker-cli:latest-riscv64
+  docker buildx imagetools create --tag ghcr.io/you54f/pact-broker-cli:latest-alpine --append ghcr.io/you54f/pact-broker-cli:latest-alpine-riscv64
+fi
+
+# dockerhub debian
+docker buildx build -t you54f/pact-broker-cli:$DOCKER_TAG-debian --build-arg VERSION=$DOCKER_TAG --platform ${PLATFORMS_DEBIAN} ${PUSH_CMD}. -f Dockerfile.debian
+docker buildx build -t you54f/pact-broker-cli:$DOCKER_TAG-debian-riscv64 --build-arg BASE_IMAGE=riscv64/debian:sid-slim --build-arg VERSION=$DOCKER_TAG --platform linux/riscv64 ${PUSH_CMD}. -f Dockerfile.debian
+if [ ${PUSH_IMAGE} = "true" ]; then
+  docker buildx imagetools create --tag you54f/pact-broker-cli:$DOCKER_TAG-debian --append you54f/pact-broker-cli:$DOCKER_TAG-debian-riscv64
+fi
+docker buildx build -t you54f/pact-broker-cli:latest-debian --build-arg VERSION=$DOCKER_TAG --platform ${PLATFORMS_DEBIAN} ${PUSH_CMD}. -f Dockerfile.debian
+docker buildx build -t you54f/pact-broker-cli:latest-debian-riscv64 --build-arg BASE_IMAGE=riscv64/debian:sid-slim --build-arg VERSION=$DOCKER_TAG --platform linux/riscv64 ${PUSH_CMD}. -f Dockerfile.debian
+if [ ${PUSH_IMAGE} = "true" ]; then
+  docker buildx imagetools create --tag you54f/pact-broker-cli:latest-debian --append you54f/pact-broker-cli:latest-debian-riscv64
+fi
+
+# ghcr debian
+docker buildx build -t ghcr.io/you54f/pact-broker-cli:$DOCKER_TAG-debian --build-arg VERSION=$DOCKER_TAG --platform ${PLATFORMS_DEBIAN} ${PUSH_CMD}. -f Dockerfile.debian
+docker buildx build -t ghcr.io/you54f/pact-broker-cli:$DOCKER_TAG-debian-riscv64 --build-arg BASE_IMAGE=riscv64/debian:sid-slim --build-arg VERSION=$DOCKER_TAG --platform linux/riscv64 ${PUSH_CMD}. -f Dockerfile.debian
+if [ ${PUSH_IMAGE} = "true" ]; then
+  docker buildx imagetools create --tag ghcr.io/you54f/pact-broker-cli:$DOCKER_TAG-debian --append ghcr.io/you54f/pact-broker-cli:$DOCKER_TAG-debian-riscv64
+fi
+docker buildx build -t ghcr.io/you54f/pact-broker-cli:latest-debian --build-arg VERSION=$DOCKER_TAG --platform ${PLATFORMS_DEBIAN} ${PUSH_CMD}. -f Dockerfile.debian
+docker buildx build -t ghcr.io/you54f/pact-broker-cli:latest-debian-riscv64 --build-arg BASE_IMAGE=riscv64/debian:sid-slim --build-arg VERSION=$DOCKER_TAG --platform linux/riscv64 ${PUSH_CMD}. -f Dockerfile.debian
+if [ ${PUSH_IMAGE} = "true" ]; then
+  docker buildx imagetools create --tag ghcr.io/you54f/pact-broker-cli:latest-debian --append ghcr.io/you54f/pact-broker-cli:latest-debian-riscv64
+fi

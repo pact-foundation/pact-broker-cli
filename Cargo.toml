@@ -1,0 +1,121 @@
+[package]
+name = "pact-broker-cli"
+version = "0.0.10"
+edition = "2024"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+console = "0.16.0"
+anyhow = "1.0.40"
+# async-trait = "0.1.74"
+base64 = "0.22.1"
+# chrono = { version = "0.4.31", features = ["serde"] }
+# clap = { version = "4.5.2", features = [] }
+clap = { version = "4.5.2", features = ["derive", "env", "cargo"] }
+clap_complete = { version = "4.5.1", features = [] }
+comfy-table = "7.1.0"
+# env_logger = "0.11.2"
+futures = { version = "0.3.29", features = [] }
+glob = "0.3.0"
+# home = "0.5.5"
+# http = "0.2.9"
+# hyper = "0.14.28"
+itertools = "0.14.0"
+# junit-report = { version = "0.8.3", optional = true }
+# lazy_static = "1.4.0"
+log = "0.4.14"
+maplit = "1.0.2"
+mime = "0.3.17"
+# pact_matching = { version = "~1.1.10" }
+# pact_mock_server = { version = "~1.2.4", default-features = false }
+pact_models = { version = "~1.3.6" }
+# pact-plugin-driver = { version = "~0.5.1" }
+# pact_verifier = "~1.1.0"
+# rand = "0.8.5"
+regex = "1.10.2"
+# requestty = {version = "0.5.0", features = [] }
+serde = "1.0.219"
+serde_json = "1.0.142"
+# serde_yaml = "0.9.32"
+simplelog = "0.12.1"
+thiserror = "2.0.12"
+# time = "0.3.31"
+tokio = { version = "1.35.1", features = ['rt-multi-thread'] }
+# toml = "0.8.8"
+# tower-http = { version = "0.4.0", features =  ["add-extension","auth","catch-panic","compression-full","cors","decompression-full","follow-redirect","fs","limit","map-request-body","map-response-body","metrics","normalize-path","propagate-header","redirect","request-id","sensitive-headers","set-header","set-status","timeout","trace","util","validate-request"] }
+# tower = { version = "0.4.13", features =  ["balance" ,"buffer" ,"discover" ,"filter" ,"hedge" ,"limit" ,"load" ,"load-shed" ,"make" ,"ready-cache" ,"reconnect" ,"retry" ,"spawn-ready" ,"steer" ,"timeout" ,"util"] }
+# tower = { version = "0.4.13", features =  ["full"] }
+# tower-http = { version = "0.4.0", features = ["full"] }
+# tower = { version = "0.4.13", features =  [] }
+# tower-http = { version = "0.4.0", features = ["trace"] }
+# tower-service = { version = "0.3.2" }
+tracing = "0.1.40"
+tracing-appender = "0.2.3"
+tracing-core = "0.1.32"
+tracing-log = "0.2.0"
+tracing-subscriber = "0.3.16"
+url = "2.5.0"
+urlencoding = "2.1.3"
+uuid = { version = "1.6.1", features = ["v4"] }
+# webmachine-rust = "0.3.0"
+
+[dependencies.reqwest]
+version = "0.12.22"
+default-features = false
+features = ["rustls-tls-native-roots","native-tls-vendored", "blocking", "json", "stream"]
+
+[dependencies.serde_with]
+version = "3.4.0"
+features = ["json"]
+
+# [build-dependencies]
+# clap = {version = "4.5.2", features = ["derive", "env"]}
+# clap_complete = "4.5.1"
+
+[dev-dependencies]
+# env_logger = "0.11.3"
+expectest = "0.12.0"
+# pretty_assertions = "1.3.0"
+# quickcheck = "1"
+# rand = "0.8.5"
+# tempfile = "3.8.1"
+# test-log = "0.2.14"
+trycmd = "0.15.0"
+pact_consumer = "~1.4.2"
+
+[profile.release]
+strip = true      # Automatically strip symbols from the binary.
+opt-level = "z"   # Optimize for size.
+codegen-units = 1
+panic = "abort"
+lto = true
+#  File  .text   Size Crate
+# 68.0% 100.3% 5.5MiB [Unknown]
+# 67.8% 100.0% 5.5MiB .text section size, the file size is 8.1MiB
+
+# # lto = false
+#  File  .text   Size Crate
+# 59.8% 100.1% 6.5MiB [Unknown]
+# 59.8% 100.0% 6.5MiB .text section size, the file size is 10.9MiB
+
+[profile.release-aarch64-freebsd]
+inherits = "release"
+panic = "unwind"
+# if panic abort is set for aarch64 freebsd, it fails in cross
+# https://github.com/cross-rs/cross/issues/1363#issuecomment-1783917450
+
+# [target.'cfg(target_os = "freebsd")'.dependencies]
+# indexmap = { version = "1.9.3", features = ["std"] }
+# # requires std feature for detection with cross for aarch64-unknown-freebsd target
+# # https://github.com/tower-rs/tower/issues/466
+# # https://github.com/indexmap-rs/indexmap/pull/145
+
+
+# [lib]
+# name = "pact-broker-cli"  # Name of the library
+# crate-type = ["cdylib", "staticlib"]  # For compiling to a shared library
+
+[[bin]]
+name = "pact-broker-cli"
+path = "src/main.rs"  # Path to your main.rs file

@@ -1,0 +1,13 @@
+target
+
+
+# FFI Consumers
+
+## Python
+__pycache__/
+
+## Header files
+include/
+
+## Distribution files
+/dist

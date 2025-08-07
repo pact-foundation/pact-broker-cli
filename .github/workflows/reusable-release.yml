@@ -1,0 +1,25 @@
+on:
+  workflow_call:
+    inputs:
+      version:
+        description: 'Version of the release'
+        required: true
+        default: 'latest'
+        type: string
+jobs:
+  build_workflow:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@master
+      - name: Publish archives and packages
+        uses: softprops/action-gh-release@master
+        with:
+          tag_name: v${{ inputs.version }}
+          name: 'Release v${{ inputs.version }}'
+          generate_release_notes: false
+          body: 'Release v${{ inputs.version }}'
+          files: dist/*
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

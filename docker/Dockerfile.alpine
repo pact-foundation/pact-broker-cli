@@ -1,0 +1,54 @@
+ARG ARCH=
+ARG BASE_IMAGE=alpine:3.19
+FROM ${BASE_IMAGE} as builder
+ARG TARGETARCH
+ARG TARGETVARIANT
+ARG VERSION=0.0.9
+
+RUN if [ "$TARGETARCH" = "amd64" ]; then \
+        BIN_ARCH="x86_64"; \
+        BIN_FILE=pact-broker-cli-${BIN_ARCH}-linux-musl; \
+    elif [ "$TARGETARCH" = "386" ] || [ "$TARGETARCH" = "586" ] || [ "$TARGETARCH" = "686" ]; then \
+        BIN_ARCH="i686"; \
+        BIN_FILE=pact-broker-cli-${BIN_ARCH}-linux-musl; \
+    elif [ "$TARGETARCH" = "arm64" ]; then \
+        BIN_ARCH="aarch64"; \
+        BIN_FILE=pact-broker-cli-${BIN_ARCH}-linux-musl; \
+    elif [ "$TARGETARCH" = "s390x" ]; then \
+        BIN_ARCH="s390x"; \
+        BIN_FILE=pact-broker-cli-${BIN_ARCH}-linux-gnu; \
+        apk add --no-cache wget; \
+    elif [ "$TARGETARCH" = "riscv64" ]; then \
+        BIN_ARCH="riscv64gc"; \
+        BIN_FILE=pact-broker-cli-${BIN_ARCH}-linux-gnu; \
+    elif [ "$TARGETARCH" = "arm" ]; then \
+        echo ${TARGETVARIANT}; \
+        if [ "$TARGETVARIANT" = "v8" ]; then \
+            BIN_ARCH="arm"; \
+            BIN_FILE=pact-broker-cli-${BIN_ARCH}-linux-musleabi; \
+        elif [ "$TARGETVARIANT" = "v7" ]; then \
+            BIN_ARCH="armv7"; \
+            BIN_FILE=pact-broker-cli-${BIN_ARCH}-linux-musleabi; \
+        elif [ "$TARGETVARIANT" = "v6" ]; then \
+            BIN_ARCH="arm"; \
+            BIN_FILE=pact-broker-cli-${BIN_ARCH}-linux-musleabihf; \
+        elif [ "$TARGETVARIANT" = "v5" ]; then \
+            BIN_ARCH="armv5te"; \
+            BIN_FILE=pact-broker-cli-${BIN_ARCH}-linux-musleabi; \
+        else \
+            echo "Invalid TARGETVARIANT: ${TARGETVARIANT}"; \
+            exit 1; \
+        fi; \
+    else \
+        echo "Invalid TARGETARCH: ${TARGETARCH}"; \
+        exit 1; \
+    fi \
+    && wget -O pact-broker-cli https://github.com/you54f/pact-broker-cli/releases/download/v${VERSION}/${BIN_FILE} && \
+    chmod +x pact-broker-cli
+
+FROM --platform=linux/${TARGETARCH}${TARGETVARIANT:+/${TARGETVARIANT}} ${BASE_IMAGE}
+WORKDIR /app
+COPY --from=builder /pact-broker-cli /app/
+EXPOSE 8080
+ENTRYPOINT ["./pact-broker-cli"]
+CMD ["--help"]

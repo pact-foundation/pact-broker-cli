@@ -1,0 +1,30 @@
+#!/bin/bash
+# set -e
+
+# platforms=("linux/amd64" "linux/arm64" "linux/arm" "linux/arm/v8" "linux/arm/v7" "linux/arm/v6" "linux/i386" "linux/s390x" "linux/riscv64")
+
+# you54f/pact-broker-cli (rust)
+platforms=("linux/amd64" "linux/arm64" "linux/arm" "linux/arm/v8" "linux/arm/v7" "linux/arm/v6" "linux/i386" "linux/s390x" "linux/riscv64")
+# platforms=("linux/amd64" "linux/arm64" "linux/arm" "linux/arm/v8" "linux/arm/v7" "linux/arm/v6" "linux/i386" "linux/s390x" "linux/riscv64")
+# s390x
+# [qemu-s390x]: Could not open '/lib/ld64.so.1': No such file or directory
+# riscv64
+# [qemu-riscv64]: Could not open '/lib/ld-linux-riscv64-lp64d.so.1': No such file or directory
+
+# you54f/pact-cli (ruby)
+# platforms=("linux/amd64" "linux/arm64" "linux/arm" "linux/arm/v8" "linux/arm/v7" "linux/arm/v6" "linux/s390x" "linux/ppc64le")
+
+# you54f/pact-broker (ruby)
+# platforms=("linux/amd64" "linux/arm64" "linux/arm" "linux/arm/v8" "linux/arm/v7" "linux/arm/v6" "linux/s390x" "linux/riscv64")
+
+
+
+for platform in "${platforms[@]}"
+do
+
+  image="${1:-you54f/pact-broker-cli}"
+  tag="${2:-latest}"
+  echo "Running $image:$tag on $platform"
+  docker run --rm --platform "$platform" "$image:$tag"
+  # docker run --rm --init  -e PACT_BROKER_DATABASE_URL=sqlite:////tmp/pact_broker.sqlite --platform "$platform" "$image:$tag"
+done
