@@ -141,3 +141,234 @@ pub fn create_or_update_pacticipant(args: &clap::ArgMatches) -> Result<String, P
         Err(err) => Err(err),
     }
 }
+
+#[cfg(test)]
+mod create_or_update_pacticipant_tests {
+    use crate::cli::pact_broker::main::pacticipants::create::create_or_update_pacticipant;
+    use crate::cli::pact_broker::main::subcommands::add_create_or_update_pacticipant_subcommand;
+    use pact_consumer::builders::InteractionBuilder;
+    use pact_consumer::prelude::*;
+    use pact_models::PactSpecification;
+    use serde_json::json;
+
+    fn setup_mock_server(interactions: Vec<InteractionBuilder>) -> Box<dyn ValidatingMockServer> {
+        let config = MockServerConfig {
+            pact_specification: PactSpecification::V2,
+            ..MockServerConfig::default()
+        };
+        let mut pact_builder = PactBuilder::new("pact-broker-cli", "Pact Broker");
+        for i in interactions {
+            pact_builder.push_interaction(&i.build());
+        }
+        pact_builder.start_mock_server(None, Some(config))
+    }
+
+    #[test]
+    fn create_pacticipant_when_not_exists() {
+        let pacticipant_name = "Foo";
+        let repository_url = "http://foo";
+        let request_body = json!({
+            "name": pacticipant_name,
+            "repositoryUrl": repository_url
+        });
+
+        // Index resource with pb:pacticipants and pb:pacticipant relations
+        let index_interaction = |mut i: InteractionBuilder| {
+            i.given("the pacticipant relations are present");
+            i.request
+                .path("/")
+                .header("Accept", "application/hal+json")
+                .header("Accept", "application/json");
+            i.response
+                .header("Content-Type", "application/hal+json;charset=utf-8")
+                .json_body(json_pattern!({
+                    "_links": {
+                        "pb:pacticipants": {
+                            "href": term!("http:\\/\\/.*", "http://localhost/pacticipants")
+                        },
+                        "pb:pacticipant": {
+                            "href": term!("http:\\/\\/.*/pacticipants/\\{pacticipant\\}", "http://localhost/pacticipants/{pacticipant}")
+                        }
+                    }
+                }));
+            i
+        };
+
+        // GET /pacticipants/Foo returns 404
+        let get_pacticipant_interaction = |mut i: InteractionBuilder| {
+            i.request
+                .get()
+                .path("/pacticipants/Foo")
+                .header("Accept", "application/hal+json")
+                .header("Accept", "application/json");
+            i.response.status(404);
+            i
+        };
+
+        // POST /pacticipants creates the pacticipant
+        let create_pacticipant_interaction = |mut i: InteractionBuilder| {
+            i.request
+                .post()
+                .path("/pacticipants")
+                .header("Accept", "application/hal+json")
+                .header("Content-Type", "application/json")
+                .json_body(request_body.clone());
+            i.response
+                .status(201)
+                .header("Content-Type", "application/hal+json;charset=utf-8")
+                .json_body(json_pattern!({
+                    "name": pacticipant_name,
+                    "repositoryUrl": repository_url,
+                    "_links": {
+                        "self": {
+                            "href": term!( "http://.*","http://localhost/pacticipants/Foo")
+                        }
+                    }
+                }));
+            i
+        };
+
+        let mock_server = setup_mock_server(vec![
+            index_interaction(InteractionBuilder::new(
+                "a request for the index resource",
+                "",
+            )),
+            get_pacticipant_interaction(InteractionBuilder::new(
+                "a request to retrieve a pacticipant",
+                "",
+            )),
+            create_pacticipant_interaction(InteractionBuilder::new(
+                "a request to create a pacticipant",
+                "",
+            )),
+        ]);
+        let mock_server_url = mock_server.url();
+
+        let matches = add_create_or_update_pacticipant_subcommand()
+            .args(crate::cli::add_ssl_arguments())
+            .get_matches_from(vec![
+                "create-or-update-pacticipant",
+                "-b",
+                mock_server_url.as_str(),
+                "--name",
+                pacticipant_name,
+                "--repository-url",
+                repository_url,
+            ]);
+
+        let result = create_or_update_pacticipant(&matches);
+
+        assert!(result.is_ok());
+        assert!(result.unwrap().contains("created successfully"));
+    }
+
+    #[test]
+    fn update_pacticipant_when_exists() {
+        let pacticipant_name = "Foo";
+        let repository_url = "http://foo";
+        let request_body = json!({
+            "name": pacticipant_name,
+            "repositoryUrl": repository_url
+        });
+
+        // Index resource with pb:pacticipants and pb:pacticipant relations
+        let index_interaction = |mut i: InteractionBuilder| {
+            i.given("the pacticipant relations are present");
+            i.request
+                .path("/")
+                .header("Accept", "application/hal+json")
+                .header("Accept", "application/json");
+            i.response
+                .header("Content-Type", "application/hal+json;charset=utf-8")
+                .json_body(json_pattern!({
+                    "_links": {
+                        "pb:pacticipants": {
+                            "href": term!( "http://.*", "http://localhost/pacticipants")
+                        },
+                        "pb:pacticipant": {
+                            "href": term!("http:\\/\\/.*/pacticipants/\\{pacticipant\\}", "http://localhost/pacticipants/{pacticipant}")
+                        }
+                    }
+                }));
+            i
+        };
+
+        // GET /pacticipants/Foo returns 200
+        let get_pacticipant_interaction = |mut i: InteractionBuilder| {
+            i.given("a pacticipant with name Foo exists");
+            i.request
+                .get()
+                .path("/pacticipants/Foo")
+                .header("Accept", "application/hal+json")
+                .header("Accept", "application/json");
+            i.response
+                .status(200)
+                .header("Content-Type", "application/hal+json;charset=utf-8")
+                .json_body(json_pattern!({
+                    "_links": {
+                        "self": {
+                            "href": term!("http:\\/\\/.*", "http://localhost/pacticipants/Foo")
+                        }
+                    }
+                }));
+            i
+        };
+
+        // PATCH /pacticipants/Foo updates the pacticipant
+        let update_pacticipant_interaction = |mut i: InteractionBuilder| {
+            i.given("a pacticipant with name Foo exists");
+            i.request
+                .method("PATCH")
+                .path("/pacticipants/Foo")
+                .header("Accept", "application/hal+json")
+                .header("Content-Type", "application/merge-patch+json")
+                .json_body(request_body.clone());
+            i.response
+                .status(200)
+                .header("Content-Type", "application/hal+json;charset=utf-8")
+                .json_body(json_pattern!({
+                    "name": pacticipant_name,
+                    "repositoryUrl": repository_url,
+                    "_links": {
+                        "self": {
+                            "href": term!("http:\\/\\/.*", "http://localhost/pacticipants/Foo")
+                        }
+                    }
+                }));
+            i
+        };
+
+        let mock_server = setup_mock_server(vec![
+            index_interaction(InteractionBuilder::new(
+                "a request for the index resource",
+                "",
+            )),
+            get_pacticipant_interaction(InteractionBuilder::new(
+                "a request to retrieve a pacticipant",
+                "",
+            )),
+            update_pacticipant_interaction(InteractionBuilder::new(
+                "a request to update a pacticipant",
+                "",
+            )),
+        ]);
+        let mock_server_url = mock_server.url();
+
+        let matches = add_create_or_update_pacticipant_subcommand()
+            .args(crate::cli::add_ssl_arguments())
+            .get_matches_from(vec![
+                "create-or-update-pacticipant",
+                "-b",
+                mock_server_url.as_str(),
+                "--name",
+                pacticipant_name,
+                "--repository-url",
+                repository_url,
+            ]);
+
+        let result = create_or_update_pacticipant(&matches);
+
+        assert!(result.is_ok());
+        assert!(result.unwrap().contains("updated successfully"));
+    }
+}
