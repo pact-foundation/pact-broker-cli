@@ -10,4 +10,4 @@ runs:
       if: runner.os == 'windows'
       shell: powershell
       run: |
-        "$pwd\pact\bin\" >> $env:GITHUB_PATH
+        "$pwd" >> $env:GITHUB_PATH

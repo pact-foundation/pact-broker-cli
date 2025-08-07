@@ -113,14 +113,14 @@ echo "Downloading:"
 echo "-------------"
 ($downloader https://github.com/you54f/pact-broker-cli/releases/download/"${PACT_BROKER_CLI_VERSION}"/"${filename}" && echo downloaded "${filename}") || (echo "Sorry, you'll need to install the pact-broker-cli manually." && exit 1)
 (chmod +x "${filename}" && echo unarchived "${filename}") || (echo "Sorry, you'll need to unarchived the pact-broker-cli manually." && exit 1)
-echo "pact-broker-cli ${PACT_BROKER_CLI_VERSION} installed to $(pwd)/pact"
+echo "pact-broker-cli ${PACT_BROKER_CLI_VERSION} installed to $(pwd)"
 echo "-------------------"
 echo "available commands:"
 echo "-------------------"
 PROJECT_NAME=pact-broker-cli
 PACT_BROKER_CLI_BIN_PATH=${PWD}
 mv $filename $PROJECT_NAME
-
+chmod +x $PROJECT_NAME
 if [ "$GITHUB_ENV" ]; then
 echo "Added the following to your path to make ${PROJECT_NAME} available:"
 echo ""
