@@ -11,3 +11,5 @@ include/
 
 ## Distribution files
 /dist
+pact-broker-cli
+pact-broker-cli.exe

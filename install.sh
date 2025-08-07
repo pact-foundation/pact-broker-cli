@@ -100,16 +100,16 @@ esac
 
 case $os in
 *'windows'*)
-  filename="pact-${PACT_BROKER_CLI_VERSION#v}-${os}.exe"
+  filename="pact-broker-cli-${os}.exe"
   ;;
 *'macos'* | *'linux'*)
-  filename="pact-${PACT_BROKER_CLI_VERSION#v}-${os}"
+  filename="pact-broker-cli-${os}"
   ;;
 esac
 
 echo 
 echo "-------------"
-echo "Downloading:"
+echo "Downloading ${filename} - version ${PACT_BROKER_CLI_VERSION}"
 echo "-------------"
 ($downloader https://github.com/you54f/pact-broker-cli/releases/download/"${PACT_BROKER_CLI_VERSION}"/"${filename}" && echo downloaded "${filename}") || (echo "Sorry, you'll need to install the pact-broker-cli manually." && exit 1)
 (chmod +x "${filename}" && echo unarchived "${filename}") || (echo "Sorry, you'll need to unarchived the pact-broker-cli manually." && exit 1)
