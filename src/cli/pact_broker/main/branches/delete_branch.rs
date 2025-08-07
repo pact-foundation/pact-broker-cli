@@ -91,7 +91,7 @@ mod delete_branch_tests {
         };
         let pacticipant = "Foo";
         let branch = "main";
-        let pact_broker_service = PactBuilder::new("pact_broker_cli", "Pact Broker")
+        let pact_broker_service = PactBuilder::new("pact-broker-cli", "Pact Broker")
             .interaction("a request for the index resource", "", |mut i| {
                 i.given("the pb:pacticipant-branch relation exists in the index resource");
                 i.request

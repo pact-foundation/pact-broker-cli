@@ -30,6 +30,5 @@
 
 ## General
 
-1. Rename to pact_broker_cli
-2. Add tests for all commands
-3. Verify each pact against pact broker (branch pact_broker_cli)
+1. Add tests for all commands
+2. Verify each pact against pact broker (branch pact_broker_cli)

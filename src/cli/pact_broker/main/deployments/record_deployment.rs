@@ -193,7 +193,7 @@ mod record_deployment_tests {
             pacticipant_name, version_number, "16926ef3-590f-4e3f-838e-719717aa88c9"
         );
 
-        let pact_broker_service = PactBuilder::new("pact_broker_cli", "Pact Broker")
+        let pact_broker_service = PactBuilder::new("pact-broker-cli", "Pact Broker")
             // Pacticipant version with test environment available for deployment
             .interaction("a request for a pacticipant version", "", |mut i| {
                 i.given("version 5556b8149bf8bac76bc30f50a8a2dd4c22c85f30 of pacticipant Foo exists with a test environment available for deployment");
@@ -281,7 +281,7 @@ mod record_deployment_tests {
             pacticipant_name, version_number, "16926ef3-590f-4e3f-838e-719717aa88c9"
         );
 
-        let pact_broker_service = PactBuilder::new("pact_broker_cli", "Pact Broker")
+        let pact_broker_service = PactBuilder::new("pact-broker-cli", "Pact Broker")
             .interaction("a request for a pacticipant version", "", |mut i| {
                 i.given("version 5556b8149bf8bac76bc30f50a8a2dd4c22c85f30 of pacticipant Foo exists with a test environment available for deployment");
                 i.request
@@ -361,7 +361,7 @@ mod record_deployment_tests {
         let pacticipant_name = "Foo";
         let version_number = "5556b8149bf8bac76bc30f50a8a2dd4c22c85f30";
         let environment_name = "foo"; // not available
-        let pact_broker_service = PactBuilder::new("pact_broker_cli", "Pact Broker")
+        let pact_broker_service = PactBuilder::new("pact-broker-cli", "Pact Broker")
             .interaction("a request for a pacticipant version", "", |mut i| {
                 i.given("version 5556b8149bf8bac76bc30f50a8a2dd4c22c85f30 of pacticipant Foo exists with 2 environments that aren't test available for deployment");
                 i.request

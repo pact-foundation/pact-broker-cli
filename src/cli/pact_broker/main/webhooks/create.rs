@@ -232,7 +232,7 @@ mod create_webhook_tests {
             }
         });
 
-        let pact_broker_service = PactBuilder::new("pact_broker_cli", "PactFlow")
+        let pact_broker_service = PactBuilder::new("pact-broker-cli", "PactFlow")
             .interaction("a request for the index resource", "", |mut i| {
                 i.given("the pb:webhooks relation exists in the index resource");
                 i.request

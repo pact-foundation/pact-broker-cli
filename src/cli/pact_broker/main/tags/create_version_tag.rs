@@ -137,7 +137,7 @@ mod create_version_tag_tests {
 
         let (status, body) = build_tag_response(201);
 
-        let pact_broker_service = PactBuilder::new("pact_broker_cli", "Pact Broker")
+        let pact_broker_service = PactBuilder::new("pact-broker-cli", "Pact Broker")
             .interaction("a request to check the production version of Condor", "", |mut i| {
                 i.given("'Condor' exists in the pact-broker");
                 i.request
@@ -182,7 +182,7 @@ mod create_version_tag_tests {
 
         let (status, body) = build_tag_response(201);
 
-        let pact_broker_service = PactBuilder::new("pact_broker_cli", "PactFlow")
+        let pact_broker_service = PactBuilder::new("pact-broker-cli", "PactFlow")
             .interaction("a request to check the production version of Condor", "", |mut i| {
                 i.given("'Condor' does not exist in the pact-broker");
                 i.request
@@ -227,7 +227,7 @@ mod create_version_tag_tests {
 
         let (status, body) = build_tag_response(200);
 
-        let pact_broker_service = PactBuilder::new("pact_broker_cli", "PactFlow")
+        let pact_broker_service = PactBuilder::new("pact-broker-cli", "PactFlow")
             .interaction("a request to check the production version of Condor", "", |mut i| {
                 i.given("'Condor' exists in the pact-broker with version 1.3.0, tagged with 'prod'");
                 i.request
