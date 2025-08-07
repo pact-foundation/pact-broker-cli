@@ -12,8 +12,8 @@
 - [ ] create_or_update_pacticipant
 - [ ] describe_pacticipant
 - [ ] list_pacticipants
-- [ ] create_webhook
-- [ ] create_or_update_webhook
+- [X] create_webhook
+- [X] create_or_update_webhook
 - [ ] test_webhook
 - [X] create_version_tag
 - [ ] describe_version
