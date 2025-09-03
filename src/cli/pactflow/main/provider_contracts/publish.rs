@@ -15,108 +15,82 @@ use crate::cli::{
 
 #[derive(Default, Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
-pub struct ProviderContractPublishRoot {
+struct ProviderContractPublishRoot {
     #[serde(rename = "_embedded")]
-    pub embedded: Embedded,
+    embedded: Embedded,
     #[serde(rename = "_links")]
-    pub links: Links3,
-    pub notices: Vec<Notice>,
+    links: Links,
+    notices: Vec<Notice>,
 }
 
 #[derive(Default, Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 struct Embedded {
-    pub pacticipant: Pacticipant,
-    pub version: Version,
+    pacticipant: Pacticipant,
+    version: Version,
 }
 
 #[derive(Default, Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 struct Pacticipant {
-    #[serde(rename = "_links")]
-    pub links: Links,
-    pub name: String,
+    name: String,
 }
 
 #[derive(Default, Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
-struct Links {
-    #[serde(rename = "self")]
-    pub self_field: Self_field,
-}
-
-#[derive(Default, Debug, Clone, PartialEq, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
-struct Self_field {
-    pub href: String,
+struct SelfField {
+    href: String,
 }
 
 #[derive(Default, Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 struct Version {
-    #[serde(rename = "_links")]
-    pub links: Links2,
-    pub number: String,
+    number: String,
 }
 
 #[derive(Default, Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
-struct Links2 {
-    #[serde(rename = "self")]
-    pub self_field: Self_field2,
-}
-
-#[derive(Default, Debug, Clone, PartialEq, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
-struct Self_field2 {
-    pub href: String,
-    pub name: String,
-    pub title: String,
-}
-
-#[derive(Default, Debug, Clone, PartialEq, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
-struct Links3 {
+struct Links {
     #[serde(rename = "pb:pacticipant")]
-    pub pb_pacticipant: PbPacticipant,
+    pb_pacticipant: PbPacticipant,
     #[serde(rename = "pb:pacticipant-version")]
-    pub pb_pacticipant_version: PbPacticipantVersion,
+    pb_pacticipant_version: PbPacticipantVersion,
     #[serde(rename = "pb:pacticipant-version-tags")]
-    pub pb_pacticipant_version_tags: Vec<Value>,
+    pb_pacticipant_version_tags: Vec<Value>,
     #[serde(rename = "pf:provider-contract")]
-    pub pf_provider_contract: PfProviderContract,
+    pf_provider_contract: PfProviderContract,
 }
 
 #[derive(Default, Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 struct PbPacticipant {
-    pub href: String,
-    pub name: String,
-    pub title: String,
+    href: String,
+    name: String,
+    title: String,
 }
 
 #[derive(Default, Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 struct PbPacticipantVersion {
-    pub href: String,
-    pub name: String,
-    pub title: String,
+    href: String,
+    name: String,
+    title: String,
 }
 
 #[derive(Default, Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 struct PfProviderContract {
-    pub href: String,
-    pub name: String,
-    pub title: String,
+    href: String,
+    name: String,
+    title: String,
 }
 
 #[derive(Default, Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 struct Notice {
-    pub text: String,
+    text: String,
     #[serde(rename = "type")]
-    pub type_field: String,
+    type_field: String,
 }
 
 pub fn publish(args: &ArgMatches) -> Result<Value, i32> {

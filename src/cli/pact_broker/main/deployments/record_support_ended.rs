@@ -50,11 +50,6 @@ pub fn record_support_ended(args: &clap::ArgMatches) -> Result<String, PactBroke
                 struct Environment {
                     uuid: String,
                     name: String,
-                    #[serde(rename = "displayName")]
-                    display_name: String,
-                    production: bool,
-                    #[serde(rename = "createdAt")]
-                    created_at: String,
                     }
 
                 let res = hal_client.clone()
@@ -114,7 +109,7 @@ pub fn record_support_ended(args: &clap::ArgMatches) -> Result<String, PactBroke
                                                             // let pacticipant_query = format!("?pacticipant={}", urlencoding::encode(pacticipant.unwrap()));
                                                             let res = hal_client.clone().patch_json(self_href, &payload.to_string()).await;
                                                             match res {
-                                                                Ok(value) => {
+                                                                Ok(_value) => {
                                                                     // Handle success
                                                                     print!("✅ ♻️ Recorded support ended {} from {} environment", utils::GREEN.apply_to(pacticipant.unwrap()), utils::GREEN.apply_to(environment.unwrap()));
                                                                 }

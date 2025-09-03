@@ -42,11 +42,6 @@ pub fn record_undeployment(args: &clap::ArgMatches) -> Result<String, PactBroker
             struct Environment {
                 uuid: String,
                 name: String,
-                #[serde(rename = "displayName")]
-                display_name: String,
-                production: bool,
-                #[serde(rename = "createdAt")]
-                created_at: String,
             }
 
         let pb_environments_href_path = get_broker_relation(

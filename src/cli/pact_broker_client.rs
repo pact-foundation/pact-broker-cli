@@ -36,7 +36,6 @@ use crate::pact_broker::main::subcommands::{
     add_test_webhook_subcommand, add_update_environment_subcommand,
 };
 use clap::{ArgMatches, Command};
-use tracing::debug;
 pub fn add_pact_broker_client_command() -> Command {
     Command::new("pact-broker")
         .args(crate::cli::add_output_arguments(

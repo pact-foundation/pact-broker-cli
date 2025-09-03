@@ -28,93 +28,29 @@ struct Notice {
 #[derive(Debug, serde::Deserialize)]
 struct Version {
     number: String,
-    branch: String,
-    branches: Vec<Branch>,
-    #[serde(rename = "branchVersions")]
-    branch_versions: Vec<BranchVersion>,
-    environments: Vec<Environment>,
-    _links: Links,
-    tags: Vec<Tag>,
-}
-
-#[derive(Debug, serde::Deserialize)]
-struct Branch {
-    name: String,
-    latest: Option<bool>,
-    _links: Links,
-}
-
-#[derive(Debug, serde::Deserialize)]
-struct BranchVersion {
-    name: String,
-    latest: Option<bool>,
-    _links: Links,
-}
-
-#[derive(Debug, serde::Deserialize)]
-struct Environment {
-    uuid: String,
-    name: String,
-    #[serde(rename = "displayName")]
-    display_name: String,
-    production: Option<bool>,
-    #[serde(rename = "createdAt")]
-    created_at: String,
-    _links: Links,
-}
-
-#[derive(Debug, serde::Deserialize)]
-struct Links {
-    #[serde(rename = "self")]
-    self_link: SelfLink,
-}
-
-#[derive(Debug, serde::Deserialize)]
-struct SelfLink {
-    href: String,
-}
-
-#[derive(Debug, serde::Deserialize)]
-struct Tag {
-    name: String,
-    latest: Option<bool>,
-    _links: Links,
 }
 
 #[derive(Debug, serde::Deserialize)]
 struct Consumer {
     name: String,
     version: Option<Version>,
-    _links: Links,
 }
 
 #[derive(Debug, serde::Deserialize)]
 struct Provider {
     name: String,
     version: Option<Version>,
-    _links: Links,
-}
-
-#[derive(Debug, serde::Deserialize)]
-struct Pact {
-    #[serde(rename = "createdAt")]
-    created_at: String,
-    _links: Links,
 }
 
 #[derive(Debug, serde::Deserialize)]
 struct VerificationResult {
     success: Option<bool>,
-    #[serde(rename = "verifiedAt")]
-    verified_at: Option<String>,
-    _links: Links,
 }
 
 #[derive(Debug, serde::Deserialize)]
 struct MatrixItem {
     consumer: Consumer,
     provider: Provider,
-    pact: Pact,
     #[serde(rename = "verificationResult")]
     verification_result: Option<VerificationResult>,
 }

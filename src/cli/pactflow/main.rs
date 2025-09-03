@@ -1,2 +1,2 @@
-pub mod subcommands;
 pub mod provider_contracts;
+pub mod subcommands;

@@ -1,11 +1,10 @@
-use pact_models::message;
 use serde::{Deserialize, Serialize};
 use serde_json::{Value, json};
 
 use crate::cli::{
     pact_broker::main::{
         HALClient, PactBrokerError,
-        utils::{get_auth, get_broker_url, get_ssl_options, handle_error},
+        utils::{get_auth, get_broker_url, get_ssl_options},
     },
     utils,
 };

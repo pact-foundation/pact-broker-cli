@@ -220,7 +220,8 @@ pub fn publish_pacts(args: &ArgMatches) -> Result<Value, i32> {
         Ok(publish_pact_href) => {
             let mut consumer_app_version = args.get_one::<String>("consumer-app-version");
             let mut branch = args.get_one::<String>("branch");
-            let auto_detect_version_properties: bool = args.get_flag("auto-detect-version-properties");
+            let auto_detect_version_properties: bool =
+                args.get_flag("auto-detect-version-properties");
             let tag_with_git_branch = args.get_flag("tag-with-git-branch");
             let build_url = args.get_one::<String>("build-url");
             let (git_commit, git_branch);
