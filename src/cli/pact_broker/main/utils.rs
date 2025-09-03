@@ -192,17 +192,23 @@ pub async fn get_broker_relation(
     match index_res {
         Ok(_) => {
             let index_res_clone = index_res.clone().unwrap();
-            Ok(index_res_clone
+            let relation_value = index_res_clone
                 .get("_links")
                 .unwrap()
-                .get(relation)
-                .unwrap()
-                .get("href")
-                .unwrap()
-                .to_string()
-                .to_string()
-                .replace("\"", "")
-                .to_string())
+                .get(&relation);
+
+            if relation_value.is_none() {
+                return Err(PactBrokerError::NotFound(format!("Could not find relation '{}'", &relation)));
+            }
+
+            Ok(
+                relation_value
+                    .unwrap()
+                    .get("href")
+                    .unwrap()
+                    .to_string()
+                    .replace("\"", "")
+            )
         }
         Err(err) => {
             return Err(err);

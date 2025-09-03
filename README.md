@@ -1306,7 +1306,7 @@ Generate a UUID for use when calling create-or-update-webhook
 $ pact-broker-cli pactflow publish-provider-contract --help
 Publish provider contract to PactFlow
 
-Usage: pact-broker-cli pactflow publish-provider-contract [OPTIONS] --broker-base-url <PACT_BROKER_BASE_URL> --provider-app-version <PROVIDER_APP_VERSION> <CONTRACT_FILE>
+Usage: pact-broker-cli pactflow publish-provider-contract [OPTIONS] --broker-base-url <PACT_BROKER_BASE_URL> --provider <PROVIDER> <CONTRACT_FILE>
 
 Arguments:
   <CONTRACT_FILE>  The contract file(s)
@@ -1326,13 +1326,13 @@ Options:
           The provider application version
       --branch <BRANCH>
           Repository branch of the provider version
-  -t, --tag [<TAG>]
-          Tag name for provider version. Can be specified multiple times.
+  -t, --tag [<tag>...]
+          Tag name for provider version. Can be specified multiple times (delimiter ,).
       --specification <SPECIFICATION>
           The contract specification [default: oas]
       --content-type <CONTENT_TYPE>
           The content type. eg. application/yml
-      --verification-success <verification-success>
+      --verification-success
           Whether or not the self verification passed successfully.
       --verification-exit-code <N>
           The exit code of the verification process. Can be used instead of --verification-success|--no-verification-success for a simpler build script.
@@ -1348,6 +1348,10 @@ Options:
           The version of the tool used to verify the provider contract
       --build-url <BUILD_URL>
           The build URL that created the provider contract
+  -r, --auto-detect-version-properties
+          Automatically detect the repository commit, branch and build URL from known CI environment variables or git CLI. Supports Buildkite, Circle CI, Travis CI, GitHub Actions, Jenkins, Hudson, AppVeyor, GitLab, CodeShip, Bitbucket and Azure DevOps.
+      --tag-with-git-branch
+          Tag provider version with the name of the current git branch. Supports Buildkite, Circle CI, Travis CI, GitHub Actions, Jenkins, Hudson, AppVeyor, GitLab, CodeShip, Bitbucket and Azure DevOps.
   -o, --output <OUTPUT>
           Value must be one of ["json", "text"] [default: text] [possible values: json, text]
   -v, --verbose

@@ -27,7 +27,7 @@ use super::verification::{VerificationResult, display_results, verify_json};
 
 #[derive(Default, Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
-pub struct Root {
+struct Root {
     #[serde(rename = "_embedded")]
     pub embedded: Embedded,
     #[serde(rename = "_links")]
@@ -38,14 +38,14 @@ pub struct Root {
 
 #[derive(Default, Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
-pub struct Embedded {
+struct Embedded {
     pub pacticipant: Pacticipant,
     pub version: Version,
 }
 
 #[derive(Default, Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
-pub struct Pacticipant {
+struct Pacticipant {
     #[serde(rename = "_links")]
     pub links: Links,
     pub name: String,
@@ -53,20 +53,20 @@ pub struct Pacticipant {
 
 #[derive(Default, Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
-pub struct Links {
+struct Links {
     #[serde(rename = "self")]
     pub self_field: SelfField,
 }
 
 #[derive(Default, Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
-pub struct SelfField {
+struct SelfField {
     pub href: String,
 }
 
 #[derive(Default, Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
-pub struct Version {
+struct Version {
     #[serde(rename = "_links")]
     pub links: Links2,
     pub number: String,
@@ -74,14 +74,14 @@ pub struct Version {
 
 #[derive(Default, Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
-pub struct Links2 {
+struct Links2 {
     #[serde(rename = "self")]
     pub self_field: SelfField2,
 }
 
 #[derive(Default, Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
-pub struct SelfField2 {
+struct SelfField2 {
     pub href: String,
     pub name: String,
     pub title: String,
@@ -89,7 +89,7 @@ pub struct SelfField2 {
 
 #[derive(Default, Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
-pub struct Links3 {
+struct Links3 {
     #[serde(rename = "pb:contracts")]
     pub pb_contracts: Vec<Contract>,
     #[serde(rename = "pb:pacticipant")]
@@ -102,7 +102,7 @@ pub struct Links3 {
 
 #[derive(Default, Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
-pub struct Contract {
+struct Contract {
     pub href: String,
     pub name: String,
     pub title: String,
@@ -110,7 +110,7 @@ pub struct Contract {
 
 #[derive(Default, Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
-pub struct PbPacticipant {
+struct PbPacticipant {
     pub href: String,
     pub name: String,
     pub title: String,
@@ -118,7 +118,7 @@ pub struct PbPacticipant {
 
 #[derive(Default, Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
-pub struct PbPacticipantVersion {
+struct PbPacticipantVersion {
     pub href: String,
     pub name: String,
     pub title: String,
@@ -126,7 +126,7 @@ pub struct PbPacticipantVersion {
 
 #[derive(Default, Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
-pub struct Log {
+struct Log {
     pub deprecation_warning: String,
     pub level: String,
     pub message: String,
@@ -134,7 +134,7 @@ pub struct Log {
 
 #[derive(Default, Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
-pub struct Notice {
+struct Notice {
     pub text: String,
     #[serde(rename = "type")]
     pub type_field: String,
@@ -167,7 +167,7 @@ pub fn handle_matches(args: &ArgMatches) -> Result<Vec<VerificationResult>, i32>
     }
 }
 
-fn get_git_branch() -> String {
+pub fn get_git_branch() -> String {
     let git_branch_output = std::process::Command::new("git")
         .arg("rev-parse")
         .arg("--abbrev-ref")
@@ -180,7 +180,7 @@ fn get_git_branch() -> String {
     return git_branch.to_string();
 }
 
-fn get_git_commit() -> String {
+pub fn get_git_commit() -> String {
     let git_commit_output = std::process::Command::new("git")
         .arg("rev-parse")
         .arg("HEAD")
@@ -220,12 +220,18 @@ pub fn publish_pacts(args: &ArgMatches) -> Result<Value, i32> {
         Ok(publish_pact_href) => {
             let mut consumer_app_version = args.get_one::<String>("consumer-app-version");
             let mut branch = args.get_one::<String>("branch");
-            let auto_detect_version_properties = args.get_flag("auto-detect-version-properties");
-            let _tag_with_git_branch = args.get_flag("tag-with-git-branch");
+            let auto_detect_version_properties: bool = args.get_flag("auto-detect-version-properties");
+            let tag_with_git_branch = args.get_flag("tag-with-git-branch");
             let build_url = args.get_one::<String>("build-url");
-            let git_commit = get_git_commit();
-            let git_branch = get_git_branch();
-            if auto_detect_version_properties == true {
+            let (git_commit, git_branch);
+            if auto_detect_version_properties {
+                git_commit = get_git_commit();
+                git_branch = get_git_branch();
+            } else {
+                git_commit = "".to_string();
+                git_branch = "".to_string();
+            }
+            if auto_detect_version_properties {
                 if consumer_app_version == None {
                     consumer_app_version = Some(&git_commit);
                     println!(
@@ -294,6 +300,15 @@ pub fn publish_pacts(args: &ArgMatches) -> Result<Value, i32> {
                                     .push(serde_json::Value::String(tag.to_string()));
                             }
                         };
+                        if tag_with_git_branch {
+                            if !payload.get("tags").map_or(false, |v| v.is_array()) {
+                                payload["tags"] = serde_json::Value::Array(vec![]);
+                            }
+                            payload["tags"]
+                                .as_array_mut()
+                                .unwrap()
+                                .push(serde_json::Value::String(get_git_branch().to_string()));
+                        }
 
                         payload["contracts"] = serde_json::Value::Array(vec![json!({
                           "consumerName": consumer_name,
