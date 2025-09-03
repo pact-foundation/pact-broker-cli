@@ -1334,6 +1334,8 @@ Options:
           The content type. eg. application/yml
       --verification-success
           Whether or not the self verification passed successfully.
+      --no-verification-success
+          Whether or not the self verification failed.
       --verification-exit-code <N>
           The exit code of the verification process. Can be used instead of --verification-success|--no-verification-success for a simpler build script.
       --verification-results <VERIFICATION_RESULTS>

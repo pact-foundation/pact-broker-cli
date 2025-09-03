@@ -118,7 +118,6 @@ pub fn publish(args: &ArgMatches) -> Result<Value, i32> {
         )
         .await
     });
-    // parse link url provider with provider_name
 
     match publish_contract_href_path {
         Ok(publish_contract_href) => {
@@ -178,7 +177,24 @@ pub fn publish(args: &ArgMatches) -> Result<Value, i32> {
             let publish_contract_href = publish_contract_href.replace("{provider}", provider_name);
 
             // Verification results
-            let verification_success = args.get_flag("verification-success");
+            let verification_exit_code = args.get_one::<String>("verification-exit-code");
+            let verification_success = if args.contains_id("verification-success")
+                && args.get_flag("verification-success")
+            {
+                true
+            } else if args.contains_id("no-verification-success")
+                && args.get_flag("no-verification-success")
+            {
+                false
+            } else if let Some(exit_code_str) = verification_exit_code {
+                match exit_code_str.parse::<i32>() {
+                    Ok(code) => code == 0,
+                    Err(_) => false,
+                }
+            } else {
+                false
+            };
+
             let verification_results = args.get_one::<String>("verification-results");
             let verification_results_content_type =
                 args.get_one::<String>("verification-results-content-type");

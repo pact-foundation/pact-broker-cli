@@ -7,6 +7,9 @@ use clap_complete::{Shell, generate_to};
 use std::str::FromStr;
 
 pub fn main() {
+    if std::env::var("PACT_LOG_LEVEL").is_ok() {
+        let _ = cli::utils::setup_loggers(&std::env::var("PACT_LOG_LEVEL").unwrap());
+    }
     let app = cli::build_cli();
     let matches = app.clone().try_get_matches();
     match matches {

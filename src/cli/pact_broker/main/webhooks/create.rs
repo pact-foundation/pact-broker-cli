@@ -192,7 +192,6 @@ mod create_webhook_tests {
     use crate::cli::pact_broker::main::subcommands::{
         add_create_or_update_webhook_subcommand, add_create_webhook_subcommand,
     };
-    use clap::Arg;
     use pact_consumer::builders::InteractionBuilder;
     use pact_consumer::prelude::*;
     use pact_models::PactSpecification;
@@ -517,7 +516,7 @@ mod create_webhook_tests {
     // this test fails as url is a required param and the test seeks to remove it
     // so we need to modify the subcommand to make it optional
     fn create_webhook_invalid_missing_url() {
-        let mut request_body = json!({
+        let request_body = json!({
             "description": "a webhook",
             "events": [ { "name": "contract_content_changed" } ],
             "request": {

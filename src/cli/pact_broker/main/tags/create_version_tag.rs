@@ -91,8 +91,6 @@ mod create_version_tag_tests {
     use crate::cli::pact_broker::main::tags::create_version_tag::create_version_tag;
     use pact_consumer::prelude::*;
     use pact_models::PactSpecification;
-    use serde_json::Value;
-    use serde_json::json;
 
     fn setup_args(
         pacticipant: &str,
@@ -185,7 +183,7 @@ mod create_version_tag_tests {
             .start_mock_server(None, Some(config));
 
         let broker_url = pact_broker_service.url();
-        let mut args = setup_args(pacticipant, version, tag, broker_url.as_str(), None);
+        let args = setup_args(pacticipant, version, tag, broker_url.as_str(), None);
 
         let result = create_version_tag(&args);
         assert!(result.is_ok());
@@ -239,7 +237,7 @@ mod create_version_tag_tests {
             .start_mock_server(None, Some(config));
 
         let broker_url = pact_broker_service.url();
-        let mut args = setup_args(pacticipant, version, tag, broker_url.as_str(), Some(&true));
+        let args = setup_args(pacticipant, version, tag, broker_url.as_str(), Some(&true));
 
         let result = create_version_tag(&args);
         assert!(result.is_ok());
@@ -303,7 +301,7 @@ mod create_version_tag_tests {
             .start_mock_server(None, Some(config));
 
         let broker_url = pact_broker_service.url();
-        let mut args = setup_args(pacticipant, version, tag, broker_url.as_str(), None);
+        let args = setup_args(pacticipant, version, tag, broker_url.as_str(), None);
 
         let result = create_version_tag(&args);
         assert!(result.is_ok());

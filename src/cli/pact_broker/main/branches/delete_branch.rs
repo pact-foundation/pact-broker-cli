@@ -78,9 +78,7 @@ mod delete_branch_tests {
     use crate::cli::pact_broker::main::branches::delete_branch::delete_branch;
     use crate::cli::pact_broker::main::subcommands::add_delete_branch_subcommand;
     use pact_consumer::prelude::*;
-    use pact_models::prelude::Generator;
-    use pact_models::{PactSpecification, generators, pact};
-    use serde_json::json;
+    use pact_models::PactSpecification;
 
     #[test]
     fn delete_branch_test() {
