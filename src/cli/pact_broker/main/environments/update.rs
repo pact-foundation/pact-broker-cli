@@ -245,7 +245,10 @@ mod update_environment_tests {
             //     i
             // })
             .interaction("get environment", "", |mut i| {
-                i.given(format!("an environment with name test and UUID {} exists", uuid));
+                i.given(format!(
+                    "an environment with name test and UUID {} exists",
+                    uuid
+                ));
                 i.request.get().path(format!("/environments/{}", uuid));
                 i.response
                     .status(200)
@@ -258,7 +261,10 @@ mod update_environment_tests {
                 i
             })
             .interaction("put environment", "", |mut i| {
-                i.given(format!("an environment with name test and UUID {} exists", uuid));
+                i.given(format!(
+                    "an environment with name test and UUID {} exists",
+                    uuid
+                ));
                 i.request
                     .put()
                     .path(format!("/environments/{}", uuid))
@@ -289,7 +295,10 @@ mod update_environment_tests {
         let result = update_environment(&matches);
         assert!(result.is_ok());
         let msg = result.unwrap();
-        assert!(msg.contains(&format!("Updated {} environment in the Pact Broker", utils::GREEN.apply_to("new name"))));
+        assert!(msg.contains(&format!(
+            "Updated {} environment in the Pact Broker",
+            utils::GREEN.apply_to("new name")
+        )));
     }
 
     #[test]
@@ -324,7 +333,10 @@ mod update_environment_tests {
             // })
             .interaction("get environment", "", |mut i| {
                 i.request.get().path(format!("/environments/{}", uuid));
-                i.given(format!("an environment with name test and UUID {} exists", uuid));
+                i.given(format!(
+                    "an environment with name test and UUID {} exists",
+                    uuid
+                ));
                 i.response
                     .status(200)
                     .header("Content-Type", "application/hal+json;charset=utf-8")
@@ -336,7 +348,10 @@ mod update_environment_tests {
                 i
             })
             .interaction("put environment", "", |mut i| {
-                i.given(format!("an environment with name test and UUID {} exists", uuid));
+                i.given(format!(
+                    "an environment with name test and UUID {} exists",
+                    uuid
+                ));
                 i.request
                     .put()
                     .path(format!("/environments/{}", uuid))
@@ -432,7 +447,10 @@ mod update_environment_tests {
             //     i
             // })
             .interaction("get environment", "", |mut i| {
-                i.given(format!("an environment with name test and UUID {} exists", uuid));
+                i.given(format!(
+                    "an environment with name test and UUID {} exists",
+                    uuid
+                ));
                 i.request.get().path(format!("/environments/{}", uuid));
                 i.response
                     .status(404)
@@ -492,7 +510,10 @@ mod update_environment_tests {
             //     i
             // })
             .interaction("get environment", "", |mut i| {
-                i.given(format!("an environment with name test and UUID {} exists", uuid));
+                i.given(format!(
+                    "an environment with name test and UUID {} exists",
+                    uuid
+                ));
                 i.request.get().path(format!("/environments/{}", uuid));
                 i.response
                     .status(200)
@@ -506,7 +527,10 @@ mod update_environment_tests {
             })
             .interaction("put environment responds with error", "", |mut i| {
                 i.pending(true); // "consumer side testing only - does not require provider verification"
-                i.given(format!("an environment with name test and UUID {} exists", uuid));
+                i.given(format!(
+                    "an environment with name test and UUID {} exists",
+                    uuid
+                ));
                 i.request.put().path(format!("/environments/{}", uuid));
                 i.response
                     .status(400)
