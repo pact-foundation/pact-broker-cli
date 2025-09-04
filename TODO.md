@@ -3,7 +3,7 @@
 ## Pact Tests
 
 - [ ] publish_pacts
-- [ ] update_environment
+- [X] update_environment
 - [ ] delete_environment
 - [ ] describe_environment
 - [ ] record_support_ended
