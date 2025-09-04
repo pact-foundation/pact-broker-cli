@@ -107,7 +107,7 @@ pub fn record_support_ended(args: &clap::ArgMatches) -> Result<String, PactBroke
                                                             let mut payload = json!({});
                                                             payload["currentlySupported"] = serde_json::Value::Bool(false);
                                                             // let pacticipant_query = format!("?pacticipant={}", urlencoding::encode(pacticipant.unwrap()));
-                                                            let res = hal_client.clone().patch_json(self_href, &payload.to_string()).await;
+                                                            let res = hal_client.clone().patch_json(self_href, &payload.to_string(),None).await;
                                                             match res {
                                                                 Ok(_value) => {
                                                                     // Handle success

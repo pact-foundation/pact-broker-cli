@@ -33,7 +33,9 @@ pub fn create_or_update_version(args: &clap::ArgMatches) -> Result<String, PactB
             );
             let branch_data = serde_json::json!({ "name": branch });
             let branch_data_str = branch_data.to_string();
-            let res = hal_client.put_json(&branch_href, &branch_data_str).await;
+            let res = hal_client
+                .put_json(&branch_href, &branch_data_str, None)
+                .await;
             res?;
             println!(
                 "Branch '{}' created for version '{}'",
@@ -50,7 +52,7 @@ pub fn create_or_update_version(args: &clap::ArgMatches) -> Result<String, PactB
             );
             let tag_data = serde_json::json!({ "name": tag });
             let tag_data_str = tag_data.to_string();
-            let res = hal_client.put_json(&tag_href, &tag_data_str).await;
+            let res = hal_client.put_json(&tag_href, &tag_data_str, None).await;
             res?;
             println!("Tag '{}' created for version '{}'", tag, version_number);
         }
@@ -58,7 +60,9 @@ pub fn create_or_update_version(args: &clap::ArgMatches) -> Result<String, PactB
         if tags.is_empty() && branch_name.is_none() {
             let version_data = serde_json::json!({});
             let version_data_str = version_data.to_string();
-            let res = hal_client.put_json(&version_href, &version_data_str).await;
+            let res = hal_client
+                .put_json(&version_href, &version_data_str, None)
+                .await;
             match res {
                 Ok(_) => {
                     println!(

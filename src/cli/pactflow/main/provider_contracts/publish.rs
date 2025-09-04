@@ -26,7 +26,7 @@ struct ProviderContractPublishRoot {
 #[derive(Default, Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 struct Embedded {
-    pacticipant: Pacticipant,
+    // pacticipant: Pacticipant,
     version: Version,
 }
 
@@ -51,14 +51,14 @@ struct Version {
 #[derive(Default, Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 struct Links {
-    #[serde(rename = "pb:pacticipant")]
-    pb_pacticipant: PbPacticipant,
-    #[serde(rename = "pb:pacticipant-version")]
-    pb_pacticipant_version: PbPacticipantVersion,
+    // #[serde(rename = "pb:pacticipant")]
+    // pb_pacticipant: PbPacticipant,
+    // #[serde(rename = "pb:pacticipant-version")]
+    // pb_pacticipant_version: PbPacticipantVersion,
     #[serde(rename = "pb:pacticipant-version-tags")]
     pb_pacticipant_version_tags: Vec<Value>,
-    #[serde(rename = "pf:provider-contract")]
-    pf_provider_contract: PfProviderContract,
+    // #[serde(rename = "pf:provider-contract")]
+    // pf_provider_contract: PfProviderContract,
 }
 
 #[derive(Default, Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -118,7 +118,7 @@ pub fn publish(args: &ArgMatches) -> Result<Value, i32> {
         )
         .await
     });
-
+    println!("🔍 Using broker: {}", broker_url);
     match publish_contract_href_path {
         Ok(publish_contract_href) => {
             let provider_name = args
@@ -286,7 +286,18 @@ pub fn publish(args: &ArgMatches) -> Result<Value, i32> {
             let res = tokio::runtime::Runtime::new().unwrap().block_on(async {
                 hal_client
                     .clone()
-                    .post_json(&(publish_contract_href), &payload.to_string())
+                    .post_json(
+                        &(publish_contract_href),
+                        &payload.to_string(),
+                        Some({
+                            let mut headers = std::collections::HashMap::new();
+                            headers.insert(
+                                "Accept".to_string(),
+                                "application/problem+json".to_string(),
+                            );
+                            headers
+                        }),
+                    )
                     .await
             });
             match res {
@@ -296,8 +307,7 @@ pub fn publish(args: &ArgMatches) -> Result<Value, i32> {
                             let json = serde_json::to_string_pretty(&res).unwrap();
                             println!("{}", json);
                         } else if output == "json" {
-                            let json: String = serde_json::to_string(&res.clone()).unwrap();
-                            println!("{}", json);
+                            return Ok(res.clone());
                         } else {
                             let parsed_res =
                                 serde_json::from_value::<ProviderContractPublishRoot>(res);
@@ -347,5 +357,171 @@ pub fn publish(args: &ArgMatches) -> Result<Value, i32> {
             handle_error(err);
             return Err(1);
         }
+    }
+}
+
+#[cfg(test)]
+mod publish_provider_contract_tests {
+    use crate::cli::pactflow::main::provider_contracts::publish::publish;
+    use crate::cli::pactflow::main::subcommands::add_publish_provider_contract_subcommand;
+    use base64::{Engine, engine::general_purpose::STANDARD as Base64};
+    use pact_consumer::prelude::*;
+    use pact_models::prelude::Generator;
+    use pact_models::{PactSpecification, generators};
+    use serde_json::json;
+
+    #[test]
+    fn publish_provider_contract_success() {
+        // Arrange
+        let provider_name = "Bar";
+        let provider_version_number = "1";
+        let branch_name = "main";
+        let tag = "dev";
+        let build_url = "http://build";
+        let contract_content_yaml = "some:\n  contract";
+        let contract_content_base64 = Base64.encode(contract_content_yaml);
+        let verification_results_content = "some results";
+        let verification_results_content_base64 = Base64.encode(verification_results_content);
+
+        let request_body = json!({
+            "pacticipantVersionNumber": provider_version_number,
+            "tags": [tag],
+            "branch": branch_name,
+            "buildUrl": build_url,
+            "contract": {
+                "content": contract_content_base64,
+                "contentType": "application/yaml",
+                "specification": "oas",
+                "selfVerificationResults": {
+                    "success": true,
+                    "content": verification_results_content_base64,
+                    "contentType": "text/plain",
+                    "format": "text",
+                    "verifier": "my custom tool",
+                    "verifierVersion": "1.0"
+                }
+            }
+        });
+
+        let publish_provider_contract_path_generator = generators! {
+            "BODY" => {
+            "$._links.pb:pf:publish-provider-contract.href" => Generator::MockServerURL(
+                           format!("/contracts/publish/{}", provider_name.to_string()),
+                            ".*\\/contracts\\/publish\\/.*".to_string()
+            )
+            }
+        };
+
+        let index_response_body = json_pattern!({
+            "_links": {
+                "pf:publish-provider-contract": {
+                    "href": term!(format!(".*\\/contracts\\/publish\\/{}",provider_name), format!("http://localhost:1234/contracts/publish/{}", provider_name)),
+                }
+            }
+        });
+
+        let success_response_body = json!({
+            "notices": [
+                { "text": "some notice", "type": "info" }
+            ],
+            "_embedded": {
+                "version": {
+                    "number": provider_version_number
+                }
+            },
+            "_links": {
+                "pb:pacticipant-version-tags": [json!({})],
+                "pb:branch-version": json!({})
+            }
+        });
+
+        let config = MockServerConfig {
+            pact_specification: PactSpecification::V2,
+            ..MockServerConfig::default()
+        };
+
+        let pact_broker_service = PactBuilder::new("pact-broker-cli", "Pact Broker")
+            .interaction("a request for the index resource", "", |mut i| {
+                i.given("the pb:publish-provider-contract relation exists in the index resource");
+                i.request
+                    .get()
+                    .path("/")
+                    .header("Accept", "application/hal+json")
+                    .header("Accept", "application/json");
+                i.response
+                    .status(200)
+                    .header("Content-Type", "application/hal+json;charset=utf-8")
+                    .json_body(index_response_body)
+                    .generators()
+                    .add_generators(publish_provider_contract_path_generator);
+                i
+            })
+            .interaction("a request to publish a provider contract", "", |mut i| {
+                i.request
+                    .post()
+                    .path(format!("/contracts/publish/{}", provider_name))
+                    .header("Content-Type", "application/json")
+                    .header("Accept", "application/hal+json,application/problem+json")
+                    .json_body(request_body.clone());
+                i.response
+                    .status(200)
+                    .header("Content-Type", "application/hal+json;charset=utf-8")
+                    .json_body(success_response_body.clone());
+                i
+            })
+            .start_mock_server(None, Some(config));
+
+        let mock_server_url = pact_broker_service.url();
+
+        // Arrange - set up the command line arguments
+        let matches = add_publish_provider_contract_subcommand()
+            .args(crate::cli::add_ssl_arguments())
+            .get_matches_from(vec![
+                "publish-provider-contract",
+                "tests/fixtures/provider-contract.yaml",
+                "-b",
+                mock_server_url.as_str(),
+                "--provider",
+                provider_name,
+                "--provider-app-version",
+                provider_version_number,
+                "--branch",
+                branch_name,
+                "--tag",
+                tag,
+                "--build-url",
+                build_url,
+                // "--specification",
+                // "oas",
+                "--content-type",
+                "application/yaml",
+                "--verification-success",
+                "--verification-results",
+                verification_results_content,
+                "--verification-results-content-type",
+                "text/plain",
+                "--verification-results-format",
+                "text",
+                "--verifier",
+                "my custom tool",
+                "--verifier-version",
+                "1.0",
+                "--output",
+                "json",
+            ]);
+
+        // Act
+        let result = publish(&matches);
+
+        // Assert
+        assert!(result.is_ok());
+        let value = result.unwrap();
+        assert!(value.is_object());
+        let notices = value.get("notices").unwrap();
+        assert!(notices.is_array());
+        assert!(notices[0]["text"].as_str().unwrap().contains("some notice"));
+        let embedded = value.get("_embedded").unwrap();
+        let version = embedded.get("version").unwrap();
+        assert_eq!(version.get("number").unwrap(), provider_version_number);
     }
 }

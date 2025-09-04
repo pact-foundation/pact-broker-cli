@@ -108,7 +108,7 @@ pub fn record_undeployment(args: &clap::ArgMatches) -> Result<String, PactBroker
                                                         let mut payload = json!({});
                                                         payload["currentlyDeployed"] = serde_json::Value::Bool(false);
                                                         // let pacticipant_query = format!("?pacticipant={}", urlencoding::encode(pacticipant.unwrap()));
-                                                        let res = hal_client.clone().patch_json(self_href, &payload.to_string()).await;
+                                                        let res = hal_client.clone().patch_json(self_href, &payload.to_string(),None).await;
                                                         match res {
                                                             Ok(_) => {
                                                                 // Handle success

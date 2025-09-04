@@ -70,7 +70,7 @@ pub fn record_release(args: &clap::ArgMatches) -> Result<String, PactBrokerError
                                 // <- "{\"applicationInstance\":\"foo\",\"target\":\"foo\"}"
 
                                 let payload = json!({});
-                                let res: Result<Value, PactBrokerError> = hal_client.clone().post_json(&(record_release_href.clone()), &payload.to_string()).await;
+                                let res: Result<Value, PactBrokerError> = hal_client.clone().post_json(&(record_release_href.clone()), &payload.to_string(), None).await;
                                 let default_output = "text".to_string();
                                 let output = args.get_one::<String>("output").unwrap_or(&default_output);
                                 match res {

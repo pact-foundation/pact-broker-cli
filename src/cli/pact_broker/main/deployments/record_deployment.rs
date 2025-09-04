@@ -68,7 +68,7 @@ pub fn record_deployment(args: &clap::ArgMatches) -> Result<String, PactBrokerEr
                                     if let Some(application_instance) = application_instance {
                                         payload["applicationInstance"] = serde_json::Value::String(application_instance.to_string());
                                     }
-                                    let res: Result<Value, PactBrokerError> = hal_client.clone().post_json(&(link_record_deployment_href.clone()), &payload.to_string()).await;
+                                    let res: Result<Value, PactBrokerError> = hal_client.clone().post_json(&(link_record_deployment_href.clone()), &payload.to_string(), None).await;
                                     let default_output = "text".to_string();
                                     let output = args.get_one::<String>("output").unwrap_or(&default_output);
                                     match res {

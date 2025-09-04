@@ -82,7 +82,11 @@ pub fn create_environment(args: &clap::ArgMatches) -> Result<String, PactBrokerE
         }
 
         let res = hal_client
-            .post_json(&pb_environments_href_path, &json!(payload).to_string())
+            .post_json(
+                &pb_environments_href_path,
+                &json!(payload).to_string(),
+                None,
+            )
             .await;
 
         let default_output: String = "text".to_string();

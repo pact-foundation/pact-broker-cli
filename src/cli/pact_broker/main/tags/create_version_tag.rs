@@ -52,7 +52,7 @@ pub fn create_version_tag(args: &clap::ArgMatches) -> Result<String, PactBrokerE
                     let tag_data = serde_json::json!({ "name": tag });
                     let tag_data_str = tag_data.to_string();
                     let tag_post_result = hal_client
-                        .put_json(&tag_href, &tag_data_str)
+                        .put_json(&tag_href, &tag_data_str, None)
                         .await
                         .map_err(|e| {
                             PactBrokerError::IoError(format!(

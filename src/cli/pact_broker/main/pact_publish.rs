@@ -326,7 +326,7 @@ pub fn publish_pacts(args: &ArgMatches) -> Result<Value, i32> {
                         let res = tokio::runtime::Runtime::new().unwrap().block_on(async {
                             hal_client
                                 .clone()
-                                .post_json(&(publish_pact_href), &payload.to_string())
+                                .post_json(&(publish_pact_href), &payload.to_string(), None)
                                 .await
                         });
                         match res {

@@ -97,7 +97,7 @@ pub fn update_environment(args: &clap::ArgMatches) -> Result<String, PactBrokerE
             }
         }
         let res = hal_client
-            .put_json(&(environments_href), &payload.to_string())
+            .put_json(&(environments_href), &payload.to_string(), None)
             .await;
 
         let columns = vec![

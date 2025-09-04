@@ -62,7 +62,7 @@ pub fn test_webhook(args: &clap::ArgMatches) -> Result<String, PactBrokerError> 
             pb_webhooks_href_path, webhook_data_str
         );
         hal_client
-            .post_json(&pb_webhooks_href_path, &webhook_data_str)
+            .post_json(&pb_webhooks_href_path, &webhook_data_str, None)
             .await
     });
 

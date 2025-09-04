@@ -167,9 +167,9 @@ pub fn create_webhook(args: &clap::ArgMatches) -> Result<String, PactBrokerError
         }
         let webhook_data_str = webhook_data.to_string();
         if webhook_uuid.is_some(){
-            hal_client.put_json(&pb_webhooks_href_path, &webhook_data_str).await
+            hal_client.put_json(&pb_webhooks_href_path, &webhook_data_str,None).await
         }else {
-            hal_client.post_json(&pb_webhooks_href_path, &webhook_data_str).await
+            hal_client.post_json(&pb_webhooks_href_path, &webhook_data_str,None).await
         }
     });
 

@@ -70,7 +70,7 @@ pub fn create_or_update_pacticipant(args: &clap::ArgMatches) -> Result<String, P
 
                 let pacticipant_data_str = pacticipant_data.to_string();
                 hal_client
-                    .patch_json(&pacticipant_href, &pacticipant_data_str)
+                    .patch_json(&pacticipant_href, &pacticipant_data_str, None)
                     .await
                     .map_err(|e| {
                         PactBrokerError::IoError(format!(
@@ -116,7 +116,7 @@ pub fn create_or_update_pacticipant(args: &clap::ArgMatches) -> Result<String, P
 
                 let pacticipant_data_str = pacticipant_data.to_string();
                 hal_client
-                    .post_json(&pacticipants_href, &pacticipant_data_str)
+                    .post_json(&pacticipants_href, &pacticipant_data_str, None)
                     .await
                     .map_err(|e| {
                         PactBrokerError::IoError(format!(

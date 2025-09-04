@@ -11,10 +11,10 @@ use futures::stream::*;
 use itertools::Itertools;
 use maplit::hashmap;
 
-use pact_models::http_utils;
 use pact_models::http_utils::HttpAuth;
 use pact_models::json_utils::json_to_string;
 use pact_models::pact::{Pact, load_pact_from_json};
+use pact_models::{headers, http_utils};
 use regex::{Captures, Regex};
 use reqwest::{Method, Url};
 use serde::{Deserialize, Serialize};
@@ -561,29 +561,32 @@ impl HALClient {
         &self,
         url: &str,
         body: &str,
+        headers: Option<HashMap<String, String>>,
     ) -> Result<serde_json::Value, PactBrokerError> {
         trace!("post_json(url='{}', body='{}')", url, body);
 
-        self.send_document(url, body, Method::POST).await
+        self.send_document(url, body, Method::POST, headers).await
     }
 
     pub async fn put_json(
         &self,
         url: &str,
         body: &str,
+        headers: Option<HashMap<String, String>>,
     ) -> Result<serde_json::Value, PactBrokerError> {
         trace!("put_json(url='{}', body='{}')", url, body);
 
-        self.send_document(url, body, Method::PUT).await
+        self.send_document(url, body, Method::PUT, headers).await
     }
     pub async fn patch_json(
         &self,
         url: &str,
         body: &str,
+        headers: Option<HashMap<String, String>>,
     ) -> Result<serde_json::Value, PactBrokerError> {
         trace!("put_json(url='{}', body='{}')", url, body);
 
-        self.send_document(url, body, Method::PATCH).await
+        self.send_document(url, body, Method::PATCH, headers).await
     }
 
     async fn send_document(
@@ -591,6 +594,7 @@ impl HALClient {
         url: &str,
         body: &str,
         method: Method,
+        headers: Option<HashMap<String, String>>,
     ) -> Result<Value, PactBrokerError> {
         let method_type = method.clone();
         debug!("Sending JSON to {} using {}: {}", url, method, body);
@@ -618,6 +622,18 @@ impl HALClient {
         }
         .header("Accept", "application/hal+json")
         .body(body.to_string());
+
+        // Add any additional headers if provided
+
+        let request_builder = if let Some(ref headers) = headers {
+            headers
+                .iter()
+                .fold(request_builder, |builder, (key, value)| {
+                    builder.header(key.as_str(), value.as_str())
+                })
+        } else {
+            request_builder
+        };
 
         let request_builder = if method_type == Method::PATCH {
             request_builder.header("Content-Type", "application/merge-patch+json")
@@ -835,6 +851,7 @@ pub async fn fetch_pacts_dynamically_from_broker(
     consumer_version_selectors: Vec<ConsumerVersionSelector>,
     auth: Option<HttpAuth>,
     ssl_options: SslOptions,
+    headers: Option<HashMap<String, String>>,
 ) -> anyhow::Result<
     Vec<
         Result<
@@ -890,7 +907,7 @@ pub async fn fetch_pacts_dynamically_from_broker(
             let link = hal_client.clone().parse_link_url(&link, &hashmap! {})?;
             match hal_client
                 .clone()
-                .post_json(link.as_str(), request_body.as_str())
+                .post_json(link.as_str(), request_body.as_str(), headers)
                 .await
             {
                 Ok(res) => Some(res),
@@ -1009,6 +1026,7 @@ async fn publish_provider_tags(
     links: &[Link],
     provider_tags: Vec<String>,
     version: &str,
+    headers: Option<HashMap<String, String>>,
 ) -> Result<(), PactBrokerError> {
     let hal_client = hal_client
         .clone()
@@ -1030,6 +1048,7 @@ async fn publish_provider_tags(
                             .parse_link_url(&link, &template_values)?
                             .as_str(),
                         "{}",
+                        headers.clone(),
                     )
                     .await
                 {
@@ -1056,6 +1075,7 @@ async fn publish_provider_branch(
     links: &[Link],
     branch: &str,
     version: &str,
+    headers: Option<HashMap<String, String>>,
 ) -> Result<(), PactBrokerError> {
     let hal_client = hal_client
         .clone()
@@ -1069,7 +1089,7 @@ async fn publish_provider_branch(
         "branch".to_string() => branch.to_string(),
         "version".to_string() => version.to_string(),
       };
-      match hal_client.clone().put_json(hal_client.clone().parse_link_url(&link, &template_values)?.as_str(), "{}").await {
+      match hal_client.clone().put_json(hal_client.clone().parse_link_url(&link, &template_values)?.as_str(), "{}",headers).await {
         Ok(_) => debug!("Pushed branch {} for provider version {}", branch, version),
         Err(err) => {
           error!("Failed to push branch {} for provider version {}", branch, version);
