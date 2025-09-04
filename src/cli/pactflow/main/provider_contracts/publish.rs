@@ -440,7 +440,7 @@ mod publish_provider_contract_tests {
             ..MockServerConfig::default()
         };
 
-        let pact_broker_service = PactBuilder::new("pact-broker-cli", "Pact Broker")
+        let pact_broker_service = PactBuilder::new("pact-broker-cli", "PactFlow")
             .interaction("a request for the index resource", "", |mut i| {
                 i.given("the pb:publish-provider-contract relation exists in the index resource");
                 i.request

@@ -146,7 +146,7 @@ mod create_version_tag_tests {
 
         let pact_broker_service = PactBuilder::new("pact-broker-cli", "Pact Broker")
             .interaction(
-                "a request to check the production version of Condor",
+                "a request to tag the production version of Condor",
                 "",
                 |mut i| {
                     i.given("'Condor' exists in the pact-broker");
@@ -204,7 +204,7 @@ mod create_version_tag_tests {
 
         let (status, body) = build_tag_response(201);
 
-        let pact_broker_service = PactBuilder::new("pact-broker-cli", "PactFlow")
+        let pact_broker_service = PactBuilder::new("pact-broker-cli", "Pact Broker")
             .interaction(
                 "a request to check the production version of Condor",
                 "",
@@ -226,7 +226,8 @@ mod create_version_tag_tests {
                     i.request.put().path(format!(
                         "/pacticipants/{}/versions/{}/tags/{}",
                         pacticipant, version, tag
-                    ));
+                    ))
+                    .header("Content-Type", "application/json");
                     i.response
                         .status(status)
                         .header("Content-Type", "application/hal+json;charset=utf-8")
