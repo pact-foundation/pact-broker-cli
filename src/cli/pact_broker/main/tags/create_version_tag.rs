@@ -52,7 +52,7 @@ pub fn create_version_tag(args: &clap::ArgMatches) -> Result<String, PactBrokerE
                     let tag_data = serde_json::json!({ "name": tag });
                     let tag_data_str = tag_data.to_string();
                     let tag_post_result = hal_client
-                        .put_json(&tag_href, &tag_data_str)
+                        .put_json(&tag_href, &tag_data_str, None)
                         .await
                         .map_err(|e| {
                             PactBrokerError::IoError(format!(
@@ -91,8 +91,6 @@ mod create_version_tag_tests {
     use crate::cli::pact_broker::main::tags::create_version_tag::create_version_tag;
     use pact_consumer::prelude::*;
     use pact_models::PactSpecification;
-    use serde_json::Value;
-    use serde_json::json;
 
     fn setup_args(
         pacticipant: &str,
@@ -148,7 +146,7 @@ mod create_version_tag_tests {
 
         let pact_broker_service = PactBuilder::new("pact-broker-cli", "Pact Broker")
             .interaction(
-                "a request to check the production version of Condor",
+                "a request to tag the production version of Condor",
                 "",
                 |mut i| {
                     i.given("'Condor' exists in the pact-broker");
@@ -185,7 +183,7 @@ mod create_version_tag_tests {
             .start_mock_server(None, Some(config));
 
         let broker_url = pact_broker_service.url();
-        let mut args = setup_args(pacticipant, version, tag, broker_url.as_str(), None);
+        let args = setup_args(pacticipant, version, tag, broker_url.as_str(), None);
 
         let result = create_version_tag(&args);
         assert!(result.is_ok());
@@ -206,7 +204,7 @@ mod create_version_tag_tests {
 
         let (status, body) = build_tag_response(201);
 
-        let pact_broker_service = PactBuilder::new("pact-broker-cli", "PactFlow")
+        let pact_broker_service = PactBuilder::new("pact-broker-cli", "Pact Broker")
             .interaction(
                 "a request to check the production version of Condor",
                 "",
@@ -225,10 +223,13 @@ mod create_version_tag_tests {
                 "",
                 |mut i| {
                     i.given("'Condor' does not exist in the pact-broker");
-                    i.request.put().path(format!(
-                        "/pacticipants/{}/versions/{}/tags/{}",
-                        pacticipant, version, tag
-                    ));
+                    i.request
+                        .put()
+                        .path(format!(
+                            "/pacticipants/{}/versions/{}/tags/{}",
+                            pacticipant, version, tag
+                        ))
+                        .header("Content-Type", "application/json");
                     i.response
                         .status(status)
                         .header("Content-Type", "application/hal+json;charset=utf-8")
@@ -239,7 +240,7 @@ mod create_version_tag_tests {
             .start_mock_server(None, Some(config));
 
         let broker_url = pact_broker_service.url();
-        let mut args = setup_args(pacticipant, version, tag, broker_url.as_str(), Some(&true));
+        let args = setup_args(pacticipant, version, tag, broker_url.as_str(), Some(&true));
 
         let result = create_version_tag(&args);
         assert!(result.is_ok());
@@ -303,7 +304,7 @@ mod create_version_tag_tests {
             .start_mock_server(None, Some(config));
 
         let broker_url = pact_broker_service.url();
-        let mut args = setup_args(pacticipant, version, tag, broker_url.as_str(), None);
+        let args = setup_args(pacticipant, version, tag, broker_url.as_str(), None);
 
         let result = create_version_tag(&args);
         assert!(result.is_ok());

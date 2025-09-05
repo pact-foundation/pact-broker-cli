@@ -14,7 +14,7 @@ pub fn record_deployment(args: &clap::ArgMatches) -> Result<String, PactBrokerEr
     let pacticipant = args.get_one::<String>("pacticipant");
     let environment = args.get_one::<String>("environment");
     let application_instance = args.get_one::<String>("application-instance");
-    let broker_url = get_broker_url(args);
+    let broker_url = get_broker_url(args).trim_end_matches('/').to_string();
     let auth = get_auth(args);
     let ssl_options = get_ssl_options(args);
     tokio::runtime::Runtime::new().unwrap().block_on(async {
@@ -22,7 +22,7 @@ pub fn record_deployment(args: &clap::ArgMatches) -> Result<String, PactBrokerEr
 
                 let res = hal_client.clone()
                     .fetch(
-                        &(broker_url.clone().trim_end_matches('/').to_string()
+                        &(broker_url.clone()
                             + "/pacticipants/"
                             + &pacticipant.unwrap()
                             + "/versions/"
@@ -68,7 +68,7 @@ pub fn record_deployment(args: &clap::ArgMatches) -> Result<String, PactBrokerEr
                                     if let Some(application_instance) = application_instance {
                                         payload["applicationInstance"] = serde_json::Value::String(application_instance.to_string());
                                     }
-                                    let res: Result<Value, PactBrokerError> = hal_client.clone().post_json(&(link_record_deployment_href.clone()), &payload.to_string()).await;
+                                    let res: Result<Value, PactBrokerError> = hal_client.clone().post_json(&(link_record_deployment_href.clone()), &payload.to_string(), None).await;
                                     let default_output = "text".to_string();
                                     let output = args.get_one::<String>("output").unwrap_or(&default_output);
                                     match res {

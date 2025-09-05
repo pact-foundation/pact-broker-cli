@@ -2,8 +2,9 @@ use clap::{Arg, Command};
 
 pub mod pact_broker;
 pub mod pact_broker_client;
+pub mod pactflow;
 pub mod pactflow_client;
-mod utils;
+pub mod utils;
 
 pub fn build_cli() -> Command {
     let app = Command::new("pact-broker-cli")

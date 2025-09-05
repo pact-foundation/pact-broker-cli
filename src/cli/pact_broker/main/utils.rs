@@ -1,12 +1,12 @@
 //! Utility functions
 
+use std::collections::HashMap;
 use std::time::Duration;
-use std::{collections::HashMap, panic::RefUnwindSafe};
 
 use comfy_table::{Table, presets::UTF8_FULL};
 use futures::StreamExt;
 use maplit::hashmap;
-use pact_models::{http_utils::HttpAuth, interaction::Interaction};
+use pact_models::http_utils::HttpAuth;
 use reqwest::RequestBuilder;
 use serde_json::Value;
 use tokio::time::sleep;
@@ -97,18 +97,18 @@ pub(crate) async fn with_retries(
     }
 }
 
-pub(crate) fn as_safe_ref(
-    interaction: &dyn Interaction,
-) -> Box<dyn Interaction + Send + Sync + RefUnwindSafe> {
-    if let Some(v4) = interaction.as_v4_sync_message() {
-        Box::new(v4)
-    } else if let Some(v4) = interaction.as_v4_async_message() {
-        Box::new(v4)
-    } else {
-        let v4 = interaction.as_v4_http().unwrap();
-        Box::new(v4)
-    }
-}
+// pub(crate) fn as_safe_ref(
+//     interaction: &dyn Interaction,
+// ) -> Box<dyn Interaction + Send + Sync + RefUnwindSafe> {
+//     if let Some(v4) = interaction.as_v4_sync_message() {
+//         Box::new(v4)
+//     } else if let Some(v4) = interaction.as_v4_async_message() {
+//         Box::new(v4)
+//     } else {
+//         let v4 = interaction.as_v4_http().unwrap();
+//         Box::new(v4)
+//     }
+// }
 
 pub(crate) fn generate_table(res: &Value, columns: Vec<&str>, names: Vec<Vec<&str>>) -> Table {
     let mut table = Table::new();
@@ -192,17 +192,21 @@ pub async fn get_broker_relation(
     match index_res {
         Ok(_) => {
             let index_res_clone = index_res.clone().unwrap();
-            Ok(index_res_clone
-                .get("_links")
-                .unwrap()
-                .get(relation)
+            let relation_value = index_res_clone.get("_links").unwrap().get(&relation);
+
+            if relation_value.is_none() {
+                return Err(PactBrokerError::NotFound(format!(
+                    "Could not find relation '{}'",
+                    &relation
+                )));
+            }
+
+            Ok(relation_value
                 .unwrap()
                 .get("href")
                 .unwrap()
                 .to_string()
-                .to_string()
-                .replace("\"", "")
-                .to_string())
+                .replace("\"", ""))
         }
         Err(err) => {
             return Err(err);
@@ -271,5 +275,5 @@ pub(crate) fn handle_error(err: PactBrokerError) -> PactBrokerError {
             println!("❌ {}", err);
         }
     }
-    std::process::exit(1);
+    PactBrokerError::from(err)
 }

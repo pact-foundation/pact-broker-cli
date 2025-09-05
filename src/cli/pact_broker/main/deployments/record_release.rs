@@ -1,11 +1,10 @@
-use pact_models::message;
 use serde::{Deserialize, Serialize};
 use serde_json::{Value, json};
 
 use crate::cli::{
     pact_broker::main::{
         HALClient, PactBrokerError,
-        utils::{get_auth, get_broker_url, get_ssl_options, handle_error},
+        utils::{get_auth, get_broker_url, get_ssl_options},
     },
     utils,
 };
@@ -21,7 +20,7 @@ pub fn record_release(args: &clap::ArgMatches) -> Result<String, PactBrokerError
     let version = args.get_one::<String>("version");
     let pacticipant = args.get_one::<String>("pacticipant");
     let environment = args.get_one::<String>("environment");
-    let broker_url = get_broker_url(args);
+    let broker_url = get_broker_url(args).trim_end_matches('/').to_string();
     let auth = get_auth(args);
     let ssl_options = get_ssl_options(args);
     tokio::runtime::Runtime::new().unwrap().block_on(async {
@@ -29,7 +28,7 @@ pub fn record_release(args: &clap::ArgMatches) -> Result<String, PactBrokerError
             // todo add trim_end_matches to broker url arg parse
             let res = hal_client.clone()
                 .fetch(
-                    &(broker_url.clone().to_string().trim_end_matches('/').to_string()
+                    &(broker_url.clone()
                         + "/pacticipants/"
                         + &pacticipant.unwrap()
                         + "/versions/"
@@ -71,7 +70,7 @@ pub fn record_release(args: &clap::ArgMatches) -> Result<String, PactBrokerError
                                 // <- "{\"applicationInstance\":\"foo\",\"target\":\"foo\"}"
 
                                 let payload = json!({});
-                                let res: Result<Value, PactBrokerError> = hal_client.clone().post_json(&(record_release_href.clone()), &payload.to_string()).await;
+                                let res: Result<Value, PactBrokerError> = hal_client.clone().post_json(&(record_release_href.clone()), &payload.to_string(), None).await;
                                 let default_output = "text".to_string();
                                 let output = args.get_one::<String>("output").unwrap_or(&default_output);
                                 match res {

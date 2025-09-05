@@ -10,8 +10,8 @@ use crate::cli::pact_broker::main::{
     },
 };
 
-pub fn describe_versions(args: &clap::ArgMatches) -> Result<String, PactBrokerError> {
-    let broker_url = get_broker_url(args);
+pub fn describe_version(args: &clap::ArgMatches) -> Result<String, PactBrokerError> {
+    let broker_url = get_broker_url(args).trim_end_matches('/').to_string();
     let auth = get_auth(args);
     let ssl_options = get_ssl_options(args);
 
@@ -96,5 +96,289 @@ pub fn describe_versions(args: &clap::ArgMatches) -> Result<String, PactBrokerEr
         ))),
 
         Err(err) => Err(err),
+    }
+}
+
+#[cfg(test)]
+mod describe_version_tests {
+    use super::describe_version;
+    use crate::cli::{
+        add_ssl_arguments, pact_broker::main::subcommands::add_describe_version_subcommand,
+    };
+    use pact_consumer::prelude::*;
+    use pact_models::PactSpecification;
+    use serde_json::json;
+
+    #[test]
+    fn describe_version_returns_version_and_tags_as_table() {
+        // Arrange
+        let config = MockServerConfig {
+            pact_specification: PactSpecification::V2,
+            ..MockServerConfig::default()
+        };
+
+        let pacticipant_name = "Condor";
+        let version_number = "1.3.0";
+        let tag_name = "prod";
+
+        let version_path = format!(
+            "/pacticipants/{}/versions/{}",
+            pacticipant_name, version_number
+        );
+
+        let pact_broker_service = PactBuilder::new("pact-broker-cli", "Pact Broker")
+            .interaction("a request for the index resource for records_undeployment_successfully", "", |mut i| {
+                i.given("the pb:pacticipant-version relation exists in the index resource");
+                i.request
+                    .path("/")
+                    .header("Accept", "application/hal+json")
+                    .header("Accept", "application/json");
+                i.response
+                    .header("Content-Type", "application/hal+json;charset=utf-8")
+                    .json_body(json_pattern!({
+                        "_links": {
+                            "pb:pacticipant-version": {
+                                "href": term!("http:\\/\\/.*",format!("http://localhost{}",version_path)),
+                            },
+                            "pb:latest-version": {
+                                "href": term!("http:\\/\\/.*",format!("http://localhost{}",version_path)),
+                            },
+                            "pb:latest-tagged-version": {
+                                "href": term!("http:\\/\\/.*",format!("http://localhost{}",version_path)),
+                            }
+                        }
+                    }));
+                i
+            })
+            .interaction("get pacticipant version", "", |mut i| {
+                i.given(format!(
+                    "'{}' exists in the pact-broker with version {}, tagged with '{}'",
+                    pacticipant_name, version_number, tag_name
+                ));
+                i.request
+                    .method("GET")
+                    .path(version_path.clone())
+                    .header("Accept", "application/hal+json")
+                    .header("Accept", "application/json");
+                i.response
+                    .status(200)
+                    .header("Content-Type", "application/hal+json;charset=utf-8")
+                    .json_body(json!({
+                        "number": version_number,
+                        "_embedded": {
+                            "tags": [
+                                { "name": tag_name }
+                            ]
+                        }
+                    }));
+                i
+            })
+            .start_mock_server(None, Some(config));
+
+        let mock_server_url = pact_broker_service.url();
+
+        // Arrange CLI args
+        let matches = add_describe_version_subcommand()
+            .args(add_ssl_arguments())
+            .get_matches_from(vec![
+                "describe-versions",
+                "-b",
+                mock_server_url.as_str(),
+                "--pacticipant",
+                pacticipant_name,
+                "--version",
+                version_number,
+                "--output",
+                "table",
+            ]);
+
+        // Act
+        let result = describe_version(&matches);
+
+        // Assert
+        assert!(result.is_ok());
+        let output = result.unwrap();
+        println!("Output: {}", output);
+        assert!(output.contains(version_number));
+        assert!(output.contains(tag_name));
+    }
+
+    #[test]
+    fn describe_version_returns_json_output() {
+        // Arrange
+        let config = MockServerConfig {
+            pact_specification: PactSpecification::V2,
+            ..MockServerConfig::default()
+        };
+
+        let pacticipant_name = "Condor";
+        let version_number = "1.2.3";
+
+        let version_path = format!(
+            "/pacticipants/{}/versions/{}",
+            pacticipant_name, version_number
+        );
+
+        let pact_broker_service = PactBuilder::new("pact-broker-cli", "Pact Broker")
+              .interaction("a request for the index resource for records_undeployment_successfully", "", |mut i| {
+                i.given("the pb:pacticipant-version relation exists in the index resource");
+                i.request
+                    .path("/")
+                    .header("Accept", "application/hal+json")
+                    .header("Accept", "application/json");
+                i.response
+                    .header("Content-Type", "application/hal+json;charset=utf-8")
+                    .json_body(json_pattern!({
+                        "_links": {
+                            "pb:pacticipant-version": {
+                                "href": term!("http:\\/\\/.*",format!("http://localhost{}",version_path)),
+                            },
+                            "pb:latest-version": {
+                                "href": term!("http:\\/\\/.*",format!("http://localhost{}",version_path)),
+                            },
+                            "pb:latest-tagged-version": {
+                                "href": term!("http:\\/\\/.*",format!("http://localhost{}",version_path)),
+                            }
+                        }
+                    }));
+                i
+            })
+            .interaction("get pacticipant version for json", "", |mut i| {
+                i.given(format!(
+                    "'{}' exists in the pact-broker with the latest version {}",
+                    pacticipant_name, version_number
+                ));
+                i.request
+                    .method("GET")
+                    .path(version_path.clone())
+                    .header("Accept", "application/hal+json")
+                    .header("Accept", "application/json");
+                i.response
+                    .status(200)
+                    .header("Content-Type", "application/hal+json;charset=utf-8")
+                    .json_body(json!({
+                        "number": version_number,
+                        "_embedded": {
+                            "tags": []
+                        }
+                    }));
+                i
+            })
+            .start_mock_server(None, Some(config));
+
+        let mock_server_url = pact_broker_service.url();
+
+        // Arrange CLI args
+        let matches = add_describe_version_subcommand()
+            .args(add_ssl_arguments())
+            .get_matches_from(vec![
+                "describe-versions",
+                "-b",
+                mock_server_url.as_str(),
+                "--pacticipant",
+                pacticipant_name,
+                "--version",
+                version_number,
+                "--output",
+                "json",
+            ]);
+
+        // Act
+        let result = describe_version(&matches);
+
+        // Assert
+        assert!(result.is_ok());
+        let output = result.unwrap();
+        println!("Output: {}", output);
+        assert!(output.contains(version_number));
+        assert!(output.contains("\"tags\":[]"));
+    }
+
+    #[test]
+    fn describe_version_returns_not_found_error() {
+        // Arrange
+        let config = MockServerConfig {
+            pact_specification: PactSpecification::V2,
+            ..MockServerConfig::default()
+        };
+
+        let pacticipant_name = "Baz";
+        let version_number = "9.9.9";
+
+        let version_path = format!(
+            "/pacticipants/{}/versions/{}",
+            pacticipant_name, version_number
+        );
+
+        let pact_broker_service = PactBuilder::new("pact-broker-cli", "Pact Broker")
+              .interaction("a request for the index resource for records_undeployment_successfully", "", |mut i| {
+                i.given("the pb:pacticipant-version relation exists in the index resource");
+                i.request
+                    .path("/")
+                    .header("Accept", "application/hal+json")
+                    .header("Accept", "application/json");
+                i.response
+                    .header("Content-Type", "application/hal+json;charset=utf-8")
+                    .json_body(json_pattern!({
+                        "_links": {
+                            "pb:pacticipant-version": {
+                                "href": term!("http:\\/\\/.*",format!("http://localhost{}",version_path)),
+                            },
+                            "pb:latest-version": {
+                                "href": term!("http:\\/\\/.*",format!("http://localhost{}",version_path)),
+                            },
+                            "pb:latest-tagged-version": {
+                                "href": term!("http:\\/\\/.*",format!("http://localhost{}",version_path)),
+                            }
+                        }
+                    }));
+                i
+            })
+            .interaction("get non-existent pacticipant version", "", |mut i| {
+                // i.given(format!(
+                //     "no pacticipant with name {} and version {} exists",
+                //     pacticipant_name, version_number
+                // ));
+                i.request
+                    .method("GET")
+                    .path(version_path.clone())
+                    .header("Accept", "application/hal+json")
+                    .header("Accept", "application/json");
+                i.response
+                    .status(404)
+                    .header("Content-Type", "application/json;charset=utf-8")
+                    .json_body(json!({
+                        "error": "The requested document was not found on this server."
+                    }));
+                i
+            })
+            .start_mock_server(None, Some(config));
+
+        let mock_server_url = pact_broker_service.url();
+
+        // Arrange CLI args
+        let matches = add_describe_version_subcommand()
+            .args(add_ssl_arguments())
+            .get_matches_from(vec![
+                "describe-versions",
+                "-b",
+                mock_server_url.as_str(),
+                "--pacticipant",
+                pacticipant_name,
+                "--version",
+                version_number,
+                "--output",
+                "table",
+            ]);
+
+        // Act
+        let result = describe_version(&matches);
+
+        // Assert
+        assert!(result.is_err());
+        let err = result.unwrap_err();
+        let err_str = format!("{:?}", err);
+        println!("Error: {}", err_str);
+        assert!(err_str.contains("Pacticipant version not found"));
     }
 }

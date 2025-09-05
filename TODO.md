@@ -2,23 +2,25 @@
 
 ## Pact Tests
 
-- [ ] publish_pacts
-- [ ] update_environment
-- [ ] delete_environment
-- [ ] describe_environment
-- [ ] record_support_ended
-- [ ] can_i_deploy
+- [ ] can_i_deploy (ignore)
+- [ ] can_i_deploy (polling)
 - [ ] can_i_merge
-- [ ] create_or_update_pacticipant
-- [ ] describe_pacticipant
-- [ ] list_pacticipants
+- [ ] generate_uuid
+- [X] publish_pacts
+- [X] update_environment
+- [X] delete_environment
+- [X] describe_environment
+- [X] record_support_ended
+- [X] can_i_deploy
+- [X] create_or_update_pacticipant
+- [X] describe_pacticipant
+- [X] list_pacticipants
 - [X] create_webhook
 - [X] create_or_update_webhook
-- [ ] test_webhook
+- [X] test_webhook
 - [X] create_version_tag
-- [ ] describe_version
-- [ ] create_or_update_version
-- [ ] generate_uuid
+- [X] describe_version
+- [X] create_or_update_version
 - [X] list_latest_pact_versions
 - [X] create_environment
 - [X] list_environments
@@ -27,6 +29,8 @@
 - [X] record_release
 - [X] create_webhook_with_team_uuid (pactflow)
 - [X] delete_branch
+
+pact_broker_client_matrix_ignore_spec.rb
 
 ## General
 

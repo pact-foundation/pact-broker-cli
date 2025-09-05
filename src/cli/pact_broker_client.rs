@@ -18,7 +18,7 @@ use crate::cli::pact_broker::main::utils::{
     get_auth, get_broker_url, get_ssl_options, handle_error,
 };
 use crate::cli::pact_broker::main::versions::create::create_or_update_version;
-use crate::cli::pact_broker::main::versions::describe::describe_versions;
+use crate::cli::pact_broker::main::versions::describe::describe_version;
 use crate::cli::pact_broker::main::webhooks::create::create_webhook;
 use crate::cli::pact_broker::main::webhooks::test::test_webhook;
 use crate::cli::pact_broker::main::{can_i_deploy, pact_publish};
@@ -36,7 +36,6 @@ use crate::pact_broker::main::subcommands::{
     add_test_webhook_subcommand, add_update_environment_subcommand,
 };
 use clap::{ArgMatches, Command};
-use tracing::debug;
 pub fn add_pact_broker_client_command() -> Command {
     Command::new("pact-broker")
         .args(crate::cli::add_output_arguments(
@@ -73,7 +72,7 @@ pub fn add_pact_broker_client_command() -> Command {
         .subcommand(add_generate_uuid_subcommand().args(crate::cli::add_ssl_arguments()))
 }
 
-pub fn run(args: &ArgMatches) {
+pub fn run(args: &ArgMatches, raw_args: Vec<String>) {
     match args.subcommand() {
         Some(("publish", args)) => {
             let res = pact_publish::handle_matches(args);
@@ -96,7 +95,7 @@ pub fn run(args: &ArgMatches) {
         }
         Some(("list-latest-pact-versions", args)) => {
             // setup client with broker url and credentials
-            let broker_url = get_broker_url(args);
+            let broker_url = get_broker_url(args).trim_end_matches('/').to_string();
             let auth = get_auth(args);
             let ssl_options = get_ssl_options(args);
 
@@ -175,13 +174,13 @@ pub fn run(args: &ArgMatches) {
             }
         }
         Some(("can-i-deploy", args)) => {
-            let res = can_i_deploy::can_i_deploy(args, false);
+            let res = can_i_deploy::can_i_deploy(args, raw_args, false);
             if let Err(err) = res {
                 handle_error(err);
             }
         }
         Some(("can-i-merge", args)) => {
-            let res = can_i_deploy::can_i_deploy(args, true);
+            let res = can_i_deploy::can_i_deploy(args, raw_args, true);
             if let Err(err) = res {
                 handle_error(err);
             }
@@ -193,7 +192,7 @@ pub fn run(args: &ArgMatches) {
             }
         }
         Some(("describe-pacticipant", args)) => {
-            let broker_url = get_broker_url(args);
+            let broker_url = get_broker_url(args).trim_end_matches('/').to_string();
             let auth = get_auth(args);
             let ssl_options = get_ssl_options(args);
 
@@ -224,7 +223,7 @@ pub fn run(args: &ArgMatches) {
             }
         }
         Some(("list-pacticipants", args)) => {
-            let broker_url = get_broker_url(args);
+            let broker_url = get_broker_url(args).trim_end_matches('/').to_string();
             let auth = get_auth(args);
             let ssl_options = get_ssl_options(args);
 
@@ -279,7 +278,7 @@ pub fn run(args: &ArgMatches) {
             }
         }
         Some(("describe-version", args)) => {
-            let res = describe_versions(args);
+            let res = describe_version(args);
             if let Err(err) = res {
                 handle_error(err);
             }

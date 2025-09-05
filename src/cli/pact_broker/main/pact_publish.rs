@@ -27,25 +27,25 @@ use super::verification::{VerificationResult, display_results, verify_json};
 
 #[derive(Default, Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
-pub struct Root {
+struct Root {
     #[serde(rename = "_embedded")]
     pub embedded: Embedded,
     #[serde(rename = "_links")]
     pub links: Links3,
     pub logs: Vec<Log>,
-    pub notices: Vec<Notice>,
+    pub notices: Option<Vec<Notice>>,
 }
 
 #[derive(Default, Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
-pub struct Embedded {
+struct Embedded {
     pub pacticipant: Pacticipant,
     pub version: Version,
 }
 
 #[derive(Default, Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
-pub struct Pacticipant {
+struct Pacticipant {
     #[serde(rename = "_links")]
     pub links: Links,
     pub name: String,
@@ -53,20 +53,20 @@ pub struct Pacticipant {
 
 #[derive(Default, Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
-pub struct Links {
+struct Links {
     #[serde(rename = "self")]
     pub self_field: SelfField,
 }
 
 #[derive(Default, Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
-pub struct SelfField {
+struct SelfField {
     pub href: String,
 }
 
 #[derive(Default, Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
-pub struct Version {
+struct Version {
     #[serde(rename = "_links")]
     pub links: Links2,
     pub number: String,
@@ -74,14 +74,14 @@ pub struct Version {
 
 #[derive(Default, Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
-pub struct Links2 {
+struct Links2 {
     #[serde(rename = "self")]
     pub self_field: SelfField2,
 }
 
 #[derive(Default, Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
-pub struct SelfField2 {
+struct SelfField2 {
     pub href: String,
     pub name: String,
     pub title: String,
@@ -89,7 +89,7 @@ pub struct SelfField2 {
 
 #[derive(Default, Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
-pub struct Links3 {
+struct Links3 {
     #[serde(rename = "pb:contracts")]
     pub pb_contracts: Vec<Contract>,
     #[serde(rename = "pb:pacticipant")]
@@ -102,7 +102,7 @@ pub struct Links3 {
 
 #[derive(Default, Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
-pub struct Contract {
+struct Contract {
     pub href: String,
     pub name: String,
     pub title: String,
@@ -110,7 +110,7 @@ pub struct Contract {
 
 #[derive(Default, Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
-pub struct PbPacticipant {
+struct PbPacticipant {
     pub href: String,
     pub name: String,
     pub title: String,
@@ -118,7 +118,7 @@ pub struct PbPacticipant {
 
 #[derive(Default, Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
-pub struct PbPacticipantVersion {
+struct PbPacticipantVersion {
     pub href: String,
     pub name: String,
     pub title: String,
@@ -126,7 +126,7 @@ pub struct PbPacticipantVersion {
 
 #[derive(Default, Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
-pub struct Log {
+struct Log {
     pub deprecation_warning: String,
     pub level: String,
     pub message: String,
@@ -134,7 +134,7 @@ pub struct Log {
 
 #[derive(Default, Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
-pub struct Notice {
+struct Notice {
     pub text: String,
     #[serde(rename = "type")]
     pub type_field: String,
@@ -167,7 +167,7 @@ pub fn handle_matches(args: &ArgMatches) -> Result<Vec<VerificationResult>, i32>
     }
 }
 
-fn get_git_branch() -> String {
+pub fn get_git_branch() -> String {
     let git_branch_output = std::process::Command::new("git")
         .arg("rev-parse")
         .arg("--abbrev-ref")
@@ -180,7 +180,7 @@ fn get_git_branch() -> String {
     return git_branch.to_string();
 }
 
-fn get_git_commit() -> String {
+pub fn get_git_commit() -> String {
     let git_commit_output = std::process::Command::new("git")
         .arg("rev-parse")
         .arg("HEAD")
@@ -200,7 +200,7 @@ pub fn publish_pacts(args: &ArgMatches) -> Result<Value, i32> {
     }
     let files = files.map_err(|_| 1)?;
 
-    let broker_url = get_broker_url(args);
+    let broker_url = get_broker_url(args).trim_end_matches('/').to_string();
     let auth = get_auth(args);
     let ssl_options = get_ssl_options(args);
     let hal_client: HALClient =
@@ -214,18 +214,24 @@ pub fn publish_pacts(args: &ArgMatches) -> Result<Value, i32> {
         )
         .await
     });
-    println!("🔗 Broker URL: {:?}", publish_pact_href_path);
 
     match publish_pact_href_path {
         Ok(publish_pact_href) => {
             let mut consumer_app_version = args.get_one::<String>("consumer-app-version");
             let mut branch = args.get_one::<String>("branch");
-            let auto_detect_version_properties = args.get_flag("auto-detect-version-properties");
-            let _tag_with_git_branch = args.get_flag("tag-with-git-branch");
+            let auto_detect_version_properties: bool =
+                args.get_flag("auto-detect-version-properties");
+            let tag_with_git_branch = args.get_flag("tag-with-git-branch");
             let build_url = args.get_one::<String>("build-url");
-            let git_commit = get_git_commit();
-            let git_branch = get_git_branch();
-            if auto_detect_version_properties == true {
+            let (git_commit, git_branch);
+            if auto_detect_version_properties {
+                git_commit = get_git_commit();
+                git_branch = get_git_branch();
+            } else {
+                git_commit = "".to_string();
+                git_branch = "".to_string();
+            }
+            if auto_detect_version_properties {
                 if consumer_app_version == None {
                     consumer_app_version = Some(&git_commit);
                     println!(
@@ -294,6 +300,15 @@ pub fn publish_pacts(args: &ArgMatches) -> Result<Value, i32> {
                                     .push(serde_json::Value::String(tag.to_string()));
                             }
                         };
+                        if tag_with_git_branch {
+                            if !payload.get("tags").map_or(false, |v| v.is_array()) {
+                                payload["tags"] = serde_json::Value::Array(vec![]);
+                            }
+                            payload["tags"]
+                                .as_array_mut()
+                                .unwrap()
+                                .push(serde_json::Value::String(get_git_branch().to_string()));
+                        }
 
                         payload["contracts"] = serde_json::Value::Array(vec![json!({
                           "consumerName": consumer_name,
@@ -311,7 +326,7 @@ pub fn publish_pacts(args: &ArgMatches) -> Result<Value, i32> {
                         let res = tokio::runtime::Runtime::new().unwrap().block_on(async {
                             hal_client
                                 .clone()
-                                .post_json(&(publish_pact_href), &payload.to_string())
+                                .post_json(&(publish_pact_href), &payload.to_string(), None)
                                 .await
                         });
                         match res {
@@ -329,8 +344,11 @@ pub fn publish_pacts(args: &ArgMatches) -> Result<Value, i32> {
                                         match parsed_res {
                                             Ok(parsed_res) => {
                                                 print!("✅ ");
-                                                parsed_res.notices.iter().for_each(|notice| {
-                                                    match notice.type_field.as_str() {
+                                                if let Some(notices) = parsed_res.notices {
+                                                    notices.iter().for_each(|notice| match notice
+                                                        .type_field
+                                                        .as_str()
+                                                    {
                                                         "success" => {
                                                             let notice_text =
                                                                 notice.text.to_string();
@@ -410,8 +428,8 @@ pub fn publish_pacts(args: &ArgMatches) -> Result<Value, i32> {
                                                             println!("{}", formatted_text)
                                                         }
                                                         _ => println!("{}", notice.text),
-                                                    }
-                                                });
+                                                    });
+                                                }
                                             }
                                             Err(err) => {
                                                 println!(
@@ -556,5 +574,168 @@ pub fn load_files_from_dir(dir: &str) -> anyhow::Result<Vec<(String, Value)>> {
             .iter()
             .map(|(source, result)| (source.clone(), result.as_ref().unwrap().clone()))
             .collect())
+    }
+}
+
+#[cfg(test)]
+mod publish_contracts_tests {
+    use crate::cli::pact_broker::main::pact_publish::publish_pacts;
+    use crate::cli::pact_broker::main::subcommands::add_publish_pacts_subcommand;
+    use base64::{Engine, engine::general_purpose::STANDARD as Base64};
+    use pact_consumer::prelude::*;
+    use pact_models::prelude::Generator;
+    use pact_models::{PactSpecification, generators};
+    use serde_json::{Value, json};
+    use std::fs::File;
+    use std::io::Read;
+
+    #[test]
+    fn publish_contracts_success() {
+        // Arrange - set up the pact mock server (as v2 for compatibility with pact-ruby)
+        let config = MockServerConfig {
+            pact_specification: PactSpecification::V2,
+            ..MockServerConfig::default()
+        };
+        let pacticipant_name = "Foo";
+        let provider_name = "Bar";
+        let version_number = "5556b8149bf8bac76bc30f50a8a2dd4c22c85f30";
+        let branch = "main";
+        let tag = "dev";
+        let build_url = "http://build";
+        let pact_file_path = "tests/fixtures/foo-bar.json";
+
+        // Load pact file and encode content
+        let mut pact_file = File::open(pact_file_path).expect("Fixture pact file missing");
+        let mut pact_json_str = String::new();
+        pact_file.read_to_string(&mut pact_json_str).unwrap();
+        let mut pact_json: serde_json::Value = serde_json::from_str(&pact_json_str).unwrap();
+        // Merge with existing keys in metadata if present
+        let mut metadata = pact_json
+            .get("metadata")
+            .cloned()
+            .unwrap_or_else(|| json!({}));
+        if let Some(obj) = metadata.as_object_mut() {
+            obj.insert(
+                "pactRust".to_string(),
+                json!({ "models": pact_models::PACT_RUST_VERSION }),
+            );
+            pact_json["metadata"] = Value::Object(obj.clone());
+        } else {
+            pact_json["metadata"] = json!({
+            "pactRust": { "models": pact_models::PACT_RUST_VERSION },
+            });
+        }
+        let expected_content = Base64.encode(pact_json.to_string());
+
+        let request_body = json!({
+            "pacticipantName": pacticipant_name,
+            "pacticipantVersionNumber": version_number,
+            "branch": branch,
+            "tags": [tag],
+            "buildUrl": build_url,
+            "contracts": [
+                {
+                    "consumerName": pacticipant_name,
+                    "providerName": provider_name,
+                    "specification": "pact",
+                    "contentType": "application/json",
+                    "content": expected_content,
+                    "onConflict": "merge"
+                }
+            ]
+        });
+
+        let contract_path_generator = generators! {
+            "BODY" => {
+            "$._links.pb:pb:publish-contracts.href" => Generator::MockServerURL(
+                            "/contracts/publish".to_string(),
+                            ".*\\/contracts\\/publish".to_string()
+            )
+            }
+        };
+
+        let pact_broker_service = PactBuilder::new("pact-broker-cli", "Pact Broker")
+            .interaction("a request for the index resource", "", |mut i| {
+                i.given("the pb:publish-contracts relations exists in the index resource");
+                i.request
+                    .path("/")
+                    .header("Accept", "application/hal+json")
+                    .header("Accept", "application/json");
+                i.response
+                    .header("Content-Type", "application/hal+json;charset=utf-8")
+                    .json_body(json_pattern!({
+                        "_links": {
+                            "pb:publish-contracts": {
+                                "href": term!("http:\\/\\/.*\\/contracts\\/publish", "http://localhost:1234/contracts/publish"),
+                                "title": "Publish contracts",
+                                "templated": false
+                            }
+                        }
+                    }))
+                    .generators()
+                    .add_generators(contract_path_generator);
+                i
+            })
+            .interaction("a request to publish contracts", "", |mut i| {
+                i.request
+                    .post()
+                    .path("/contracts/publish")
+                    .header("Content-Type", "application/json")
+                    .json_body(request_body.clone());
+                i.response
+                    .status(200)
+                    .header("Content-Type", "application/hal+json;charset=utf-8")
+                    .json_body(json_pattern!({
+                        "_embedded": {
+                            "pacticipant": {
+                                "name": pacticipant_name
+                            },
+                            "version": {
+                                "number": version_number
+                            }
+                        },
+                        "logs": each_like!({
+                            "level": "info",
+                            "message": "some message"
+                        }),
+                        "_links": {
+                            "pb:pacticipant-version-tags": each_like!({ "name": tag }),
+                            "pb:contracts": each_like!({ "href": like!("http://some-pact") })
+                        }
+                    }));
+                i
+            })
+            .start_mock_server(None, Some(config));
+
+        let mock_server_url = pact_broker_service.url();
+
+        // Arrange - set up the command line arguments
+        let matches = add_publish_pacts_subcommand()
+            .args(crate::cli::add_ssl_arguments())
+            .get_matches_from(vec![
+                "publish",
+                "-b",
+                mock_server_url.as_str(),
+                "--file",
+                pact_file_path,
+                "--consumer-app-version",
+                version_number,
+                "--branch",
+                branch,
+                "--tag",
+                tag,
+                "--build-url",
+                build_url,
+                "--merge",
+            ]);
+
+        // Act
+        let result = publish_pacts(&matches);
+
+        // Assert
+        assert!(result.is_ok());
+        let value = result.unwrap();
+
+        assert!(value.is_object());
     }
 }

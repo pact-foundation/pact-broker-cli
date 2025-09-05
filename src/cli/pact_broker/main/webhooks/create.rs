@@ -1,15 +1,10 @@
-use maplit::hashmap;
-
 use crate::cli::pact_broker::main::{
     HALClient, PactBrokerError,
-    utils::{
-        follow_templated_broker_relation, get_auth, get_broker_relation, get_broker_url,
-        get_ssl_options,
-    },
+    utils::{get_auth, get_broker_relation, get_broker_url, get_ssl_options},
 };
 
 pub fn create_webhook(args: &clap::ArgMatches) -> Result<String, PactBrokerError> {
-    let broker_url = get_broker_url(args);
+    let broker_url = get_broker_url(args).trim_end_matches('/').to_string();
     let auth = get_auth(args);
     let ssl_options = get_ssl_options(args);
 
@@ -172,9 +167,9 @@ pub fn create_webhook(args: &clap::ArgMatches) -> Result<String, PactBrokerError
         }
         let webhook_data_str = webhook_data.to_string();
         if webhook_uuid.is_some(){
-            hal_client.put_json(&pb_webhooks_href_path, &webhook_data_str).await
+            hal_client.put_json(&pb_webhooks_href_path, &webhook_data_str,None).await
         }else {
-            hal_client.post_json(&pb_webhooks_href_path, &webhook_data_str).await
+            hal_client.post_json(&pb_webhooks_href_path, &webhook_data_str,None).await
         }
     });
 
@@ -197,7 +192,6 @@ mod create_webhook_tests {
     use crate::cli::pact_broker::main::subcommands::{
         add_create_or_update_webhook_subcommand, add_create_webhook_subcommand,
     };
-    use clap::Arg;
     use pact_consumer::builders::InteractionBuilder;
     use pact_consumer::prelude::*;
     use pact_models::PactSpecification;
@@ -522,7 +516,7 @@ mod create_webhook_tests {
     // this test fails as url is a required param and the test seeks to remove it
     // so we need to modify the subcommand to make it optional
     fn create_webhook_invalid_missing_url() {
-        let mut request_body = json!({
+        let request_body = json!({
             "description": "a webhook",
             "events": [ { "name": "contract_content_changed" } ],
             "request": {

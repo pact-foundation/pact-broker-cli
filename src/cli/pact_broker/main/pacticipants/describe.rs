@@ -128,3 +128,171 @@ pub fn describe_pacticipant(
         }
     }
 }
+
+#[cfg(test)]
+mod describe_pacticipant_tests {
+    use super::*;
+    use crate::cli::pact_broker::main::types::{BrokerDetails, OutputType};
+
+    use pact_consumer::builders::InteractionBuilder;
+    use pact_consumer::prelude::*;
+    use pact_models::PactSpecification;
+
+    fn setup_mock_server(interactions: Vec<InteractionBuilder>) -> Box<dyn ValidatingMockServer> {
+        let config = MockServerConfig {
+            pact_specification: PactSpecification::V2,
+            ..MockServerConfig::default()
+        };
+        let mut pact_builder = PactBuilder::new("pact-broker-cli", "Pact Broker");
+        for i in interactions {
+            pact_builder.push_interaction(&i.build());
+        }
+        pact_builder.start_mock_server(None, Some(config))
+    }
+
+    #[test]
+    fn describe_pacticipant_json_output() {
+        let pacticipant_name = "Foo";
+        let repository_url = "http://foo";
+        let created_at = "2024-01-01T00:00:00Z";
+        let updated_at = "2024-01-02T00:00:00Z";
+        let display_name = "Foo Service";
+        let main_branch = "main";
+
+        // Index resource with pb:pacticipant relation
+        let index_interaction = |mut i: InteractionBuilder| {
+            i.given("the pacticipant relations are present");
+            i.request
+                .path("/")
+                .header("Accept", "application/hal+json")
+                .header("Accept", "application/json");
+            i.response
+                .header("Content-Type", "application/hal+json;charset=utf-8")
+                .json_body(json_pattern!({
+                    "_links": {
+                        "pb:pacticipant": {
+                            "href": term!("http:\\/\\/.*/pacticipants/\\{pacticipant\\}", "http://localhost/pacticipants/{pacticipant}")
+                        }
+                    }
+                }));
+            i
+        };
+
+        // GET /pacticipants/Foo returns the pacticipant
+        let get_pacticipant_interaction = |mut i: InteractionBuilder| {
+            i.given("a pacticipant with name Foo exists");
+            i.request
+                .get()
+                .path("/pacticipants/Foo")
+                .header("Accept", "application/hal+json")
+                .header("Accept", "application/json");
+            i.response
+                .status(200)
+                .header("Content-Type", "application/hal+json;charset=utf-8")
+                .json_body(json_pattern!({
+                    "name": like!(pacticipant_name),
+                    "displayName": like!(display_name),
+                    "repositoryUrl": like!(repository_url),
+                    "createdAt": like!(created_at),
+                    "_links": {
+                        "self": {
+                            "href": term!("http:\\/\\/.*", "http://localhost/pacticipants/Foo")
+                        }
+                    }
+                }));
+            i
+        };
+
+        let mock_server = setup_mock_server(vec![
+            index_interaction(InteractionBuilder::new(
+                "a request for the index resource",
+                "",
+            )),
+            get_pacticipant_interaction(InteractionBuilder::new(
+                "a request to retrieve a pacticipant with repostitory URL",
+                "",
+            )),
+        ]);
+        let mock_server_url = mock_server.url();
+
+        let broker_details = BrokerDetails {
+            url: mock_server_url.to_string(),
+            auth: None,
+            ssl_options: Default::default(),
+        };
+
+        let result = describe_pacticipant(
+            pacticipant_name.to_string(),
+            &broker_details,
+            OutputType::Json,
+            false,
+        );
+
+        assert!(result.is_ok());
+        let json: serde_json::Value = serde_json::from_str(&result.unwrap()).unwrap();
+        assert_eq!(json["name"], pacticipant_name);
+        assert_eq!(json["repositoryUrl"], repository_url);
+        assert_eq!(json["displayName"], display_name);
+        assert_eq!(json["createdAt"], created_at);
+    }
+
+    #[test]
+    fn describe_pacticipant_not_found() {
+        let pacticipant_name = "DoesNotExist";
+
+        let index_interaction = |mut i: InteractionBuilder| {
+            i.given("the pacticipant relations are present");
+            i.request
+                .path("/")
+                .header("Accept", "application/hal+json")
+                .header("Accept", "application/json");
+            i.response
+                .header("Content-Type", "application/hal+json;charset=utf-8")
+                .json_body(json_pattern!({
+                    "_links": {
+                        "pb:pacticipant": {
+                            "href": term!("http:\\/\\/.*/pacticipants/\\{pacticipant\\}", "http://localhost/pacticipants/{pacticipant}")
+                        }
+                    }
+                }));
+            i
+        };
+
+        let get_pacticipant_interaction = |mut i: InteractionBuilder| {
+            i.request
+                .get()
+                .path("/pacticipants/DoesNotExist")
+                .header("Accept", "application/hal+json")
+                .header("Accept", "application/json");
+            i.response.status(404);
+            i
+        };
+
+        let mock_server = setup_mock_server(vec![
+            index_interaction(InteractionBuilder::new(
+                "a request for the index resource",
+                "",
+            )),
+            get_pacticipant_interaction(InteractionBuilder::new(
+                "a request to retrieve a non-existent pacticipant",
+                "",
+            )),
+        ]);
+        let mock_server_url = mock_server.url();
+
+        let broker_details = BrokerDetails {
+            url: mock_server_url.to_string(),
+            auth: None,
+            ssl_options: Default::default(),
+        };
+
+        let result = describe_pacticipant(
+            pacticipant_name.to_string(),
+            &broker_details,
+            OutputType::Json,
+            false,
+        );
+
+        assert!(result.is_err());
+    }
+}
