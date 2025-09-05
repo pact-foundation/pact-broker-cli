@@ -78,7 +78,7 @@ struct PacticipantArgs {
             let mut result = Vec::new();
 
             while let Some(arg) = args.next() {
-                if arg == "--pacticipant" {
+                if arg == "--pacticipant" || arg == "-a" {
                     let pacticipant = args.next().expect("Expected value after --pacticipant").to_string();
                     let mut pacticipant_args = PacticipantArgs {
                         pacticipant,
@@ -87,7 +87,7 @@ struct PacticipantArgs {
 
                     while let Some(next_arg) = args.peek() {
                         match next_arg.as_str() {
-                            "--version" => {
+                            "--version" | "-e" => {
                                 args.next();
                                 pacticipant_args.version = args.next().map(|s| s.to_string());
                             }
@@ -97,7 +97,7 @@ struct PacticipantArgs {
                                     pacticipant_args.tags.push(tag.to_string());
                                 }
                             }
-                            "--latest" => {
+                            "--latest" | "-l" => {
                                 args.next();
                                 pacticipant_args.latest = true;
                             }
@@ -105,7 +105,7 @@ struct PacticipantArgs {
                                 args.next();
                                 pacticipant_args.main_branch = true;
                             }
-                            "--pacticipant" => break,
+                            "--pacticipant" | "-a" => break,
                             _ => {
                                 args.next();
                             }
