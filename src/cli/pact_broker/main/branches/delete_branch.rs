@@ -9,7 +9,7 @@ use crate::cli::pact_broker::main::{
 };
 
 pub fn delete_branch(args: &clap::ArgMatches) -> Result<String, PactBrokerError> {
-    let broker_url = get_broker_url(args);
+    let broker_url = get_broker_url(args).trim_end_matches('/').to_string();
     let auth = get_auth(args);
     let ssl_options = get_ssl_options(args);
 
@@ -31,8 +31,6 @@ pub fn delete_branch(args: &clap::ArgMatches) -> Result<String, PactBrokerError>
             broker_url.to_string(),
         )
         .await?;
-
-        println!("pb_branch_href_path: {}", pb_branch_href_path);
 
         let template_values = hashmap! {
             "pacticipant".to_string() => pacticipant_name.to_string(),
@@ -96,29 +94,19 @@ mod delete_branch_tests {
                     .path("/")
                     .header("Accept", "application/hal+json")
                     .header("Accept", "application/json");
-
-                //    let generators = generators! {
-                //         "BODY" => {
-                //         "$._links.pb:pacticipant-branch.href" => Generator::MockServerURL(
-                //             "/pacticipants/{pacticipant}/branches/{branch})".to_string(),
-                //             format!("/pacticipants/(?<pacticipant>[^/]+)/branches/(?<branch>[^/]+)")
-                //         )
-                //         }
-                //     };
                 i.response
-          .header("Content-Type", "application/hal+json;charset=utf-8")
-          .json_body(
-            json_pattern!({
-              "_links": {
-                "pb:pacticipant-branch": {
-                  "href": term!("http:\\/\\/.*\\{pacticipant\\}.*\\{branch\\}","http://localhost:55926/pacticipants/{pacticipant}/branches/{branch}"),
-                  "title": "Get or delete a pacticipant branch",
-                  "templated": true
-                }
-              }
-            })
-          );
-                //   .generators().add_generators(generators);
+                    .header("Content-Type", "application/hal+json;charset=utf-8")
+                    .json_body(
+                        json_pattern!({
+                        "_links": {
+                            "pb:pacticipant-branch": {
+                            "href": term!("http:\\/\\/.*\\{pacticipant\\}.*\\{branch\\}","http://localhost:55926/pacticipants/{pacticipant}/branches/{branch}"),
+                            "title": "Get or delete a pacticipant branch",
+                            "templated": true
+                            }
+                        }
+                        })
+                    );
                 i
             })
             .interaction("a request to delete a branch", "", |mut i| {
@@ -133,7 +121,6 @@ mod delete_branch_tests {
             })
             .start_mock_server(None, Some(config));
         let mock_server_url = pact_broker_service.url();
-        println!("Mock server started at: {}", pact_broker_service.url());
         // arrange - set up the command line arguments
         let matches = add_delete_branch_subcommand()
             .args(crate::cli::add_ssl_arguments())

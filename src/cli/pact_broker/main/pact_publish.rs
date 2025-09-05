@@ -200,7 +200,7 @@ pub fn publish_pacts(args: &ArgMatches) -> Result<Value, i32> {
     }
     let files = files.map_err(|_| 1)?;
 
-    let broker_url = get_broker_url(args);
+    let broker_url = get_broker_url(args).trim_end_matches('/').to_string();
     let auth = get_auth(args);
     let ssl_options = get_ssl_options(args);
     let hal_client: HALClient =

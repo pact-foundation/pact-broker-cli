@@ -223,11 +223,13 @@ mod create_version_tag_tests {
                 "",
                 |mut i| {
                     i.given("'Condor' does not exist in the pact-broker");
-                    i.request.put().path(format!(
-                        "/pacticipants/{}/versions/{}/tags/{}",
-                        pacticipant, version, tag
-                    ))
-                    .header("Content-Type", "application/json");
+                    i.request
+                        .put()
+                        .path(format!(
+                            "/pacticipants/{}/versions/{}/tags/{}",
+                            pacticipant, version, tag
+                        ))
+                        .header("Content-Type", "application/json");
                     i.response
                         .status(status)
                         .header("Content-Type", "application/hal+json;charset=utf-8")

@@ -12,10 +12,11 @@ pub fn main() {
     }
     let app = cli::build_cli();
     let matches = app.clone().try_get_matches();
+    let raw_args: Vec<String> = std::env::args().skip(1).collect();
     match matches {
         Ok(results) => match results.subcommand() {
-            Some(("pact-broker", args)) => cli::pact_broker_client::run(args),
-            Some(("pactflow", args)) => cli::pactflow_client::run(args),
+            Some(("pact-broker", args)) => cli::pact_broker_client::run(args, raw_args),
+            Some(("pactflow", args)) => cli::pactflow_client::run(args, raw_args),
             Some(("completions", args)) => generate_completions(args),
             _ => cli::build_cli().print_help().unwrap(),
         },

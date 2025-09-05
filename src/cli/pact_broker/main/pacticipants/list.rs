@@ -98,3 +98,110 @@ pub fn list_pacticipants(
         }
     }
 }
+
+#[cfg(test)]
+mod list_pacticipants_tests {
+    use super::*;
+    use crate::cli::pact_broker::main::types::{BrokerDetails, OutputType};
+
+    use pact_consumer::builders::InteractionBuilder;
+    use pact_consumer::prelude::*;
+    use pact_models::{PactSpecification, pact};
+
+    fn setup_mock_server(interactions: Vec<InteractionBuilder>) -> Box<dyn ValidatingMockServer> {
+        let config = MockServerConfig {
+            pact_specification: PactSpecification::V2,
+            ..MockServerConfig::default()
+        };
+        let mut pact_builder = PactBuilder::new("pact-broker-cli", "Pact Broker");
+        for i in interactions {
+            pact_builder.push_interaction(&i.build());
+        }
+        pact_builder.start_mock_server(None, Some(config))
+    }
+
+    #[test]
+    fn list_pacticipants_json_output() {
+        // Pacticipant data
+        let pacticipant1 = serde_json::json!({
+            "name": "Pricing Service",
+            "displayName": "Pricing Service"
+        });
+        let pacticipant2 = serde_json::json!({
+            "name": "Condor",
+            "displayName": "Condor"
+        });
+
+        // Index resource with pb:pacticipants relation
+        let index_interaction = |mut i: InteractionBuilder| {
+            i.given("the pb:pacticipants relation exists in the index resource");
+            i.request
+                .path("/")
+                .header("Accept", "application/hal+json")
+                .header("Accept", "application/json");
+            i.response
+                .header("Content-Type", "application/hal+json;charset=utf-8")
+                .json_body(json_pattern!({
+                    "_links": {
+                        "pb:pacticipants": {
+                            "href": term!("http:\\/\\/.*/pacticipants", "http://localhost/pacticipants")
+                        }
+                    }
+                }));
+            i
+        };
+
+        // GET /pacticipants returns the list of pacticipants
+        let get_pacticipants_interaction = |mut i: InteractionBuilder| {
+            i.given(format!(
+                "the '{}' and '{}' already exist in the pact-broker",
+                pacticipant1["name"].as_str().unwrap(),
+                pacticipant2["name"].as_str().unwrap()
+            ));
+            i.request
+                .get()
+                .path("/pacticipants")
+                .header("Accept", "application/hal+json")
+                .header("Accept", "application/json");
+            i.response
+                .status(200)
+                .header("Content-Type", "application/hal+json;charset=utf-8")
+                .json_body(json_pattern!({
+                    "pacticipants": [
+                        pacticipant2.clone(),
+                        pacticipant1.clone()
+                    ]
+                }));
+            i
+        };
+
+        let mock_server = setup_mock_server(vec![
+            index_interaction(InteractionBuilder::new(
+                "a request for the index resource",
+                "",
+            )),
+            get_pacticipants_interaction(InteractionBuilder::new(
+                "a request to retrieve pacticipants",
+                "",
+            )),
+        ]);
+        let mock_server_url = mock_server.url();
+
+        let broker_details = BrokerDetails {
+            url: mock_server_url.to_string(),
+            auth: None,
+            ssl_options: Default::default(),
+        };
+
+        let result = list_pacticipants(&broker_details, OutputType::Json, false);
+
+        assert!(result.is_ok());
+        let json: serde_json::Value = serde_json::from_str(&result.unwrap()).unwrap();
+        let pacticipants = json["pacticipants"].as_array().unwrap();
+        assert_eq!(pacticipants.len(), 2);
+        assert_eq!(pacticipants[0]["name"], pacticipant2["name"]);
+        assert_eq!(pacticipants[0]["displayName"], pacticipant2["displayName"]);
+        assert_eq!(pacticipants[1]["name"], pacticipant1["name"]);
+        assert_eq!(pacticipants[1]["displayName"], pacticipant1["displayName"]);
+    }
+}

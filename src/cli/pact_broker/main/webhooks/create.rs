@@ -4,7 +4,7 @@ use crate::cli::pact_broker::main::{
 };
 
 pub fn create_webhook(args: &clap::ArgMatches) -> Result<String, PactBrokerError> {
-    let broker_url = get_broker_url(args);
+    let broker_url = get_broker_url(args).trim_end_matches('/').to_string();
     let auth = get_auth(args);
     let ssl_options = get_ssl_options(args);
 

@@ -31,7 +31,7 @@ pub fn record_undeployment(args: &clap::ArgMatches) -> Result<String, PactBroker
     let pacticipant = args.get_one::<String>("pacticipant");
     let environment = args.get_one::<String>("environment");
     let _application_instance = args.get_one::<String>("application-instance");
-    let broker_url = get_broker_url(args);
+    let broker_url = get_broker_url(args).trim_end_matches('/').to_string();
     let auth = get_auth(args);
     let ssl_options = get_ssl_options(args);
 
@@ -73,7 +73,7 @@ pub fn record_undeployment(args: &clap::ArgMatches) -> Result<String, PactBroker
                             // println!("✅ Environment {} found with UUID: {}", environment.clone().unwrap(), environment_uuid);
                             // 3. Call the environment link and check the specified version exists, get the version link
                             let res = hal_client.clone()
-                            .fetch(&(broker_url.clone() + "environments/" + &environment_uuid))
+                            .fetch(&(broker_url.clone() + "/environments/" + &environment_uuid))
                             .await;
                         match res {
                             Ok(result) => {
@@ -221,7 +221,7 @@ mod record_undeployment_tests {
 
         let pact_broker_service = PactBuilder::new("pact-broker-cli", "Pact Broker")
             // Index resource
-            .interaction("a request for the index resource", "", |mut i| {
+            .interaction("a request for the index resource for records_undeployment_successfully", "", |mut i| {
                 i.given("the pb:environments relation exists in the index resource");
                 i.request
                     .path("/")
@@ -239,7 +239,7 @@ mod record_undeployment_tests {
                 i
             })
             // // Environments resource
-            .interaction("a request for environments", "", |mut i| {
+            .interaction("a request for environments resource", "", |mut i| {
                 i.given(format!(
                     "an environment with name {} and UUID {} exists",
                     environment_name, environment_uuid
@@ -266,7 +266,7 @@ mod record_undeployment_tests {
                 i
             })
             // Environment details
-            .interaction("a request for an environment", "", |mut i| {
+            .interaction("a request for an environment details", "", |mut i| {
                 i.given(format!(
                     "an environment with name {} and UUID {} exists",
                     environment_name, environment_uuid

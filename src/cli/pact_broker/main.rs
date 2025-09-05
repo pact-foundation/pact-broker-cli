@@ -14,7 +14,7 @@ use maplit::hashmap;
 use pact_models::http_utils::HttpAuth;
 use pact_models::json_utils::json_to_string;
 use pact_models::pact::{Pact, load_pact_from_json};
-use pact_models::{headers, http_utils};
+use pact_models::{http_utils};
 use regex::{Captures, Regex};
 use reqwest::{Method, Url};
 use serde::{Deserialize, Serialize};
@@ -331,13 +331,13 @@ impl HALClient {
         link: &Link,
         template_values: &HashMap<String, String>,
     ) -> Result<Value, PactBrokerError> {
-        println!(
+        debug!(
             "fetch_url(link={:?}, template_values={:?})",
             link, template_values
         );
 
         let link_url = if link.templated {
-            println!("Link URL is templated");
+            debug!("Link URL is templated");
             self.clone().parse_link_url(&link, &template_values)
         } else {
             link.href.clone().ok_or_else(|| {
@@ -349,10 +349,10 @@ impl HALClient {
         }?;
 
         let base_url = self.url.parse::<Url>()?;
-        println!("base_url: {}", base_url);
-        println!("link_url: {}", link_url);
+        debug!("base_url: {}", base_url);
+        debug!("link_url: {}", link_url);
         let joined_url = base_url.join(&link_url)?;
-        println!("joined_url: {}", joined_url);
+        debug!("joined_url: {}", joined_url);
         self.delete(joined_url.path().into()).await
     }
 
@@ -725,11 +725,11 @@ impl HALClient {
         }
         if ssl_options.skip_ssl {
             builder = builder.danger_accept_invalid_certs(true);
-            println!("Skipping SSL certificate validation");
+            debug!("Skipping SSL certificate validation");
         }
         if !ssl_options.use_root_trust_store {
             builder = builder.tls_built_in_root_certs(false);
-            println!("Disabling root trust store for SSL");
+            debug!("Disabling root trust store for SSL");
         }
 
         HALClient {

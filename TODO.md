@@ -4,20 +4,20 @@
 
 - [X] publish_pacts
 - [X] update_environment
-- [ ] delete_environment
-- [ ] describe_environment
-- [ ] record_support_ended
+- [X] delete_environment
+- [X] describe_environment
+- [X] record_support_ended
 - [ ] can_i_deploy
 - [ ] can_i_merge
-- [ ] create_or_update_pacticipant
-- [ ] describe_pacticipant
-- [ ] list_pacticipants
+- [X] create_or_update_pacticipant
+- [X] describe_pacticipant
+- [X] list_pacticipants
 - [X] create_webhook
 - [X] create_or_update_webhook
-- [ ] test_webhook
+- [X] test_webhook
 - [X] create_version_tag
-- [ ] describe_version
-- [ ] create_or_update_version
+- [X] describe_version
+- [X] create_or_update_version
 - [ ] generate_uuid
 - [X] list_latest_pact_versions
 - [X] create_environment
@@ -47,3 +47,29 @@ pactflow_webhooks_create_spec.rb
 
 1. Add tests for all commands
 2. Verify each pact against pact broker (branch pact_broker_cli)
+
+
+
+issues with query param ordering
+
+            "can-i-deploy",
+            "-b",
+            mock_server_url.as_str(),
+            "--pacticipant",
+            "Foo",
+            "--version",
+            "1.2.3",
+            "--pacticipant",
+            "Bar",
+            "--latest",
+            "--tag",
+
+
+
+Sent as 
+
+http://127.0.0.1:60803/matrix?q[][pacticipant]=Foo&q[][version]=1.2.3&q[][pacticipant]=Bar&q[][latest]=true&q[][tag]=prod&latestby=cvpv
+
+saved as 
+
+latestby=cvpv&q[][latest]=true&q[][pacticipant]=Foo&q[][tag]=prod&q[][version]=1%2e2%2e3&q[][pacticipant]=Bar

@@ -20,7 +20,7 @@ pub fn record_release(args: &clap::ArgMatches) -> Result<String, PactBrokerError
     let version = args.get_one::<String>("version");
     let pacticipant = args.get_one::<String>("pacticipant");
     let environment = args.get_one::<String>("environment");
-    let broker_url = get_broker_url(args);
+    let broker_url = get_broker_url(args).trim_end_matches('/').to_string();
     let auth = get_auth(args);
     let ssl_options = get_ssl_options(args);
     tokio::runtime::Runtime::new().unwrap().block_on(async {
@@ -28,7 +28,7 @@ pub fn record_release(args: &clap::ArgMatches) -> Result<String, PactBrokerError
             // todo add trim_end_matches to broker url arg parse
             let res = hal_client.clone()
                 .fetch(
-                    &(broker_url.clone().to_string().trim_end_matches('/').to_string()
+                    &(broker_url.clone()
                         + "/pacticipants/"
                         + &pacticipant.unwrap()
                         + "/versions/"

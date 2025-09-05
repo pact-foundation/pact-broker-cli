@@ -7,7 +7,7 @@ pub fn add_pactflow_client_command() -> Command {
     Command::new("pactflow").subcommand(add_publish_provider_contract_subcommand())
 }
 
-pub fn run(args: &ArgMatches) {
+pub fn run(args: &ArgMatches, raw_args: Vec<String>) {
     match args.subcommand() {
         Some(("publish-provider-contract", args)) => {
             let res = provider_contracts::publish::publish(args);

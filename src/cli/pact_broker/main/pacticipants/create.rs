@@ -6,7 +6,7 @@ use maplit::hashmap;
 use std::result::Result::Ok;
 
 pub fn create_or_update_pacticipant(args: &clap::ArgMatches) -> Result<String, PactBrokerError> {
-    let broker_url = get_broker_url(args);
+    let broker_url = get_broker_url(args).trim_end_matches('/').to_string();
     let auth = get_auth(args);
     let ssl_options = get_ssl_options(args);
 
@@ -165,7 +165,7 @@ mod create_or_update_pacticipant_tests {
 
     #[test]
     fn create_pacticipant_when_not_exists() {
-        let pacticipant_name = "Foo";
+        let pacticipant_name = "Condor";
         let repository_url = "http://foo";
         let request_body = json!({
             "name": pacticipant_name,
@@ -194,11 +194,12 @@ mod create_or_update_pacticipant_tests {
             i
         };
 
-        // GET /pacticipants/Foo returns 404
+        // GET /pacticipants/Condor returns 404
         let get_pacticipant_interaction = |mut i: InteractionBuilder| {
+            i.given("'Condor' does not exist in the pact-broker");
             i.request
                 .get()
-                .path("/pacticipants/Foo")
+                .path("/pacticipants/Condor")
                 .header("Accept", "application/hal+json")
                 .header("Accept", "application/json");
             i.response.status(404);
@@ -221,7 +222,7 @@ mod create_or_update_pacticipant_tests {
                     "repositoryUrl": repository_url,
                     "_links": {
                         "self": {
-                            "href": term!( "http://.*","http://localhost/pacticipants/Foo")
+                            "href": term!( "http://.*","http://localhost/pacticipants/Condor")
                         }
                     }
                 }));

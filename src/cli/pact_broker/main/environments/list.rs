@@ -11,7 +11,7 @@ use comfy_table::Table;
 use comfy_table::presets::UTF8_FULL;
 
 pub fn list_environments(args: &clap::ArgMatches) -> Result<String, PactBrokerError> {
-    let broker_url = get_broker_url(args);
+    let broker_url = get_broker_url(args).trim_end_matches('/').to_string();
     let auth = get_auth(args);
     let ssl_options = get_ssl_options(args);
     tokio::runtime::Runtime::new().unwrap().block_on(async {
@@ -30,7 +30,6 @@ pub fn list_environments(args: &clap::ArgMatches) -> Result<String, PactBrokerEr
             pb_environments_href_path,
         )
         .await;
-        println!("res: {:?}", res);
 
         let default_output = "text".to_string();
         let output = args.get_one::<String>("output").unwrap_or(&default_output);
@@ -148,25 +147,29 @@ mod list_environments_tests {
         });
 
         let pact_broker_service = PactBuilder::new("pact-broker-cli", "Pact Broker")
-            .interaction("a request for the index resource", "", |mut i| {
-                i.given("the pb:environments relation exists in the index resource");
-                i.request
-                    .get()
-                    .path("/")
-                    .header("Accept", "application/hal+json")
-                    .header("Accept", "application/json");
-                i.response
-                    .status(200)
-                    .header("Content-Type", "application/hal+json;charset=utf-8")
-                    .json_body(json_pattern!({
-                        "_links": {
-                            "pb:environments": {
-                                "href": term!("http:\\/\\/.*","http://localhost/environments"),
+            .interaction(
+                "a request for the index resource for list_environments_test",
+                "",
+                |mut i| {
+                    i.given("the pb:environments relation exists in the index resource");
+                    i.request
+                        .get()
+                        .path("/")
+                        .header("Accept", "application/hal+json")
+                        .header("Accept", "application/json");
+                    i.response
+                        .status(200)
+                        .header("Content-Type", "application/hal+json;charset=utf-8")
+                        .json_body(json_pattern!({
+                            "_links": {
+                                "pb:environments": {
+                                    "href": term!("http:\\/\\/.*","http://localhost/environments"),
+                                }
                             }
-                        }
-                    }));
-                i
-            })
+                        }));
+                    i
+                },
+            )
             .interaction("a request to list the environments", "", |mut i| {
                 i.given("an environment exists");
                 i.request

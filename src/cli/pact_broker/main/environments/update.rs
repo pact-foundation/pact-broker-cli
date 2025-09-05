@@ -16,14 +16,9 @@ pub fn update_environment(args: &clap::ArgMatches) -> Result<String, PactBrokerE
     let production = args.get_flag("production");
     let contact_name = args.get_one::<String>("contact-name");
     let contact_email_address = args.get_one::<String>("contact-email-address");
-    let broker_url = get_broker_url(args);
+    let broker_url = get_broker_url(args).trim_end_matches('/').to_string();
     let auth = get_auth(args);
     let ssl_options = get_ssl_options(args);
-    let broker_url = if broker_url.ends_with('/') {
-        broker_url.trim_end_matches('/').to_string()
-    } else {
-        broker_url.clone()
-    };
     let environments_href = format!("{}/environments/{}", broker_url, uuid.clone());
     tokio::runtime::Runtime::new().unwrap().block_on(async {
         let hal_client: HALClient =
@@ -386,44 +381,6 @@ mod update_environment_tests {
         assert!(msg.contains("updatedAt"));
     }
 
-    // #[test]
-    // fn update_environment_not_supported() {
-    //     let uuid = "a9aa4c22-66bb-45d3-ba4c-4916ac8b48c5";
-    //     let config = MockServerConfig {
-    //         pact_specification: PactSpecification::V2,
-    //         ..MockServerConfig::default()
-    //     };
-
-    //     let pact_broker_service = PactBuilder::new("pact-broker-cli", "Pact Broker")
-    //         .interaction("get index", "", |mut i| {
-    //             i.request
-    //                 .get()
-    //                 .path("/")
-    //                 .header("Accept", "application/hal+json");
-    //             i.response
-    //                 .status(200)
-    //                 .header("Content-Type", "application/hal+json;charset=utf-8")
-    //                 .json_body(json_pattern!({}));
-    //             i
-    //         })
-    //         .start_mock_server(None, Some(config));
-    //     let mock_server_url = pact_broker_service.url();
-
-    //     let matches = build_matches(
-    //         mock_server_url.as_str(),
-    //         uuid,
-    //         "new name",
-    //         "new display name",
-    //         false,
-    //         "text",
-    //     );
-
-    //     let result = update_environment(&matches);
-    //     assert!(result.is_err());
-    //     let msg = result.unwrap_err().to_string();
-    //     assert!(msg.contains("does not support environments"));
-    // }
-
     #[test]
     fn update_environment_not_found() {
         let uuid = "16926ef3-590f-4e3f-838e-719717aa88c9";
@@ -433,37 +390,16 @@ mod update_environment_tests {
         };
 
         let pact_broker_service = PactBuilder::new("pact-broker-cli", "Pact Broker")
-            // .interaction("get index", "", |mut i| {
-            //     i.request.get().path("/").header("Accept", "application/hal+json");
-            //     i.response.status(200).header("Content-Type", "application/hal+json;charset=utf-8")
-            //         .json_body(json_pattern!({
-            //             "_links": {
-            //                 "pb:environments": {},
-            //                 "pb:environment": {
-            //                     "href": term!("http:\\/\\/.*","http://localhost/environments/{uuid}")
-            //                 }
-            //             }
-            //         }));
-            //     i
-            // })
-            .interaction("get environment", "", |mut i| {
-                i.given(format!(
-                    "an environment with name test and UUID {} exists",
-                    uuid
-                ));
+            .interaction("update_environment_not_found", "", |mut i| {
                 i.request.get().path(format!("/environments/{}", uuid));
                 i.response
                     .status(404)
-                    .header("Content-Type", "application/hal+json;charset=utf-8")
-                    .body("");
+                    .header("Content-Type", "application/json;charset=utf-8")
+                    .json_body(json_pattern!({
+                        "error": like!("Not found")
+                    }));
                 i
             })
-            // .interaction("put environment", "", |mut i| {
-            //     i.request.put().path(format!("/environments/{}", uuid));
-            //     i.response.status(404).header("Content-Type", "application/hal+json;charset=utf-8")
-            //         .body("");
-            //     i
-            // })
             .start_mock_server(None, Some(config));
         let mock_server_url = pact_broker_service.url();
 

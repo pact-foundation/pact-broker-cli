@@ -14,7 +14,7 @@ pub fn create_environment(args: &clap::ArgMatches) -> Result<String, PactBrokerE
     let production = args.get_flag("production");
     let contact_name = args.get_one::<String>("contact-name");
     let contact_email_address = args.get_one::<String>("contact-email-address");
-    let broker_url = get_broker_url(args);
+    let broker_url = get_broker_url(args).trim_end_matches('/').to_string();
     let auth = get_auth(args);
     let ssl_options = get_ssl_options(args);
 
@@ -184,23 +184,27 @@ mod create_environment_tests {
         test_utils::merge_json_objects(&mut response_body, &request_body);
 
         let pact_broker_service = PactBuilder::new("pact-broker-cli", "Pact Broker")
-            .interaction("a request for the index resource", "", |mut i| {
-                i.given("the pb:environments relation exists in the index resource");
-                i.request
-                    .path("/")
-                    .header("Accept", "application/hal+json")
-                    .header("Accept", "application/json");
-                i.response
-                    .header("Content-Type", "application/hal+json;charset=utf-8")
-                    .json_body(json_pattern!({
-                      "_links": {
-                        "pb:environments": {
-                            "href": term!("http:\\/\\/.*","http://localhost/environments"),
-                        }
-                      }
-                    }));
-                i
-            })
+            .interaction(
+                "a request for the index resource for create_environment_test",
+                "",
+                |mut i| {
+                    i.given("the pb:environments relation exists in the index resource");
+                    i.request
+                        .path("/")
+                        .header("Accept", "application/hal+json")
+                        .header("Accept", "application/json");
+                    i.response
+                        .header("Content-Type", "application/hal+json;charset=utf-8")
+                        .json_body(json_pattern!({
+                          "_links": {
+                            "pb:environments": {
+                                "href": term!("http:\\/\\/.*","http://localhost/environments"),
+                            }
+                          }
+                        }));
+                    i
+                },
+            )
             .interaction("a request to create an environment", "", |mut i| {
                 i.request
                     .post()
@@ -217,7 +221,6 @@ mod create_environment_tests {
             })
             .start_mock_server(None, Some(config));
         let mock_server_url = pact_broker_service.url();
-        println!("Mock server started at: {}", pact_broker_service.url());
         // arrange - set up the command line arguments
         let matches = add_create_environment_subcommand()
             .args(crate::cli::add_ssl_arguments())

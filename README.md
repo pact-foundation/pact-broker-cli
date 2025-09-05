@@ -637,32 +637,35 @@ $ pact-broker-cli pact-broker can-i-deploy --help
     TIMES` and `--retry-interval SECONDS`, set to appropriate values for your pipeline.
     
 
-Usage: pact-broker-cli pact-broker can-i-deploy [OPTIONS] --pacticipant [<PACTICIPANT>] --broker-base-url <PACT_BROKER_BASE_URL>
+Usage: pact-broker-cli pact-broker can-i-deploy [OPTIONS] --pacticipant <PACTICIPANT> --broker-base-url <PACT_BROKER_BASE_URL>
 
 Options:
-  -a, --pacticipant [<PACTICIPANT>]
-          The pacticipant name. Use once for each pacticipant being checked.
+  -a, --pacticipant <PACTICIPANT>
+          The pacticipant name. Use once for each pacticipant being checked. The following options (--version, --latest, --tag, --branch, --main-branch, --no-main-branch, --skip-main-branch) must come after each --pacticipant.
 
   -e, --version <VERSION>
           The pacticipant version. Must be entered after the --pacticipant that it relates to.
 
-      --ignore
-          The pacticipant name to ignore. Use once for each pacticipant being ignored. A specific version can be ignored by also specifying a --version after the pacticipant name option. The environment variable PACT_BROKER_CAN_I_DEPLOY_IGNORE may also be used to specify a pacticipant name to ignore, with commas to separate multiple pacticipant names if necessary.
-
   -l, --latest
-          Use the latest pacticipant version. Optionally specify a TAG to use the latest version with the specified tag.
+          Use the latest pacticipant version. Optionally specify a TAG to use the latest version with the specified tag. Must be entered after the --pacticipant that it relates to.
 
-      --branch <BRANCH>
-          The branch of the version for which you want to check the verification results.
+      --tag <TAG>
+          The tag of the version for which you want to check the verification results. Must be entered after the --pacticipant that it relates to.
+
+      --branch
+          The branch of the version for which you want to check the verification results. Must be entered after the --pacticipant that it relates to.
 
       --main-branch
-          Use the latest version of the configured main branch of the pacticipant as the version for which you want to check the verification results
+          Use the latest version of the configured main branch of the pacticipant as the version for which you want to check the verification results. Must be entered after the --pacticipant that it relates to.
 
-      --no-main-branch
-          No main branch of the pacticipant as the version for which you want to check the verification results
+      --no-main-branch <no-main-branch>
+          Do not use the main branch of the pacticipant as the version for which you want to check the verification results. Must be entered after the --pacticipant that it relates to.
 
-      --skip-main-branch
-          Skip the configured main branch of the pacticipant as the version for which you want to check the verification results
+      --skip-main-branch <skip-main-branch>
+          Skip the configured main branch of the pacticipant as the version for which you want to check the verification results. Must be entered after the --pacticipant that it relates to.
+
+      --ignore <ignore>
+          The pacticipant name to ignore. Use once for each pacticipant being ignored. A specific version can be ignored by also specifying a --version after the pacticipant name option. The environment variable PACT_BROKER_CAN_I_DEPLOY_IGNORE may also be used to specify a pacticipant name to ignore, with commas to separate multiple pacticipant names if necessary.
 
       --to-environment <ENVIRONMENT>
           The environment into which the pacticipant(s) are to be deployed
@@ -776,7 +779,7 @@ appropriate values for your pipeline.
 $ pact-broker-cli pact-broker can-i-merge --help
 Checks if the specified pacticipant version is compatible with the configured main branch of each of the pacticipants with which it is integrated.
 
-Usage: pact-broker-cli pact-broker can-i-merge [OPTIONS] --broker-base-url <PACT_BROKER_BASE_URL> --pacticipant [<PACTICIPANT>]
+Usage: pact-broker-cli pact-broker can-i-merge [OPTIONS] --broker-base-url <PACT_BROKER_BASE_URL> --pacticipant <PACTICIPANT>
 
 Options:
   -b, --broker-base-url <PACT_BROKER_BASE_URL>
@@ -787,8 +790,8 @@ Options:
           Pact Broker basic auth password [env: PACT_BROKER_PASSWORD=]
   -k, --broker-token <PACT_BROKER_TOKEN>
           Pact Broker bearer token [env: PACT_BROKER_TOKEN=]
-  -a, --pacticipant [<PACTICIPANT>]
-          The pacticipant name. Use once for each pacticipant being checked.
+  -a, --pacticipant <PACTICIPANT>
+          The pacticipant name. Use once for each pacticipant being checked. The following options (--version, --latest, --tag, --branch, --main-branch, --no-main-branch, --skip-main-branch) must come after each --pacticipant.
   -e, --version <VERSION>
           The pacticipant version. Must be entered after the --pacticipant that it relates to.
   -o, --output <OUTPUT>

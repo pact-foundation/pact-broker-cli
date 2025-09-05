@@ -275,5 +275,5 @@ pub(crate) fn handle_error(err: PactBrokerError) -> PactBrokerError {
             println!("❌ {}", err);
         }
     }
-    std::process::exit(1);
+    PactBrokerError::from(err)
 }
