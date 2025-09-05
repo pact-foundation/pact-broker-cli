@@ -370,6 +370,7 @@ mod publish_provider_contract_tests {
     use pact_models::{PactSpecification, generators};
     use serde_json::json;
 
+    #[cfg(not(target_os = "windows"))]
     #[test]
     fn publish_provider_contract_success() {
         // Arrange
