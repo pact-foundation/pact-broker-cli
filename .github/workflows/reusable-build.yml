@@ -61,8 +61,8 @@ jobs:
           targets: x86_64-unknown-linux-gnu
           toolchain: nightly
         if: ${{ inputs.target == 'aarch64-unknown-freebsd' || inputs.target == 's390x-unknown-linux-musl' || inputs.target == 'riscv64gc-unknown-linux-musl' }}
-      - name: Rust caching
-        uses: Swatinem/rust-cache@v2
+      # - name: Rust caching
+      #   uses: Swatinem/rust-cache@v2
       - name: set MACOSX_DEPLOYMENT_TARGET to 10.9 for x86_64-apple-darwin (mavericks)
         if: ${{ inputs.target == 'x86_64-apple-darwin' }}
         run: echo "MACOSX_DEPLOYMENT_TARGET=10.9" >> $GITHUB_ENV
