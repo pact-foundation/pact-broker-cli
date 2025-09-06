@@ -1,4 +1,3 @@
-use std::process::exit;
 use crate::cli::pact_broker::main::branches::delete_branch::{self};
 use crate::cli::pact_broker::main::deployments::record_deployment::record_deployment;
 use crate::cli::pact_broker::main::deployments::record_release::record_release;
@@ -118,91 +117,91 @@ pub fn run(args: &ArgMatches, raw_args: Vec<String>) {
             let res = list_latest_pact_versions(&broker_details, output, verbose);
             if let Err(err) = res {
                 handle_error(err);
-                exit(1);
+                std::process::exit(1);
             }
         }
         Some(("create-environment", args)) => {
             let res = create_environment(args);
             if let Err(err) = res {
                 handle_error(err);
-                exit(1);
+                std::process::exit(1);
             }
         }
         Some(("update-environment", args)) => {
             let res = update_environment(args);
             if let Err(err) = res {
                 handle_error(err);
-                exit(1);
+                std::process::exit(1);
             }
         }
         Some(("describe-environment", args)) => {
             let res = describe_environment(args);
             if let Err(err) = res {
                 handle_error(err);
-                exit(1);
+                std::process::exit(1);
             }
         }
         Some(("delete-environment", args)) => {
             let res = delete_environment(args);
             if let Err(err) = res {
                 handle_error(err);
-                exit(1);
+                std::process::exit(1);
             }
         }
         Some(("list-environments", args)) => {
             let res = list_environments(args);
             if let Err(err) = res {
                 handle_error(err);
-                exit(1);
+                std::process::exit(1);
             }
         }
         Some(("record-deployment", args)) => {
             let res = record_deployment(args);
             if let Err(err) = res {
                 handle_error(err);
-                exit(1);
+                std::process::exit(1);
             }
         }
         Some(("record-undeployment", args)) => {
             let res = record_undeployment(args);
             if let Err(err) = res {
                 handle_error(err);
-                exit(1);
+                std::process::exit(1);
             }
         }
         Some(("record-release", args)) => {
             let res = record_release(args);
             if let Err(err) = res {
                 handle_error(err);
-                exit(1);
+                std::process::exit(1);
             }
         }
         Some(("record-support-ended", args)) => {
             let res = record_support_ended(args);
             if let Err(err) = res {
                 handle_error(err);
-                exit(1);
+                std::process::exit(1);
             }
         }
         Some(("can-i-deploy", args)) => {
             let res = can_i_deploy::can_i_deploy(args, raw_args, false);
             if let Err(err) = res {
                 handle_error(err);
-                exit(1);
+                std::process::exit(1);
             }
         }
         Some(("can-i-merge", args)) => {
             let res = can_i_deploy::can_i_deploy(args, raw_args, true);
             if let Err(err) = res {
                 handle_error(err);
-                exit(1);
+                std::process::exit(1);
             }
         }
         Some(("create-or-update-pacticipant", args)) => {
             let res = create_or_update_pacticipant(args);
             if let Err(err) = res {
                 handle_error(err);
-                exit(1);
+                std::process::exit(1);
             }
         }
         Some(("describe-pacticipant", args)) => {
@@ -234,7 +233,7 @@ pub fn run(args: &ArgMatches, raw_args: Vec<String>) {
             );
             if let Err(err) = res {
                 handle_error(err);
-                exit(1);
+                std::process::exit(1);
             }
         }
         Some(("list-pacticipants", args)) => {
@@ -260,56 +259,56 @@ pub fn run(args: &ArgMatches, raw_args: Vec<String>) {
             let res = list_pacticipants(&broker_details, output, verbose);
             if let Err(err) = res {
                 handle_error(err);
-                exit(1);
+                std::process::exit(1);
             }
         }
         Some(("create-webhook", args)) => {
             let res = create_webhook(args);
             if let Err(err) = res {
                 handle_error(err);
-                exit(1);
+                std::process::exit(1);
             }
         }
         Some(("create-or-update-webhook", args)) => {
             let res = create_webhook(args);
             if let Err(err) = res {
                 handle_error(err);
-                exit(1);
+                std::process::exit(1);
             }
         }
         Some(("test-webhook", args)) => {
             let res = test_webhook(args);
             if let Err(err) = res {
                 handle_error(err);
-                exit(1);
+                std::process::exit(1);
             }
         }
         Some(("delete-branch", args)) => {
             let res = delete_branch::delete_branch(args);
             if let Err(err) = res {
                 handle_error(err);
-                exit(1);
+                std::process::exit(1);
             }
         }
         Some(("create-version-tag", args)) => {
             let res = create_version_tag::create_version_tag(args);
             if let Err(err) = res {
                 handle_error(err);
-                exit(1);
+                std::process::exit(1);
             }
         }
         Some(("describe-version", args)) => {
             let res = describe_version(args);
             if let Err(err) = res {
                 handle_error(err);
-                exit(1);
+                std::process::exit(1);
             }
         }
         Some(("create-or-update-version", args)) => {
             let res = create_or_update_version(args);
             if let Err(err) = res {
                 handle_error(err);
-                exit(1);
+                std::process::exit(1);
             }
         }
         Some(("generate-uuid", _args)) => {
