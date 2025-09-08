@@ -2,7 +2,7 @@ name: Test CLI with Pact Broker
 
 on:
   workflow_dispatch:
-  push:
+  push: # setup to run post release
   #   branches: [ "main" ]
   # pull_request:
   #   branches: [ "main" ]

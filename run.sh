@@ -35,9 +35,9 @@ ${BIN} pact-broker create-webhook https://localhost --request POST --contract-pu
 export WEBHOOK_UUID=$(${BIN} pact-broker create-webhook https://localhost --request POST --contract-published | jq .uuid -r)
 ${BIN} pact-broker create-or-update-webhook https://foo.bar --request POST --uuid $WEBHOOK_UUID --provider-verification-succeeded
 ${BIN} pact-broker test-webhook --uuid $WEBHOOK_UUID
+${BIN} pact-broker create-or-update-version --version foo --pacticipant foo --branch bar --tag baz
 ${BIN} pact-broker create-version-tag --version foo --pacticipant foo --tag bar
 ${BIN} pact-broker describe-version --pacticipant foo
-${BIN} pact-broker create-or-update-version --version foo --pacticipant foo --branch bar --tag baz
 ${BIN} pact-broker can-i-merge --pacticipant foo --version foo
 ${BIN} pact-broker delete-branch --branch bar --pacticipant foo
 ${BIN} pact-broker describe-pacticipant --name foo
