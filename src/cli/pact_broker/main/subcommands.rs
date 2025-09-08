@@ -550,7 +550,7 @@ pub fn add_can_i_merge_subcommand() -> Command {
         .required(true)
         .num_args(1)
         .action(clap::ArgAction::Append)
-        .help("The pacticipant name. Use once for each pacticipant being checked. The following options (--version, --latest, --tag, --branch, --main-branch, --no-main-branch, --skip-main-branch) must come after each --pacticipant."))
+        .help("The pacticipant name. Use once for each pacticipant being checked. The following options (--version, --latest, --tag, --branch) must come after each --pacticipant."))
     .arg(Arg::new("version")
         .short('e')
         .long("version")

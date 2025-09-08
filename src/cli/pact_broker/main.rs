@@ -11,10 +11,10 @@ use futures::stream::*;
 use itertools::Itertools;
 use maplit::hashmap;
 
+use pact_models::http_utils;
 use pact_models::http_utils::HttpAuth;
 use pact_models::json_utils::json_to_string;
 use pact_models::pact::{Pact, load_pact_from_json};
-use pact_models::{http_utils};
 use regex::{Captures, Regex};
 use reqwest::{Method, Url};
 use serde::{Deserialize, Serialize};

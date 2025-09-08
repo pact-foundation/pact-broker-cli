@@ -72,54 +72,59 @@ struct PacticipantArgs {
     main_branch: bool,
 }
 
-        fn parse_args_from_matches(raw_args: Vec<String>) -> Vec<PacticipantArgs> {
-            // Get the raw arguments as they were passed on the command line
-            let mut args = raw_args.iter().peekable();
-            let mut result = Vec::new();
+fn parse_args_from_matches(raw_args: Vec<String>) -> Vec<PacticipantArgs> {
+    // Get the raw arguments as they were passed on the command line
+    let mut args = raw_args.iter().peekable();
+    let mut result = Vec::new();
 
-            while let Some(arg) = args.next() {
-                if arg == "--pacticipant" || arg == "-a" {
-                    let pacticipant = args.next().expect("Expected value after --pacticipant").to_string();
-                    let mut pacticipant_args = PacticipantArgs {
-                        pacticipant,
-                        ..Default::default()
-                    };
+    while let Some(arg) = args.next() {
+        if arg == "--pacticipant" || arg == "-a" {
+            let pacticipant = args
+                .next()
+                .expect("Expected value after --pacticipant")
+                .to_string();
+            let mut pacticipant_args = PacticipantArgs {
+                pacticipant,
+                ..Default::default()
+            };
 
-                    while let Some(next_arg) = args.peek() {
-                        match next_arg.as_str() {
-                            "--version" | "-e" => {
-                                args.next();
-                                pacticipant_args.version = args.next().map(|s| s.to_string());
-                            }
-                            "--tag" => {
-                                args.next();
-                                if let Some(tag) = args.next() {
-                                    pacticipant_args.tags.push(tag.to_string());
-                                }
-                            }
-                            "--latest" | "-l" => {
-                                args.next();
-                                pacticipant_args.latest = true;
-                            }
-                            "--main-branch" => {
-                                args.next();
-                                pacticipant_args.main_branch = true;
-                            }
-                            "--pacticipant" | "-a" => break,
-                            _ => {
-                                args.next();
-                            }
+            while let Some(next_arg) = args.peek() {
+                match next_arg.as_str() {
+                    "--version" | "-e" => {
+                        args.next();
+                        pacticipant_args.version = args.next().map(|s| s.to_string());
+                    }
+                    "--tag" => {
+                        args.next();
+                        if let Some(tag) = args.next() {
+                            pacticipant_args.tags.push(tag.to_string());
                         }
                     }
-                    result.push(pacticipant_args);
+                    "--latest" | "-l" => {
+                        args.next();
+                        pacticipant_args.latest = true;
+                    }
+                    "--main-branch" => {
+                        args.next();
+                        pacticipant_args.main_branch = true;
+                    }
+                    "--pacticipant" | "-a" => break,
+                    _ => {
+                        args.next();
+                    }
                 }
             }
-            result
+            result.push(pacticipant_args);
         }
+    }
+    result
+}
 
-
-
-pub fn can_i_deploy(args: &ArgMatches, raw_args: Vec<String>, can_i_merge: bool) -> Result<String, PactBrokerError> {
+pub fn can_i_deploy(
+    args: &ArgMatches,
+    raw_args: Vec<String>,
+    can_i_merge: bool,
+) -> Result<String, PactBrokerError> {
     debug!("Args: {:?}", args);
 
     let selectors = parse_args_from_matches(raw_args);
@@ -143,26 +148,21 @@ pub fn can_i_deploy(args: &ArgMatches, raw_args: Vec<String>, can_i_merge: bool)
         let mut matrix_href_path = String::from("/matrix?");
         for selector in &selectors {
             matrix_href_path.push_str(&format!(
-            "q[][pacticipant]={}&",
-            urlencoding::encode(&selector.pacticipant)
+                "q[][pacticipant]={}&",
+                urlencoding::encode(&selector.pacticipant)
             ));
             if let Some(version) = &selector.version {
-            matrix_href_path.push_str(&format!(
-                "q[][version]={}&",
-                urlencoding::encode(version)
-            ));
+                matrix_href_path
+                    .push_str(&format!("q[][version]={}&", urlencoding::encode(version)));
             }
             if selector.latest {
-            matrix_href_path.push_str("q[][latest]=true&");
+                matrix_href_path.push_str("q[][latest]=true&");
             }
             for tag in &selector.tags {
-            matrix_href_path.push_str(&format!(
-                "q[][tag]={}&",
-                urlencoding::encode(tag)
-            ));
+                matrix_href_path.push_str(&format!("q[][tag]={}&", urlencoding::encode(tag)));
             }
             if selector.main_branch {
-            matrix_href_path.push_str("q[][mainBranch]=true&");
+                matrix_href_path.push_str("q[][mainBranch]=true&");
             }
         }
         if let Some(to) = to {
@@ -202,28 +202,28 @@ pub fn can_i_deploy(args: &ArgMatches, raw_args: Vec<String>, can_i_merge: bool)
 
         loop {
             res = hal_client
-            .clone()
-            .fetch(&(broker_url.clone() + &matrix_href_path))
-            .await;
+                .clone()
+                .fetch(&(broker_url.clone() + &matrix_href_path))
+                .await;
 
             // If retry_while_unknown is set, poll if deployable is None (unknown)
             if max_attempts > 0 {
-            if let Ok(ref response) = res {
-                if let Ok(data) = serde_json::from_str::<Data>(&response.to_string()) {
-                if let Some(summary) = data.summary {
-                    if summary.deployable.is_some() {
-                    break;
+                if let Ok(ref response) = res {
+                    if let Ok(data) = serde_json::from_str::<Data>(&response.to_string()) {
+                        if let Some(summary) = data.summary {
+                            if summary.deployable.is_some() {
+                                break;
+                            }
+                        }
                     }
                 }
+                attempts += 1;
+                if attempts > max_attempts {
+                    break;
                 }
-            }
-            attempts += 1;
-            if attempts > max_attempts {
-                break;
-            }
-            tokio::time::sleep(std::time::Duration::from_secs(interval)).await;
+                tokio::time::sleep(std::time::Duration::from_secs(interval)).await;
             } else {
-            break;
+                break;
             }
         }
         debug!("Response: {:?}", res);
@@ -407,7 +407,7 @@ mod can_i_deploy_tests {
             })
             .start_mock_server(None, Some(config));
         let mock_server_url = pact_broker_service.url();
-        
+
         let raw_args = vec![
             "can-i-deploy",
             "-b",
@@ -776,11 +776,10 @@ mod can_i_deploy_tests {
         assert!(result.is_ok());
     }
 
-
     // sends URL Querying broker at: http://127.0.0.1:61567/matrix?q[][pacticipant]=Foo&q[][version]=1.2.3&q[][pacticipant]=Bar&q[][latest]=true&q[][tag]=prod&latestby=cvpv
     // pact saves url as latestby=cvpv&q[][latest]=true&q[][pacticipant]=Foo&q[][tag]=prod&q[][version]=1%2e2%2e3&q[][pacticipant]=Bar
     // pact should save url as q[][pacticipant]=Foo&q[][version]=1%2e2%2e3&q[][pacticipant]=Bar&q[][latest]=true&q[][tag]=prod&latestby=cvpv
-    // pact-ruby saves q%5B%5D%5Bpacticipant%5D=Foo&q%5B%5D%5Bversion%5D=1.2.3&q%5B%5D%5Bpacticipant%5D=Bar&q%5B%5D%5Blatest%5D=true&q%5B%5D%5Btag%5D=prod&latestby=cvpv 
+    // pact-ruby saves q%5B%5D%5Bpacticipant%5D=Foo&q%5B%5D%5Bversion%5D=1.2.3&q%5B%5D%5Bpacticipant%5D=Bar&q%5B%5D%5Blatest%5D=true&q%5B%5D%5Btag%5D=prod&latestby=cvpv
     #[test]
     fn latest_tagged_version_of_provider() {
         let config = MockServerConfig {
@@ -828,12 +827,11 @@ mod can_i_deploy_tests {
         ];
         let matches = build_matches(raw_args.clone());
         let raw_args: Vec<String> = raw_args.into_iter().map(|s| s.to_string()).collect();
-        let result = can_i_deploy(&matches, raw_args, false);        assert!(result.is_ok());
+        let result = can_i_deploy(&matches, raw_args, false);
+        assert!(result.is_ok());
         let output = result.unwrap();
         assert!(output.contains("Computer says"));
     }
-
-
 
     // sends URL Querying broker at: http://127.0.0.1:61517/matrix?q[][pacticipant]=Foo&q[][version]=1.2.4&q[][pacticipant]=Bar&q[][latest]=true&latestby=cvpv
     // pact saves URL as latestby=cvpv&q[][latest]=true&q[][pacticipant]=Foo&q[][version]=1%2e2%2e4&q[][pacticipant]=Bar
@@ -883,7 +881,7 @@ mod can_i_deploy_tests {
         ];
         let matches = build_matches(raw_args.clone());
         let raw_args: Vec<String> = raw_args.into_iter().map(|s| s.to_string()).collect();
-        let result = can_i_deploy(&matches, raw_args, false);  
+        let result = can_i_deploy(&matches, raw_args, false);
         assert!(result.is_ok());
         let output = result.unwrap();
         assert!(output.contains("Computer says"));

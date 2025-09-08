@@ -86,11 +86,9 @@ pub fn create_or_update_version(args: &clap::ArgMatches) -> Result<String, PactB
 #[cfg(test)]
 mod create_or_update_version_tests {
     use super::create_or_update_version;
-    use crate::cli::{
-        pact_broker::main::subcommands::add_create_or_update_version_subcommand,
-    };
+    use crate::cli::pact_broker::main::subcommands::add_create_or_update_version_subcommand;
     use pact_consumer::prelude::*;
-    use pact_models::{PactSpecification};
+    use pact_models::PactSpecification;
     use serde_json::json;
 
     #[test]
