@@ -17,18 +17,18 @@ jobs:
 
     strategy:
       matrix:
-        os: [ubuntu-latest, macos-12, macos-14, windows-latest]
+        os: [ubuntu-latest, macos-13, macos-14, windows-latest]
         shell: [bash]
-        include:
-          - os: windows-latest
-            shell: pwsh
-          - os: windows-latest
-            shell: cmd
+        # include:
+        #   - os: windows-latest
+        #     shell: pwsh
+        #   - os: windows-latest
+        #     shell: cmd
       fail-fast: false
     steps:
     - uses: actions/checkout@v4 # required for local pact and test command script
     - uses: you54f/pact-broker-cli@main
-    - uses: you54f/pact-broker-in-a-box@via_ruby
+    - uses: you54f/pact-broker-in-a-box@via_ruby_test
  
     - name: Show help commands
       run: |
