@@ -75,9 +75,18 @@ jobs:
       - name: Test with cross
         # if: ${{ matrix.job.use-cross == true }}
         run: make cargo_test
+      - uses: you54f/pact-broker-in-a-box@via_ruby_test
+        if: ${{ inputs.target == 'aarch64-apple-darwin' || inputs.target == 'x86_64-unknown-linux-gnu' || inputs.target == 'x86_64-pc-windows-gnu' }}
+      - name: test pact-broker-cli with locally running Pact Broker
+        if: ${{ inputs.target == 'aarch64-apple-darwin' || inputs.target == 'x86_64-unknown-linux-gnu' || inputs.target == 'x86_64-pc-windows-gnu' }}
+        run: ./run.sh
+        env:
+          PACT_BROKER_BASE_URL: http://localhost:9292
+          BIN: target/${{ inputs.target }}/release/pact-broker-cli
       - uses: pactflow/actions@main
         if: ${{ inputs.target == 'aarch64-apple-darwin' }}
       - run: pact-broker publish target/pacts -r
+        name: Publish pacts to hosted Pactflow Broker
         if: ${{ inputs.target == 'aarch64-apple-darwin' }}
         env:
           PACT_BROKER_BASE_URL: ${{ secrets.broker_url }}

@@ -1,8 +1,8 @@
-name: Rust
+name: Test CLI with Pact Broker
 
 on:
   workflow_dispatch:
-  # push:
+  # push: # setup to run post release
   #   branches: [ "main" ]
   # pull_request:
   #   branches: [ "main" ]
@@ -17,184 +17,78 @@ jobs:
 
     strategy:
       matrix:
-        os: [ubuntu-latest, macos-12, macos-14, windows-latest]
+        os: [ubuntu-latest, macos-13, macos-14, windows-latest]
         shell: [bash]
-        include:
-          - os: windows-latest
-            shell: pwsh
-          - os: windows-latest
-            shell: cmd
+        # include:
+        #   - os: windows-latest
+        #     shell: pwsh
+        #   - os: windows-latest
+        #     shell: cmd
       fail-fast: false
     steps:
     - uses: actions/checkout@v4 # required for local pact and test command script
-    - name: Download
-      if: matrix.os == 'ubuntu-latest'
-      shell: bash
-      run: |
-        curl -LO https://github.com/YOU54F/pact-broker-cli/releases/download/v0.0.10/pact-broker-cli-x86_64-linux-musl
-        chmod +x pact-broker-cli-x86_64-linux-musl
-        mkdir -p pact/bin
-        mv pact-broker-cli-x86_64-linux-musl pact/bin/pact-broker-cli
-    - name: Download
-      if: matrix.os == 'macos-12'
-      shell: bash
-      run: |
-        curl -LO https://github.com/YOU54F/pact-broker-cli/releases/download/v0.0.10/pact-broker-cli-x86_64-macos
-        chmod +x pact-broker-cli-x86_64-macos
-        mkdir -p pact/bin
-        mv pact-broker-cli-x86_64-macos pact/bin/pact-broker-cli
-    - name: Download
-      if: matrix.os == 'macos-14'
-      shell: bash
-      run: |
-        curl -LO https://github.com/YOU54F/pact-broker-cli/releases/download/v0.0.10/pact-broker-cli-aarch64-macos
-        chmod +x pact-broker-cli-aarch64-macos
-        mkdir -p pact/bin
-        mv pact-broker-cli-aarch64-macos pact/bin/pact-broker-cli
-    - name: Download
-      if: matrix.os == 'windows-latest'
-      shell: bash
-      run: |
-        curl -LO https://github.com/YOU54F/pact-broker-cli/releases/download/v0.0.10/pact-broker-cli-x86_64-windows-msvc.exe
-        chmod +x pact-broker-cli-x86_64-windows-msvc.exe
-        mkdir -p pact/bin
-        mv pact-broker-cli-x86_64-windows-msvc.exe pact/bin/pact-broker-cli.exe
-
-    - run: |
-        "$pwd\pact\bin\" >> $env:GITHUB_PATH
-      if: runner.os == 'windows'
-      shell: powershell        
-    - run: |
-        echo "PATH=${PATH}:${PWD}/pact/bin/" >>$GITHUB_ENV
-      if: runner.os != 'windows'
-      shell: bash        
-  
+    - uses: you54f/pact-broker-in-a-box@via_ruby_test
+    - uses: you54f/pact-broker-cli@main
+ 
     - name: Show help commands
       run: |
         pact-broker-cli --help
         pact-broker-cli pact-broker --help
         pact-broker-cli pactflow --help
-        pact-broker-cli completions --help
-        # pact-broker-cli docker --help
-        # pact-broker-cli plugin --help
-        # pact-broker-cli plugin list --help
-        # pact-broker-cli plugin list installed --help
-        # pact-broker-cli plugin list known --help
-        # pact-broker-cli plugin env --help
-        # pact-broker-cli plugin install --help
-        # pact-broker-cli plugin remove --help
-        # pact-broker-cli plugin enable --help
-        # pact-broker-cli plugin disable --help
-        # pact-broker-cli plugin repository --help
-        # pact-broker-cli plugin repository validate --help
-        # pact-broker-cli plugin repository new --help
-        # pact-broker-cli plugin repository add-plugin-version --help
-        # pact-broker-cli plugin repository add-plugin-version git-hub --help
-        # pact-broker-cli plugin repository add-plugin-version file --help
-        # pact-broker-cli plugin repository add-all-plugin-versions --help
-        # pact-broker-cli plugin repository yank-version --help
-        # pact-broker-cli plugin repository list --help
-        # pact-broker-cli plugin repository list-versions --help
-        # pact-broker-cli stub --help
-        # pact-broker-cli verifier --help
-        # pact-broker-cli mock --help
-        # pact-broker-cli mock start --help
-        # pact-broker-cli mock list --help
-        # pact-broker-cli mock create --help
-        # pact-broker-cli mock verify --help
-        # pact-broker-cli mock shutdown --help
-        # pact-broker-cli mock shutdown-master --help
-        # pact-broker-cli standalone --help
-
-    - name: install scoop
-      shell: powershell
-      if: runner.os == 'windows'
-      run: |
-        iex "& {$(irm get.scoop.sh)} -RunAsAdmin"
-        "$HOME\scoop\shims\" >> $env:GITHUB_PATH
-    - name: install wget and netcat via scoop
-      if: runner.os == 'windows'
-      shell: powershell
-      run: |
-        scoop install wget
-        scoop install netcat
-
-    - name: start standalone broker
-      run: pact-broker-cli standalone start --detach
-
-    - name: wait for broker
-      shell: bash
-      run: wget -qO- https://raw.githubusercontent.com/eficode/wait-for/$WAIT_FOR_VERSION/wait-for | sh -s -- localhost:9292 -- echo "pact broker is up"
-      env:
-        WAIT_FOR_VERSION: 4df3f9262d84cab0039c07bf861045fbb3c20ab7
 
     - name: Run pact-broker commands
       shell: bash
       run: ./run.sh
-      # run: |
-      #   pact-broker-cli standalone info
-      #   pact-broker-cli pact-broker list-latest-pact-versions
-      #   pact-broker-cli pact-broker create-environment --name name_foo1
-      #   pact-broker-cli pact-broker create-environment --name name_foo2 --display-name display_name_foo
-      #   pact-broker-cli pact-broker create-environment --name name_foo3 --display-name display_name_foo --contact-name contact_name_foo
-      #   pact-broker-cli pact-broker create-environment --name name_foo4 --display-name display_name_foo --contact-name contact_name_foo --contact-email-address contact.email.address@foo.bar
-      #   pact-broker-cli standalone stop
       env:
         PACT_BROKER_BASE_URL: http://localhost:9292
 
-  cli_docker:
+  # cli_docker:
 
-    runs-on: ubuntu-latest
+  #   runs-on: ubuntu-latest
 
-    strategy:
-      matrix:
-        distro: [alpine,debian]
-        registry: [docker.io,ghcr.io]
-        platform: [
-            linux/386,
-            linux/arm/v6,
-            linux/arm/v8,
-            linux/arm/v7,
-            linux/arm64,
-            linux/riscv64,
-            linux/s390x,
-            linux/amd64
-          ]
-        exclude:
-          - distro: alpine
-            platform: linux/riscv64
-          - distro: alpine
-            platform: linux/s390x
-      fail-fast: false
-    steps:
-      - name: Download
-        run: |
-          curl -LO https://github.com/YOU54F/pact-broker-cli/releases/download/v0.0.10/pact-broker-cli-x86_64-linux-musl
-          chmod +x pact-broker-cli-x86_64-linux-musl
-          mkdir -p pact/bin
-          mv pact-broker-cli-x86_64-linux-musl pact/bin/pact-broker-cli 
-          echo "PATH=${PATH}:${PWD}/pact/bin/" >>$GITHUB_ENV
+  #   strategy:
+  #     matrix:
+  #       distro: [alpine,debian]
+  #       registry: [docker.io,ghcr.io]
+  #       platform: [
+  #           linux/386,
+  #           linux/arm/v6,
+  #           linux/arm/v8,
+  #           linux/arm/v7,
+  #           linux/arm64,
+  #           linux/riscv64,
+  #           linux/s390x,
+  #           linux/amd64
+  #         ]
+  #       exclude:
+  #         - distro: alpine
+  #           platform: linux/riscv64
+  #         - distro: alpine
+  #           platform: linux/s390x
+  #     fail-fast: false
+  #   steps:
+  #     - uses: you54f/pact-broker-cli@main
 
-      - name: start standalone broker
-        run: pact-broker-cli standalone start --detach
+  #     - name: start standalone broker
+  #       run: pact-broker-cli standalone start --detach
 
-      - name: wait for broker
-        shell: bash
-        run: wget -qO- https://raw.githubusercontent.com/eficode/wait-for/$WAIT_FOR_VERSION/wait-for | sh -s -- localhost:9292 -- echo "pact broker is up"
-        env:
-          WAIT_FOR_VERSION: 4df3f9262d84cab0039c07bf861045fbb3c20ab7
+  #     - name: wait for broker
+  #       shell: bash
+  #       run: wget -qO- https://raw.githubusercontent.com/eficode/wait-for/$WAIT_FOR_VERSION/wait-for | sh -s -- localhost:9292 -- echo "pact broker is up"
+  #       env:
+  #         WAIT_FOR_VERSION: 4df3f9262d84cab0039c07bf861045fbb3c20ab7
 
-      - name: Run pact-broker commands
-        run: |
-          # pact-broker-cli standalone info
-          pact-broker-cli pact-broker list-latest-pact-versions
-        env:
-          PACT_BROKER_BASE_URL: http://localhost:9292
-      - name: Set up QEMU
-        if: matrix.platform != 'linux/amd64'
-        uses: docker/setup-qemu-action@v3
-      - name: Run pact-broker commands
-        run: |
-          docker run --platform ${{ matrix.platform }} -e PACT_BROKER_BASE_URL=$PACT_BROKER_BASE_URL --add-host=host.docker.internal:host-gateway --rm ${{ matrix.registry }}/you54f/pact-broker-cli:latest-${{ matrix.distro }} pact-broker list-latest-pact-versions
-        env:
-          PACT_BROKER_BASE_URL: http://host.docker.internal:9292
+  #     - name: Run pact-broker commands
+  #       run: |
+  #         # pact-broker-cli standalone info
+  #         pact-broker-cli pact-broker list-latest-pact-versions
+  #       env:
+  #         PACT_BROKER_BASE_URL: http://localhost:9292
+  #     - name: Set up QEMU
+  #       if: matrix.platform != 'linux/amd64'
+  #       uses: docker/setup-qemu-action@v3
+  #     - name: Run pact-broker commands
+  #       run: |
+  #         docker run --platform ${{ matrix.platform }} -e PACT_BROKER_BASE_URL=$PACT_BROKER_BASE_URL --add-host=host.docker.internal:host-gateway --rm ${{ matrix.registry }}/you54f/pact-broker-cli:latest-${{ matrix.distro }} pact-broker list-latest-pact-versions
+  #       env:
+  #         PACT_BROKER_BASE_URL: http://host.docker.internal:9292
