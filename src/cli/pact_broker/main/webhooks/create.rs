@@ -1,6 +1,11 @@
+use maplit::hashmap;
+
 use crate::cli::pact_broker::main::{
     HALClient, PactBrokerError,
-    utils::{get_auth, get_broker_relation, get_broker_url, get_ssl_options},
+    utils::{
+        follow_templated_broker_relation, get_auth, get_broker_relation, get_broker_url,
+        get_ssl_options,
+    },
 };
 
 pub fn create_webhook(args: &clap::ArgMatches) -> Result<String, PactBrokerError> {
@@ -44,47 +49,59 @@ pub fn create_webhook(args: &clap::ArgMatches) -> Result<String, PactBrokerError
     let res = tokio::runtime::Runtime::new().unwrap().block_on(async {
         let hal_client: HALClient =
             HALClient::with_url(&broker_url, Some(auth.clone()), ssl_options.clone());
-
-    let pb_webhooks_href_path = if webhook_uuid.is_some(){
-        // use the pb:webhook relation, and template it with webhook uuid and perform a put
-        // else post to the pb:webhooks relation and perform a post
-        let pb_webhook_href_path = get_broker_relation(
+      let pb_webhook_href_path = get_broker_relation(
             hal_client.clone(),
             "pb:webhook".to_string(),
             broker_url.to_string(),
-        ).await;
+        )
+        .await;
         let pb_webhook_href_path = match pb_webhook_href_path {
             Ok(href) => href,
             Err(err) => {
                 return Err(err);
             }
         };
-        // let template_values = hashmap! { "uuid".to_string() => webhook_uuid.clone().unwrap().to_string() };
-        // let pb_webhook_href_path = follow_templated_broker_relation(
-        //     hal_client.clone(),
-        //     "pb:webhook".to_string(),
-        //     pb_webhook_href_path,
-        //     template_values,
-        // )
-        // .await;
-        // let pb_webhooks_href_path = match pb_webhook_href_path {
-        //     Ok(href) =>
-        //     {
-        //         href.get("_links").unwrap().get("self").unwrap().get("href").unwrap().to_string()
-        //     }
-        //     Err(err) => {
-        //         return Err(err);
-        //     }
-        // };
-        pb_webhook_href_path.replace("\"", "")
+    let pb_webhooks_href_path: Result<String, PactBrokerError> = if webhook_uuid.is_some() {
+        // use the pb:webhook relation, and template it with webhook uuid and perform a put
+        let template_values =
+            hashmap! { "uuid".to_string() => webhook_uuid.clone().unwrap().to_string() };
+        let pb_webhook_href_path = follow_templated_broker_relation(
+            hal_client.clone(),
+            "webhook".to_string(),
+            pb_webhook_href_path,
+            template_values,
+        )
+        .await;
+        match pb_webhook_href_path {
+            Ok(href) => {
+                let href = href
+                    .get("_links")
+                    .unwrap()
+                    .get("self")
+                    .unwrap()
+                    .get("href")
+                    .unwrap()
+                    .to_string()
+                    .replace("\"", "");
+                Ok(href)
+            }
+            Err(err) => Err(err),
+        }
     } else {
         let pb_webhooks_href_path = get_broker_relation(
             hal_client.clone(),
             "pb:webhooks".to_string(),
             broker_url.to_string(),
         ).await;
-                pb_webhooks_href_path.unwrap()
-        };
+        match pb_webhooks_href_path {
+            Ok(s) => {
+                // println!("Using webhook endpoint: {}", s);
+                Ok(s)
+            }
+            Err(err) => Err(err),
+        }
+    };
+    let pb_webhooks_href_path = pb_webhooks_href_path?;
         let request_params = serde_json::json!({
             "method": http_method,
             "headers": headers,
