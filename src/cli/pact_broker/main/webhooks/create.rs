@@ -67,7 +67,7 @@ pub fn create_webhook(args: &clap::ArgMatches) -> Result<String, PactBrokerError
             hashmap! { "uuid".to_string() => webhook_uuid.clone().unwrap().to_string() };
         let pb_webhook_href_path = follow_templated_broker_relation(
             hal_client.clone(),
-            "webhook".to_string(),
+            "pb:webhook".to_string(),
             pb_webhook_href_path,
             template_values,
         )
@@ -265,6 +265,9 @@ mod create_webhook_tests {
                     "pb:webhooks": {
                     "href": term!("http:\\/\\/.*\\/webhooks", "http://localhost/webhooks")
                     },
+                    "pb:webhook": {
+                    "href": term!("http:\\/\\/.*\\/webhooks\\/.*", "http://localhost/webhooks/{uuid}")
+                    },
                     "pb:pacticipants": {
                     "href": term!("http:\\/\\/.*\\/pacticipants", "http://localhost/pacticipants")
                     },
@@ -290,9 +293,18 @@ mod create_webhook_tests {
                 .header("Content-Type", "application/hal+json;charset=utf-8")
                 .json_body(json_pattern!({
                 "_links": {
-                    "pb:webhook": {
-                    "href": term!(r"http://.*/webhooks/.*", format!("http://localhost/webhooks/{}", uuid.clone())),
+                    "pb:webhooks": {
+                    "href": term!("http:\\/\\/.*\\/webhooks", "http://localhost/webhooks")
                     },
+                    "pb:webhook": {
+                    "href": term!("http:\\/\\/.*\\/webhooks\\/.*", "http://localhost/webhooks/{uuid}")
+                    },
+                    "pb:pacticipants": {
+                    "href": term!("http:\\/\\/.*\\/pacticipants", "http://localhost/pacticipants")
+                    },
+                    "pb:pacticipant": {
+                    "href": term!("http:\\/\\/.*\\/pacticipants\\/\\{pacticipant\\}", "http://localhost/pacticipants/{pacticipant}")
+                    }
                 }
                 }));
             i
@@ -770,7 +782,25 @@ mod create_webhook_tests {
             }
         });
 
-        let interaction = |mut i: InteractionBuilder| {
+        let interaction_get = |mut i: InteractionBuilder| {
+            i.given(format!("a webhook with the uuid {} exists", uuid));
+            i.request
+                .get()
+                .path(format!("/webhooks/{}", uuid))
+                .header("Accept", "application/hal+json")
+                .header("Accept", "application/json");
+            i.response
+                .status(200)
+                .header("Content-Type", "application/hal+json;charset=utf-8")
+                .json_body(json_pattern!({
+                    "_links": {
+                        "self": {
+                            "href": term!("http:\\/\\/.*\\/webhooks\\/.*", format!("http://localhost/webhooks/{}", uuid)),
+                        },
+                    }}));
+            i
+        };
+        let interaction_post = |mut i: InteractionBuilder| {
             i.given("the 'Pricing Service' and 'Condor' already exist in the pact-broker");
             i.request
                 .put()
@@ -790,7 +820,11 @@ mod create_webhook_tests {
                 "a request for the index resource with the webhook relation",
                 "",
             )),
-            interaction(InteractionBuilder::new(
+            interaction_get(InteractionBuilder::new(
+                "a request to get a webhook with a uuid",
+                "",
+            )),
+            interaction_post(InteractionBuilder::new(
                 "a request to create a webhook with a JSON body and a uuid",
                 "",
             )),
@@ -842,7 +876,25 @@ mod create_webhook_tests {
             }
         });
 
-        let interaction = |mut i: InteractionBuilder| {
+        let interaction_get = |mut i: InteractionBuilder| {
+            i.given(format!("a webhook with the uuid {} exists", uuid));
+            i.request
+                .get()
+                .path(format!("/webhooks/{}", uuid))
+                .header("Accept", "application/hal+json")
+                .header("Accept", "application/json");
+            i.response
+                .status(200)
+                .header("Content-Type", "application/hal+json;charset=utf-8")
+                .json_body(json_pattern!({
+                    "_links": {
+                        "self": {
+                            "href": term!("http:\\/\\/.*\\/webhooks\\/.*", format!("http://localhost/webhooks/{}", uuid)),
+                        },
+                    }}));
+            i
+        };
+        let interaction_post = |mut i: InteractionBuilder| {
             i.given(format!("a webhook with the uuid {} exists", uuid));
             i.request
                 .put()
@@ -862,7 +914,11 @@ mod create_webhook_tests {
                 "a request for the index resource with the webhook relation",
                 "",
             )),
-            interaction(InteractionBuilder::new(
+            interaction_get(InteractionBuilder::new(
+                "a request to get a webhook with a uuid",
+                "",
+            )),
+            interaction_post(InteractionBuilder::new(
                 "a request to create a webhook with a JSON body and a uuid",
                 "",
             )),

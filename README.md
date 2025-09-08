@@ -791,7 +791,7 @@ Options:
   -k, --broker-token <PACT_BROKER_TOKEN>
           Pact Broker bearer token [env: PACT_BROKER_TOKEN=]
   -a, --pacticipant <PACTICIPANT>
-          The pacticipant name. Use once for each pacticipant being checked. The following options (--version, --latest, --tag, --branch, --main-branch, --no-main-branch, --skip-main-branch) must come after each --pacticipant.
+          The pacticipant name. Use once for each pacticipant being checked. The following options (--version, --latest, --tag, --branch) must come after each --pacticipant.
   -e, --version <VERSION>
           The pacticipant version. Must be entered after the --pacticipant that it relates to.
   -o, --output <OUTPUT>
