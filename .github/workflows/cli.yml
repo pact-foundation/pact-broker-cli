@@ -27,7 +27,7 @@ jobs:
       fail-fast: false
     steps:
     - uses: actions/checkout@v4 # required for local pact and test command script
-    - uses: you54f/pact-broker-in-a-box@via_ruby_test
+    - uses: you54f/pact-broker-in-a-box@main
     - uses: you54f/pact-broker-cli@main
  
     - name: Show help commands
