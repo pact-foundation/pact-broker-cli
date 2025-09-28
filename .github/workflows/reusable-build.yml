@@ -43,7 +43,7 @@ jobs:
       version: ${{ steps.get_next_version.outputs.version }}
       hasNextVersion: ${{ steps.get_next_version.outputs.hasNextVersion }}
     steps:
-    - uses: actions/checkout@v3
+    - uses: actions/checkout@v4
       with:
         lfs: true
         fetch-depth: 0
@@ -66,14 +66,14 @@ jobs:
       content: ${{steps.git-cliff.outputs.content}}
       release_body: ${{ steps.git-cliff-changes.outputs.content }}
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
         with:
           lfs: true
           fetch-depth: 0
           ref: ${{ github.event.pull_request.head.sha }}
       - run: git tag "v${{needs.version.outputs.version}}"
       - name: Generate a changelog
-        uses: orhun/git-cliff-action@v2
+        uses: orhun/git-cliff-action@v4
         id: git-cliff
         with:
           config: cliff.toml
@@ -83,7 +83,7 @@ jobs:
       - name: Print the changelog
         run: echo "${{ steps.git-cliff.outputs.content }}"
       - name: Generate a changelog
-        uses: orhun/git-cliff-action@v2
+        uses: orhun/git-cliff-action@v4
         id: git-cliff-changes
         with:
           config: cliff.toml

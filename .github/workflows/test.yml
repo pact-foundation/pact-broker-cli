@@ -113,7 +113,7 @@ jobs:
           ref: ${{ github.event.pull_request.head.sha }}
       - run: git tag "v${{needs.version.outputs.version}}"
       - name: Generate a changelog
-        uses: orhun/git-cliff-action@v2
+        uses: orhun/git-cliff-action@v4
         id: git-cliff
         with:
           config: cliff.toml
@@ -123,7 +123,7 @@ jobs:
       - name: Print the changelog
         run: echo "${{ steps.git-cliff.outputs.content }}"
       - name: Generate a changelog
-        uses: orhun/git-cliff-action@v2
+        uses: orhun/git-cliff-action@v4
         id: git-cliff-changes
         with:
           config: cliff.toml
