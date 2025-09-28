@@ -40,6 +40,12 @@ Options:
           
           [env: PACT_BROKER_BASE_URL=]
 
+      --log-level <LEVEL>
+          Set the log level (none, off, error, warn, info, debug, trace)
+          
+          [default: off]
+          [possible values: off, none, error, warn, info, debug, trace]
+
   -u, --broker-username <PACT_BROKER_USERNAME>
           Pact Broker basic auth username
           
@@ -166,6 +172,8 @@ Usage: pact-broker-cli pact-broker list-latest-pact-versions [OPTIONS] --broker-
 Options:
   -b, --broker-base-url <PACT_BROKER_BASE_URL>
           The base URL of the Pact Broker [env: PACT_BROKER_BASE_URL=]
+      --log-level <LEVEL>
+          Set the log level (none, off, error, warn, info, debug, trace) [default: off] [possible values: off, none, error, warn, info, debug, trace]
   -u, --broker-username <PACT_BROKER_USERNAME>
           Pact Broker basic auth username [env: PACT_BROKER_USERNAME=]
   -p, --broker-password <PACT_BROKER_PASSWORD>
@@ -200,6 +208,8 @@ Create an environment resource in the Pact Broker to represent a real world depl
 Usage: pact-broker-cli pact-broker create-environment [OPTIONS] --name <NAME> --broker-base-url <PACT_BROKER_BASE_URL>
 
 Options:
+      --log-level <LEVEL>
+          Set the log level (none, off, error, warn, info, debug, trace) [default: off] [possible values: off, none, error, warn, info, debug, trace]
       --name <NAME>
           The uniquely identifying name of the environment as used in deployment code
       --display-name <DISPLAY_NAME>
@@ -244,6 +254,8 @@ Update an environment resource in the Pact Broker
 Usage: pact-broker-cli pact-broker update-environment [OPTIONS] --uuid <UUID> --broker-base-url <PACT_BROKER_BASE_URL>
 
 Options:
+      --log-level <LEVEL>
+          Set the log level (none, off, error, warn, info, debug, trace) [default: off] [possible values: off, none, error, warn, info, debug, trace]
       --uuid <UUID>
           The UUID of the environment to update
       --name <NAME>
@@ -290,6 +302,8 @@ Describe an environment
 Usage: pact-broker-cli pact-broker describe-environment [OPTIONS] --uuid <UUID> --broker-base-url <PACT_BROKER_BASE_URL>
 
 Options:
+      --log-level <LEVEL>
+          Set the log level (none, off, error, warn, info, debug, trace) [default: off] [possible values: off, none, error, warn, info, debug, trace]
       --uuid <UUID>
           The UUID of the environment to describe
   -o, --output <OUTPUT>
@@ -326,6 +340,8 @@ Delete an environment
 Usage: pact-broker-cli pact-broker delete-environment [OPTIONS] --uuid <UUID> --broker-base-url <PACT_BROKER_BASE_URL>
 
 Options:
+      --log-level <LEVEL>
+          Set the log level (none, off, error, warn, info, debug, trace) [default: off] [possible values: off, none, error, warn, info, debug, trace]
       --uuid <UUID>
           The UUID of the environment to delete
   -b, --broker-base-url <PACT_BROKER_BASE_URL>
@@ -360,6 +376,8 @@ List environments
 Usage: pact-broker-cli pact-broker list-environments [OPTIONS] --broker-base-url <PACT_BROKER_BASE_URL>
 
 Options:
+      --log-level <LEVEL>
+          Set the log level (none, off, error, warn, info, debug, trace) [default: off] [possible values: off, none, error, warn, info, debug, trace]
   -o, --output <OUTPUT>
           Value must be one of ["json", "text", "pretty"] [default: text] [possible values: json, text, pretty]
   -b, --broker-base-url <PACT_BROKER_BASE_URL>
@@ -398,6 +416,8 @@ Usage: pact-broker-cli pact-broker record-deployment [OPTIONS] --pacticipant <PA
 Options:
   -a, --pacticipant <PACTICIPANT>
           The name of the pacticipant that was deployed
+      --log-level <LEVEL>
+          Set the log level (none, off, error, warn, info, debug, trace) [default: off] [possible values: off, none, error, warn, info, debug, trace]
   -e, --version <VERSION>
           The pacticipant version number that was deployed
       --environment <ENVIRONMENT>
@@ -442,6 +462,12 @@ Usage: pact-broker-cli pact-broker record-undeployment [OPTIONS] --pacticipant <
 Options:
   -a, --pacticipant <PACTICIPANT>
           The name of the pacticipant that was undeployed
+
+      --log-level <LEVEL>
+          Set the log level (none, off, error, warn, info, debug, trace)
+          
+          [default: off]
+          [possible values: off, none, error, warn, info, debug, trace]
 
       --environment <ENVIRONMENT>
           The name of the environment that the pacticipant version was undeployed from
@@ -518,6 +544,8 @@ Usage: pact-broker-cli pact-broker record-release [OPTIONS] --pacticipant <PACTI
 Options:
   -a, --pacticipant <PACTICIPANT>
           The name of the pacticipant that was released.
+      --log-level <LEVEL>
+          Set the log level (none, off, error, warn, info, debug, trace) [default: off] [possible values: off, none, error, warn, info, debug, trace]
   -e, --version <VERSION>
           The pacticipant version number that was released.
       --environment <ENVIRONMENT>
@@ -558,6 +586,8 @@ Usage: pact-broker-cli pact-broker record-support-ended [OPTIONS] --pacticipant 
 Options:
   -a, --pacticipant <PACTICIPANT>
           The name of the pacticipant.
+      --log-level <LEVEL>
+          Set the log level (none, off, error, warn, info, debug, trace) [default: off] [possible values: off, none, error, warn, info, debug, trace]
   -e, --version <VERSION>
           The pacticipant version number for which support is ended.
       --environment <ENVIRONMENT>
@@ -642,6 +672,12 @@ Usage: pact-broker-cli pact-broker can-i-deploy [OPTIONS] --pacticipant <PACTICI
 Options:
   -a, --pacticipant <PACTICIPANT>
           The pacticipant name. Use once for each pacticipant being checked. The following options (--version, --latest, --tag, --branch, --main-branch, --no-main-branch, --skip-main-branch) must come after each --pacticipant.
+
+      --log-level <LEVEL>
+          Set the log level (none, off, error, warn, info, debug, trace)
+          
+          [default: off]
+          [possible values: off, none, error, warn, info, debug, trace]
 
   -e, --version <VERSION>
           The pacticipant version. Must be entered after the --pacticipant that it relates to.
@@ -784,6 +820,8 @@ Usage: pact-broker-cli pact-broker can-i-merge [OPTIONS] --broker-base-url <PACT
 Options:
   -b, --broker-base-url <PACT_BROKER_BASE_URL>
           The base URL of the Pact Broker [env: PACT_BROKER_BASE_URL=]
+      --log-level <LEVEL>
+          Set the log level (none, off, error, warn, info, debug, trace) [default: off] [possible values: off, none, error, warn, info, debug, trace]
   -u, --broker-username <PACT_BROKER_USERNAME>
           Pact Broker basic auth username [env: PACT_BROKER_USERNAME=]
   -p, --broker-password <PACT_BROKER_PASSWORD>
@@ -831,6 +869,8 @@ Usage: pact-broker-cli pact-broker create-or-update-pacticipant [OPTIONS] --brok
 Options:
   -b, --broker-base-url <PACT_BROKER_BASE_URL>
           The base URL of the Pact Broker [env: PACT_BROKER_BASE_URL=]
+      --log-level <LEVEL>
+          Set the log level (none, off, error, warn, info, debug, trace) [default: off] [possible values: off, none, error, warn, info, debug, trace]
   -u, --broker-username <PACT_BROKER_USERNAME>
           Pact Broker basic auth username [env: PACT_BROKER_USERNAME=]
   -p, --broker-password <PACT_BROKER_PASSWORD>
@@ -873,6 +913,8 @@ Usage: pact-broker-cli pact-broker describe-pacticipant [OPTIONS] --broker-base-
 Options:
   -b, --broker-base-url <PACT_BROKER_BASE_URL>
           The base URL of the Pact Broker [env: PACT_BROKER_BASE_URL=]
+      --log-level <LEVEL>
+          Set the log level (none, off, error, warn, info, debug, trace) [default: off] [possible values: off, none, error, warn, info, debug, trace]
   -u, --broker-username <PACT_BROKER_USERNAME>
           Pact Broker basic auth username [env: PACT_BROKER_USERNAME=]
   -p, --broker-password <PACT_BROKER_PASSWORD>
@@ -909,6 +951,8 @@ Usage: pact-broker-cli pact-broker list-pacticipants [OPTIONS] --broker-base-url
 Options:
   -b, --broker-base-url <PACT_BROKER_BASE_URL>
           The base URL of the Pact Broker [env: PACT_BROKER_BASE_URL=]
+      --log-level <LEVEL>
+          Set the log level (none, off, error, warn, info, debug, trace) [default: off] [possible values: off, none, error, warn, info, debug, trace]
   -u, --broker-username <PACT_BROKER_USERNAME>
           Pact Broker basic auth username [env: PACT_BROKER_USERNAME=]
   -p, --broker-password <PACT_BROKER_PASSWORD>
@@ -946,6 +990,8 @@ Arguments:
   <URL>  Webhook URL
 
 Options:
+      --log-level <LEVEL>
+          Set the log level (none, off, error, warn, info, debug, trace) [default: off] [possible values: off, none, error, warn, info, debug, trace]
   -X, --request <METHOD>
           Webhook HTTP method
   -H, --header [<one two three>]
@@ -1020,6 +1066,8 @@ Arguments:
 Options:
   -b, --broker-base-url <PACT_BROKER_BASE_URL>
           The base URL of the Pact Broker [env: PACT_BROKER_BASE_URL=]
+      --log-level <LEVEL>
+          Set the log level (none, off, error, warn, info, debug, trace) [default: off] [possible values: off, none, error, warn, info, debug, trace]
   -u, --broker-username <PACT_BROKER_USERNAME>
           Pact Broker basic auth username [env: PACT_BROKER_USERNAME=]
   -p, --broker-password <PACT_BROKER_PASSWORD>
@@ -1090,6 +1138,8 @@ Test a webhook
 Usage: pact-broker-cli pact-broker test-webhook [OPTIONS] --uuid <UUID> --broker-base-url <PACT_BROKER_BASE_URL>
 
 Options:
+      --log-level <LEVEL>
+          Set the log level (none, off, error, warn, info, debug, trace) [default: off] [possible values: off, none, error, warn, info, debug, trace]
       --uuid <UUID>
           Specify the uuid for the webhook
   -b, --broker-base-url <PACT_BROKER_BASE_URL>
@@ -1128,6 +1178,8 @@ Usage: pact-broker-cli pact-broker delete-branch [OPTIONS] --broker-base-url <PA
 Options:
   -b, --broker-base-url <PACT_BROKER_BASE_URL>
           The base URL of the Pact Broker [env: PACT_BROKER_BASE_URL=]
+      --log-level <LEVEL>
+          Set the log level (none, off, error, warn, info, debug, trace) [default: off] [possible values: off, none, error, warn, info, debug, trace]
   -u, --broker-username <PACT_BROKER_USERNAME>
           Pact Broker basic auth username [env: PACT_BROKER_USERNAME=]
   -p, --broker-password <PACT_BROKER_PASSWORD>
@@ -1168,6 +1220,8 @@ Usage: pact-broker-cli pact-broker create-version-tag [OPTIONS] --broker-base-ur
 Options:
   -b, --broker-base-url <PACT_BROKER_BASE_URL>
           The base URL of the Pact Broker [env: PACT_BROKER_BASE_URL=]
+      --log-level <LEVEL>
+          Set the log level (none, off, error, warn, info, debug, trace) [default: off] [possible values: off, none, error, warn, info, debug, trace]
   -u, --broker-username <PACT_BROKER_USERNAME>
           Pact Broker basic auth username [env: PACT_BROKER_USERNAME=]
   -p, --broker-password <PACT_BROKER_PASSWORD>
@@ -1210,6 +1264,8 @@ Usage: pact-broker-cli pact-broker describe-version [OPTIONS] --broker-base-url 
 Options:
   -b, --broker-base-url <PACT_BROKER_BASE_URL>
           The base URL of the Pact Broker [env: PACT_BROKER_BASE_URL=]
+      --log-level <LEVEL>
+          Set the log level (none, off, error, warn, info, debug, trace) [default: off] [possible values: off, none, error, warn, info, debug, trace]
   -u, --broker-username <PACT_BROKER_USERNAME>
           Pact Broker basic auth username [env: PACT_BROKER_USERNAME=]
   -p, --broker-password <PACT_BROKER_PASSWORD>
@@ -1248,6 +1304,8 @@ Usage: pact-broker-cli pact-broker create-or-update-version [OPTIONS] --broker-b
 Options:
   -b, --broker-base-url <PACT_BROKER_BASE_URL>
           The base URL of the Pact Broker [env: PACT_BROKER_BASE_URL=]
+      --log-level <LEVEL>
+          Set the log level (none, off, error, warn, info, debug, trace) [default: off] [possible values: off, none, error, warn, info, debug, trace]
   -u, --broker-username <PACT_BROKER_USERNAME>
           Pact Broker basic auth username [env: PACT_BROKER_USERNAME=]
   -p, --broker-password <PACT_BROKER_PASSWORD>
@@ -1290,6 +1348,8 @@ Usage: pact-broker-cli pact-broker generate-uuid [OPTIONS]
 Options:
   -c, --ssl-certificate <SSL_CERT_FILE>
           The path to a valid SSL certificate file [env: SSL_CERT_FILE=]
+      --log-level <LEVEL>
+          Set the log level (none, off, error, warn, info, debug, trace) [default: off] [possible values: off, none, error, warn, info, debug, trace]
       --skip-ssl-verification
           Skip SSL certificate verification [env: SSL_SKIP_VERIFICATION=]
       --ssl-trust-store <SSL_TRUST_STORE>
@@ -1317,6 +1377,8 @@ Arguments:
 Options:
   -b, --broker-base-url <PACT_BROKER_BASE_URL>
           The base URL of the Pact Broker [env: PACT_BROKER_BASE_URL=]
+      --log-level <LEVEL>
+          Set the log level (none, off, error, warn, info, debug, trace) [default: off] [possible values: off, none, error, warn, info, debug, trace]
   -u, --broker-username <PACT_BROKER_USERNAME>
           Pact Broker basic auth username [env: PACT_BROKER_USERNAME=]
   -p, --broker-password <PACT_BROKER_PASSWORD>

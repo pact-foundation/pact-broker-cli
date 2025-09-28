@@ -1,4 +1,4 @@
-use clap::{Arg, Command};
+use clap::{Arg, Command, command};
 
 pub mod pact_broker;
 pub mod pact_broker_client;
@@ -7,9 +7,10 @@ pub mod pactflow_client;
 pub mod utils;
 
 pub fn build_cli() -> Command {
-    let app = Command::new("pact-broker-cli")
+    let app = command!()
         .version(env!("CARGO_PKG_VERSION"))
         .about("A pact cli tool")
+        .args(add_logging_arguments())
         .subcommand(
             pact_broker_client::add_pact_broker_client_command().version(env!("CARGO_PKG_VERSION")),
         )
@@ -20,6 +21,19 @@ pub fn build_cli() -> Command {
     app
 }
 
+pub fn add_logging_arguments() -> Vec<Arg> {
+    vec![
+        Arg::new("log-level")
+            .long("log-level")
+            .global(true)
+            .value_name("LEVEL")
+            .help("Set the log level (none, off, error, warn, info, debug, trace)")
+            .value_parser(clap::builder::PossibleValuesParser::new([
+                "off", "none", "error", "warn", "info", "debug", "trace",
+            ]))
+            .default_value("off"),
+    ]
+}
 pub fn add_output_arguments(
     value_parser_args: Vec<&'static str>,
     default_value: &'static str,

@@ -1,31 +1,46 @@
-mod cli;
-use crate::cli::pact_broker::{self};
+pub mod cli;
+
 use clap::ArgMatches;
 use clap::error::ErrorKind;
 use clap_complete::{Shell, generate_to};
 
+use std::process::ExitCode;
 use std::str::FromStr;
 
-pub fn main() {
-    if std::env::var("PACT_LOG_LEVEL").is_ok() {
-        let _ = cli::utils::setup_loggers(&std::env::var("PACT_LOG_LEVEL").unwrap());
-    }
-    let app = cli::build_cli();
-    let matches = app.clone().try_get_matches();
-    let raw_args: Vec<String> = std::env::args().skip(1).collect();
+pub fn handle_matches(
+    matches: &Result<ArgMatches, clap::Error>,
+    raw_args: Option<Vec<String>>,
+) -> Result<(), ExitCode> {
+    let raw_args = if let Some(args) = raw_args {
+        args
+    } else {
+        std::env::args().skip(1).collect()
+    };
     match matches {
         Ok(results) => match results.subcommand() {
-            Some(("pact-broker", args)) => cli::pact_broker_client::run(args, raw_args),
-            Some(("pactflow", args)) => cli::pactflow_client::run(args, raw_args),
-            Some(("completions", args)) => generate_completions(args),
-            _ => cli::build_cli().print_help().unwrap(),
+            _ => {
+                let log_level = results
+                    .get_one::<String>("log-level")
+                    .map(|s| s.to_string())
+                    .unwrap_or_else(|| "off".to_string());
+                cli::utils::setup_loggers(&log_level);
+
+                match results.subcommand() {
+                    Some(("pact-broker", args)) => Ok(cli::pact_broker_client::run(args, raw_args)),
+                    Some(("pactflow", args)) => Ok(cli::pactflow_client::run(args, raw_args)),
+                    Some(("completions", args)) => Ok(generate_completions(args)),
+                    _ => Ok(cli::build_cli().print_help().unwrap()),
+                }
+            }
         },
-        Err(ref err) => match err.kind() {
+        Err(err) => match err.kind() {
             ErrorKind::DisplayHelp => {
                 let _ = err.print();
+                Ok(())
             }
             ErrorKind::DisplayVersion => {
                 let _ = err.print();
+                Ok(())
             }
             _ => err.exit(),
         },

@@ -12,7 +12,7 @@ use serde_json::Value;
 use tokio::time::sleep;
 use tracing::{trace, warn};
 
-use crate::cli::pact_broker::main::types::SslOptions;
+use crate::{cli::pact_broker::main::types::SslOptions, dbg_as_curl};
 
 use super::{HALClient, Link, PactBrokerError};
 
@@ -37,7 +37,7 @@ pub(crate) async fn with_retries(
                         Some(request_builder) => match response {
                             None => {
                                 let next = request_builder.try_clone();
-                                (Some(request_builder.send().await), next)
+                                (Some(dbg_as_curl!(request_builder).send().await), next)
                             }
                             Some(response) => {
                                 trace!(

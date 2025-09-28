@@ -1,9 +1,9 @@
 use crate::{
+    cli::pact_broker::main::{HALClient, PactBrokerError},
     cli::pact_broker::main::{
         types::{BrokerDetails, OutputType},
         utils::{follow_broker_relation, generate_table, get_broker_relation},
     },
-    pact_broker::main::{HALClient, PactBrokerError},
 };
 
 pub fn list_latest_pact_versions(

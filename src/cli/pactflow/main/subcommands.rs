@@ -4,7 +4,7 @@ use clap::{Arg, Command};
 pub fn add_publish_provider_contract_subcommand() -> Command {
     Command::new("publish-provider-contract")
     .about("Publish provider contract to PactFlow")
-    .args(crate::pact_broker::main::subcommands::add_broker_auth_arguments())
+    .args(crate::cli::pact_broker::main::subcommands::add_broker_auth_arguments())
     .arg(Arg::new("contract-file")
         .num_args(1)
         .value_name("CONTRACT_FILE")

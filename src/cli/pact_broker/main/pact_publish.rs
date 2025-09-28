@@ -16,12 +16,12 @@ use pact_models::{http_utils, pact};
 use serde::{Deserialize, Serialize};
 use serde_json::{Value, json};
 
+use crate::cli::pact_broker::main::HALClient;
 use crate::cli::pact_broker::main::utils::get_ssl_options;
-use crate::cli::utils;
-use crate::pact_broker::main::HALClient;
-use crate::pact_broker::main::utils::{
+use crate::cli::pact_broker::main::utils::{
     get_auth, get_broker_relation, get_broker_url, handle_error,
 };
+use crate::cli::utils;
 
 use super::verification::{VerificationResult, display_results, verify_json};
 

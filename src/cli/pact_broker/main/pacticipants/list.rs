@@ -1,11 +1,11 @@
 use comfy_table::{Table, presets::UTF8_FULL};
 
 use crate::{
+    cli::pact_broker::main::{HALClient, PactBrokerError},
     cli::pact_broker::main::{
         types::{BrokerDetails, OutputType},
         utils::{follow_broker_relation, get_broker_relation},
     },
-    pact_broker::main::{HALClient, PactBrokerError},
 };
 
 pub fn list_pacticipants(

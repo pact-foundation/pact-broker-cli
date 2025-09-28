@@ -12,17 +12,7 @@ use crate::cli::pact_broker::main::pacticipants::create::create_or_update_pactic
 use crate::cli::pact_broker::main::pacticipants::describe::describe_pacticipant;
 use crate::cli::pact_broker::main::pacticipants::list::list_pacticipants;
 use crate::cli::pact_broker::main::pacts::list_latest_pact_versions::list_latest_pact_versions;
-use crate::cli::pact_broker::main::tags::create_version_tag;
-use crate::cli::pact_broker::main::types::{BrokerDetails, OutputType};
-use crate::cli::pact_broker::main::utils::{
-    get_auth, get_broker_url, get_ssl_options, handle_error,
-};
-use crate::cli::pact_broker::main::versions::create::create_or_update_version;
-use crate::cli::pact_broker::main::versions::describe::describe_version;
-use crate::cli::pact_broker::main::webhooks::create::create_webhook;
-use crate::cli::pact_broker::main::webhooks::test::test_webhook;
-use crate::cli::pact_broker::main::{can_i_deploy, pact_publish};
-use crate::pact_broker::main::subcommands::{
+use crate::cli::pact_broker::main::subcommands::{
     add_can_i_deploy_subcommand, add_can_i_merge_subcommand, add_create_environment_subcommand,
     add_create_or_update_pacticipant_subcommand, add_create_or_update_version_subcommand,
     add_create_or_update_webhook_subcommand, add_create_version_tag_subcommand,
@@ -35,6 +25,16 @@ use crate::pact_broker::main::subcommands::{
     add_record_support_ended_subcommand, add_record_undeployment_subcommand,
     add_test_webhook_subcommand, add_update_environment_subcommand,
 };
+use crate::cli::pact_broker::main::tags::create_version_tag;
+use crate::cli::pact_broker::main::types::{BrokerDetails, OutputType};
+use crate::cli::pact_broker::main::utils::{
+    get_auth, get_broker_url, get_ssl_options, handle_error,
+};
+use crate::cli::pact_broker::main::versions::create::create_or_update_version;
+use crate::cli::pact_broker::main::versions::describe::describe_version;
+use crate::cli::pact_broker::main::webhooks::create::create_webhook;
+use crate::cli::pact_broker::main::webhooks::test::test_webhook;
+use crate::cli::pact_broker::main::{can_i_deploy, pact_publish};
 use clap::{ArgMatches, Command};
 pub fn add_pact_broker_client_command() -> Command {
     Command::new("pact-broker")
