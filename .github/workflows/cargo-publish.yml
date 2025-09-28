@@ -20,4 +20,4 @@ jobs:
         run: |-
           echo "${{ secrets.CRATES_IO_API_TOKEN }}" | cargo login
       - name: Publish to crates.io
-        run: cargo publish --no-confirm
+        run: cargo publish
