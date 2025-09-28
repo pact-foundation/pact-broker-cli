@@ -35,6 +35,64 @@ on:
       broker_token:
         required: false        
 jobs:
+
+  version:
+    name: "🧮 Compute the version"
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.get_next_version.outputs.version }}
+      hasNextVersion: ${{ steps.get_next_version.outputs.hasNextVersion }}
+    steps:
+    - uses: actions/checkout@v3
+      with:
+        lfs: true
+        fetch-depth: 0
+        ref: ${{ github.event.pull_request.head.sha }}
+    - name: Get next version
+      id: get_next_version
+      uses: thenativeweb/get-next-version@main
+    - name: print
+      run: |
+        echo "version: ${{ steps.get_next_version.outputs.version }}"
+        echo "has_next_version: ${{ steps.get_next_version.outputs.hasNextVersion }}"
+
+  changelog:
+    if: needs.version.outputs.hasNextVersion == 'true'
+    needs:
+      - version
+    name: ✍️ Generate changelog
+    runs-on: ubuntu-latest
+    outputs:
+      content: ${{steps.git-cliff.outputs.content}}
+      release_body: ${{ steps.git-cliff-changes.outputs.content }}
+    steps:
+      - uses: actions/checkout@v3
+        with:
+          lfs: true
+          fetch-depth: 0
+          ref: ${{ github.event.pull_request.head.sha }}
+      - run: git tag "v${{needs.version.outputs.version}}"
+      - name: Generate a changelog
+        uses: orhun/git-cliff-action@v2
+        id: git-cliff
+        with:
+          config: cliff.toml
+          args: --verbose
+        env:
+          OUTPUT: CHANGELOG.md
+      - name: Print the changelog
+        run: echo "${{ steps.git-cliff.outputs.content }}"
+      - name: Generate a changelog
+        uses: orhun/git-cliff-action@v2
+        id: git-cliff-changes
+        with:
+          config: cliff.toml
+          args: -vv --latest --strip header
+        env:
+          OUTPUT: CHANGES.md
+      - name: Print the changelog
+        run: echo "${{ steps.git-cliff-changes.outputs.content }}"
+
   build_workflow:
     runs-on: ${{ inputs.os }}
     env:
@@ -100,7 +158,25 @@ jobs:
         with:
           name: ${{ inputs.target }}
           path: dist/
-      - if: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' }}
+      - run: cargo install cargo-release
+        if: ${{ inputs.force_release == true || startsWith(github.ref, 'refs/tags/') || github.ref == 'refs/heads/main' }}
+      - name: "Bump version into cargo.toml"
+        if: ${{ inputs.force_release == true || startsWith(github.ref, 'refs/tags/') || github.ref == 'refs/heads/main' }}
+        run: cargo-release release version ${{ inputs.version }}
+      - name: check
+        if: ${{ inputs.force_release == true || startsWith(github.ref, 'refs/tags/') || github.ref == 'refs/heads/main' }}
+        run: cargo check
+      - name: "Write changelog"
+        if: ${{ inputs.force_release == true || startsWith(github.ref, 'refs/tags/') || github.ref == 'refs/heads/main' }}
+        run: echo "${{ needs.changelog.outputs.content }}" > CHANGELOG.md
+      - uses: stefanzweifel/git-auto-commit-action@v4
+        if: ${{ startsWith(github.ref, 'refs/tags/') }}
+        with:
+          commit_message: "chore(release): prepare for v${{ inputs.version }}"
+          branch: ${{ github.head_ref }}
+          file_pattern: 'Cargo.* CHANGELOG.md'
+      - name: Update dev-build tag
+        if: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' }}
         run: |
           git tag -d ${{ env.dev_tag }} || true
           git push origin :refs/tags/${{ env.dev_tag }} || true
@@ -112,14 +188,15 @@ jobs:
         if: ${{ github.ref == 'refs/heads/main' }}
         uses: softprops/action-gh-release@master
         with:
-          tag_name: v${{ inputs.version }}
-          name: 'Release v${{ inputs.version }}'
+          tag_name: ${{ env.dev_tag }}
+          name: 'Release v${{ env.dev_tag }}'
           generate_release_notes: true
-          body: 'Release v${{ inputs.version }}'
+          body: 'Release v${{ env.dev_tag }}'
           files: dist/*
           prerelease: true
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          dev_tag: vlatest
       - name: Publish archives and packages
         if: ${{ inputs.force_release == true || startsWith(github.ref, 'refs/tags/') }}
         uses: softprops/action-gh-release@master
