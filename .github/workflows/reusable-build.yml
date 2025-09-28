@@ -100,24 +100,33 @@ jobs:
         with:
           name: ${{ inputs.target }}
           path: dist/
-  # release_workflow:
-  #   needs: build_workflow
-  #   runs-on: ubuntu-latest
-  #   if: ${{ inputs.force_release == true || github.ref == 'refs/heads/main' }}
-  #   permissions:
-  #     contents: write
-  #   steps:
-  #     - uses: actions/download-artifact@master
-  #       with:
-  #         name: ${{ inputs.target }}
-  #         path: dist
+      - if: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' }}
+        run: |
+          git tag -d ${{ env.dev_tag }} || true
+          git push origin :refs/tags/${{ env.dev_tag }} || true
+          git tag ${{ env.dev_tag }}
+          git push origin ${{ env.dev_tag }}
+        env:
+          dev_tag: vlatest
       - name: Publish archives and packages
-        if: ${{ inputs.force_release == true || github.ref == 'refs/heads/main' }}
+        if: ${{ github.ref == 'refs/heads/main' }}
         uses: softprops/action-gh-release@master
         with:
           tag_name: v${{ inputs.version }}
           name: 'Release v${{ inputs.version }}'
-          generate_release_notes: false
+          generate_release_notes: true
+          body: 'Release v${{ inputs.version }}'
+          files: dist/*
+          prerelease: true
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: Publish archives and packages
+        if: ${{ inputs.force_release == true || startsWith(github.ref, 'refs/tags/') }}
+        uses: softprops/action-gh-release@master
+        with:
+          tag_name: v${{ inputs.version }}
+          name: 'Release v${{ inputs.version }}'
+          generate_release_notes: true
           body: 'Release v${{ inputs.version }}'
           files: dist/*
         env:
