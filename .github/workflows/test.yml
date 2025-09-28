@@ -1,0 +1,244 @@
+name: Test and Release
+
+on:
+  pull_request:
+    branches:
+      - 'main'
+  push:
+    branches:
+      - 'main'
+    tags:
+      - 'v*'
+      - '!vlatest'
+  workflow_dispatch:
+    inputs:
+      target:
+        description: 'Target platform'
+        required: true
+        default: 'x86_64-apple-darwin'
+        type: choice
+        options:
+            - 'x86_64-apple-darwin'
+            - 'x86_64-unknown-linux-gnu'
+            - 'x86_64-unknown-linux-musl'
+            - 'x86_64-unknown-netbsd'
+            - 'x86_64-unknown-freebsd'
+            - 'x86_64-pc-windows-msvc'
+            - 'x86_64-pc-windows-gnu'
+            - 'aarch64-apple-darwin'
+            - 'aarch64-unknown-linux-musl'
+            - 'aarch64-unknown-linux-gnu'
+            - 'aarch64-unknown-freebsd'
+            - 'aarch64-pc-windows-msvc'
+            # - 'arm-unknown-linux-musleabi'
+            # - 'arm-unknown-linux-musleabihf'
+            # - 'armv7-unknown-linux-musleabi'
+            # - 'armv7-unknown-linux-musleabihf'
+            # - 'armv5te-unknown-linux-musleabi'
+            # - 'arm-unknown-linux-gnueabi'
+            # - 'arm-unknown-linux-gnueabihf'
+            # - 'armv7-unknown-linux-gnueabi'
+            # - 'armv7-unknown-linux-gnueabihf'
+            # - 'i686-unknown-linux-gnu'
+            # - 'i686-unknown-linux-musl'
+            # - 's390x-unknown-linux-gnu'
+            # - 'riscv64gc-unknown-linux-gnu'
+            # - 'armv5te-unknown-linux-gnueabi'
+            # - 'arm-linux-androideabi'
+            # - 'armv7-linux-androideabi'
+            # - 'aarch64-linux-android'
+            # - 'i686-linux-android'
+            # - 'x86_64-linux-android'
+            # - 'thumbv7neon-linux-androideabi'
+            # - 'thumbv7neon-unknown-linux-gnueabihf'
+            # - 'i686-pc-windows-msvc'
+      slim:
+        description: 'Enable slim mode'
+        required: true
+        default: false
+        type: boolean
+      use-cross:
+        description: 'Enable cross-compilation'
+        required: true
+        default: false
+        type: boolean
+      version:
+        description: 'The version of the pact cli to release as'
+        default: 'latest'
+      force_release:
+        description: 'force release for target from branch other than main'
+        required: true
+        default: false
+        type: boolean
+      os:
+        description: 'Operating system'
+        required: true
+        default: 'macos-14'
+        type: choice
+        options: ['ubuntu-latest', 'macos-12', 'macos-14', 'windows-latest']
+
+jobs:
+
+  version:
+    name: "🧮 Compute the version"
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.get_next_version.outputs.version }}
+      hasNextVersion: ${{ steps.get_next_version.outputs.hasNextVersion }}
+    steps:
+    - uses: actions/checkout@v4
+      with:
+        lfs: true
+        fetch-depth: 0
+        # ref: ${{ github.event.pull_request.head.sha }}
+    - name: Get next version
+      id: get_next_version
+      uses: thenativeweb/get-next-version@main
+    - name: print
+      run: |
+        echo "version: ${{ steps.get_next_version.outputs.version }}"
+        echo "has_next_version: ${{ steps.get_next_version.outputs.hasNextVersion }}"
+
+  changelog:
+    # if: needs.version.outputs.hasNextVersion == 'true'
+    needs:
+      - version
+    name: ✍️ Generate changelog
+    runs-on: ubuntu-latest
+    outputs:
+      content: ${{steps.git-cliff.outputs.content}}
+      release_body: ${{ steps.git-cliff-changes.outputs.content }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          lfs: true
+          fetch-depth: 0
+          # ref: ${{ github.event.pull_request.head.sha }}
+      # - run: git tag "v${{needs.version.outputs.version}}"
+      - name: Generate a changelog
+        uses: orhun/git-cliff-action@v4
+        id: git-cliff
+        with:
+          config: cliff.toml
+          args: --verbose
+        env:
+          OUTPUT: CHANGELOG.md
+      - name: Print the changelog
+        run: echo "${{ steps.git-cliff.outputs.content }}"
+      - name: Generate a changelog
+        uses: orhun/git-cliff-action@v4
+        id: git-cliff-changes
+        with:
+          config: cliff.toml
+          args: -vv --latest --strip header
+        env:
+          OUTPUT: CHANGES.md
+      - name: Print the changelog
+        run: echo "${{ steps.git-cliff-changes.outputs.content }}"
+
+  build-single:
+    needs: [version, changelog]
+    if: ${{ github.event_name == 'workflow_dispatch' }}
+    uses: ./.github/workflows/reusable-build.yml
+    with:
+      target: ${{ github.event.inputs.target }}
+      os: ${{ github.event.inputs.os }}
+      use-cross: ${{ github.event.inputs.use-cross == 'true'}}
+      slim: ${{ github.event.inputs.slim == 'true' }}
+      # force_release: ${{ github.event.inputs.force_release == 'true' }}
+      version: ${{ needs.version.outputs.version }}
+    name: '🛠️ Build binaries'
+    permissions:
+      contents: write
+
+  build:
+    needs: [version, changelog]
+    if: ${{ github.event_name != 'workflow_dispatch' }}
+    name: '🛠️ Build binaries'
+    # uses: you54f/pact-broker-cli/.github/workflows/reusable-build.yml@main
+    uses: ./.github/workflows/reusable-build.yml
+    with:
+      target: ${{ matrix.job.target }}
+      os: ${{ matrix.job.os }}
+      use-cross: ${{ matrix.job.use-cross }}
+      slim: false
+      version: ${{ needs.version.outputs.version }}
+      # force_release: false
+      # release_notes: ${{ needs.changelog.outputs.release_body }}
+    secrets:
+      broker_url: ${{ secrets.PACT_BROKER_BASE_URL }}
+      broker_token: ${{ secrets.PACT_BROKER_TOKEN }}
+    # permissions:
+    #   contents: write
+    strategy:
+      fail-fast: false
+      matrix:
+        job:
+          - { target: x86_64-apple-darwin, os: macos-14, use-cross: false }
+          - { target: x86_64-unknown-linux-gnu, os: ubuntu-latest, use-cross: true }
+          - { target: x86_64-unknown-linux-musl, os: ubuntu-latest, use-cross: true }
+          - { target: x86_64-unknown-netbsd, os: ubuntu-latest, use-cross: true }
+          - { target: x86_64-unknown-freebsd, os: ubuntu-latest, use-cross: true }
+          - { target: x86_64-pc-windows-msvc, os: windows-latest, use-cross: false }
+          - { target: x86_64-pc-windows-gnu, os: windows-latest, use-cross: false }
+          - { target: aarch64-apple-darwin, os: macos-14, use-cross: false }
+          - { target: aarch64-unknown-linux-musl, os: ubuntu-latest, use-cross: true }
+          - { target: aarch64-unknown-linux-gnu, os: ubuntu-latest, use-cross: true }
+          - { target: aarch64-unknown-freebsd, os: ubuntu-latest, use-cross: true }
+          - { target: aarch64-pc-windows-msvc, os: windows-latest, use-cross: false }
+          # - { target: arm-unknown-linux-musleabi, os: ubuntu-latest, use-cross: true }
+          # - { target: arm-unknown-linux-musleabihf, os: ubuntu-latest, use-cross: true }
+          # - { target: armv7-unknown-linux-musleabi, os: ubuntu-latest, use-cross: true }
+          # - { target: armv7-unknown-linux-musleabihf, os: ubuntu-latest, use-cross: true }
+          # - { target: armv5te-unknown-linux-musleabi, os: ubuntu-latest, use-cross: true }
+          # - { target: arm-unknown-linux-gnueabi, os: ubuntu-latest, use-cross: true }
+          # - { target: arm-unknown-linux-gnueabihf, os: ubuntu-latest, use-cross: true }
+          # - { target: armv7-unknown-linux-gnueabi, os: ubuntu-latest, use-cross: true }
+          # - { target: armv7-unknown-linux-gnueabihf, os: ubuntu-latest, use-cross: true }
+          # - { target: i686-unknown-linux-gnu, os: ubuntu-latest, use-cross: true }
+          # - { target: i686-unknown-linux-musl, os: ubuntu-latest, use-cross: true }
+          # - { target: s390x-unknown-linux-gnu, os: ubuntu-latest, use-cross: true }
+          # - { target: riscv64gc-unknown-linux-gnu, os: ubuntu-latest, use-cross: true }
+          # awaiting pr's for bsd targets
+          # https://github.com/stanislav-tkach/os_info/issues/370
+          # - { target: armv5te-unknown-linux-gnueabi, os: ubuntu-latest, use-cross: true }
+          # - { target: arm-linux-androideabi, os: ubuntu-latest, use-cross: true }
+          # - { target: armv7-linux-androideabi, os: ubuntu-latest, use-cross: true }
+          # - { target: aarch64-linux-android, os: ubuntu-latest, use-cross: true }
+          # - { target: i686-linux-android, os: ubuntu-latest, use-cross: true }
+          # - { target: x86_64-linux-android, os: ubuntu-latest, use-cross: true }
+          # - { target: thumbv7neon-linux-androideabi, os: ubuntu-latest, use-cross: true }
+          # - { target: thumbv7neon-unknown-linux-gnueabihf, os: ubuntu-latest, use-cross: true }
+          # - { target: i686-pc-windows-msvc, os: windows-latest, use-cross: false }
+          # # Fails to build when Ring is included
+          # # https://github.com/briansmith/ring/issues/1303
+          # - { target: i586-unknown-linux-gnu, os: ubuntu-latest, use-cross: true }
+          # - { target: s390x-unknown-linux-musl, os: ubuntu-latest, use-cross: true }
+          # - { target: riscv64gc-unknown-linux-musl, os: ubuntu-latest, use-cross: true }
+          # - { target: mips64-unknown-linux-gnuabi64, os: ubuntu-latest, use-cross: true }
+          # - { target: mips64el-unknown-linux-gnuabi64, os: ubuntu-latest, use-cross: true }
+          # - { target: mips64-unknown-linux-muslabi64, os: ubuntu-latest, use-cross: true }
+          # - { target: mips64el-unknown-linux-muslabi64, os: ubuntu-latest, use-cross: true }
+
+
+  release:
+    needs: ["build", changelog, version]
+    name: '📦 Github release'
+    if: ${{ startsWith(github.ref, 'refs/tags/') || github.ref == 'refs/heads/main' }}
+    permissions:
+      contents: write
+    uses: you54f/pact-broker-cli/.github/workflows/reusable-release.yml@main
+    with:
+      version: ${{ needs.version.outputs.version }}
+      release_notes: ${{ needs.changelog.outputs.release_body }}
+  release-single:
+    needs: ["build-single", changelog, version]
+    name: '📦 Github release - single'
+    if: ${{ inputs.force_release == true }}
+    permissions:
+      contents: write
+    uses: you54f/pact-broker-cli/.github/workflows/reusable-release.yml@main
+    with:
+      version: ${{ needs.version.outputs.version }}
+      release_notes: ${{ needs.changelog.outputs.release_body }}
+      force_release: ${{ github.event.inputs.force_release == 'true' }}

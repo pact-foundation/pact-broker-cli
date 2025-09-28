@@ -1,0 +1,154 @@
+on:
+  workflow_call:
+    inputs:
+      target:
+        description: 'Target platform'
+        required: true
+        default: 'x86_64-apple-darwin'
+        type: string
+      slim:
+        description: 'Enable slim mode'
+        required: false
+        default: true
+        type: boolean
+      use-cross:
+        description: 'Enable cross-compilation'
+        required: true
+        default: false
+        type: boolean
+      os:
+        description: 'Operating system'
+        required: true
+        default: 'macos-14'
+        type: string
+      version:
+        description: 'Version of the release'
+        default: 'latest'
+        type: string
+      # force_release:
+      #   description: 'force release for target from branch other than main'
+      #   default: false
+      #   type: boolean
+    secrets:
+      broker_url:
+        required: false        
+      broker_token:
+        required: false        
+jobs:
+
+  build_workflow:
+    runs-on: ${{ inputs.os }}
+    env:
+      SLIM: ${{ inputs.slim }}
+    # permissions: # only needed for release_workflow however for speed (not needing to wait for another runner to be available) we set it here
+    #   contents: write
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install stable Rust Toolchain Components
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ inputs.target }}
+          toolchain: stable
+        if: ${{ inputs.target != 'aarch64-unknown-freebsd' && inputs.target != 'mips64-unknown-linux-gnuabi64' && inputs.target != 'mips64el-unknown-linux-gnuabi64' && inputs.target != 'mips64-unknown-linux-muslabi64' && inputs.target != 'mips64el-unknown-linux-muslabi64' && inputs.target != 's390x-unknown-linux-musl' && inputs.target != 'riscv64gc-unknown-linux-musl' }}
+      - name: Install nightly Rust Toolchain Components
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ inputs.target }}
+          toolchain: nightly
+        if: ${{ inputs.use-cross != true && env.SLIM == 'true' }}
+      - name: Install Rust Toolchain Components
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: x86_64-unknown-linux-gnu
+          toolchain: nightly
+        if: ${{ inputs.target == 'aarch64-unknown-freebsd' || inputs.target == 's390x-unknown-linux-musl' || inputs.target == 'riscv64gc-unknown-linux-musl' }}
+      # - name: Rust caching
+      #   uses: Swatinem/rust-cache@v2
+      - name: update cargo toml version
+        # if: ${{ inputs.force_release == true || startsWith(github.ref, 'refs/tags/') || github.ref == 'refs/heads/main' }}
+        run: |
+              awk -v ver="${{ inputs.version }}" '{
+              if (!done && $0 ~ /^version = "/) {
+                print "version = \"" ver "\""
+                done=1
+                next
+              }
+              print
+              }' Cargo.toml > Cargo.toml.tmp && rm Cargo.toml && mv Cargo.toml.tmp Cargo.toml
+      - name: set MACOSX_DEPLOYMENT_TARGET to 10.9 for x86_64-apple-darwin (mavericks)
+        if: ${{ inputs.target == 'x86_64-apple-darwin' }}
+        run: echo "MACOSX_DEPLOYMENT_TARGET=10.9" >> $GITHUB_ENV
+      - name: set MACOSX_DEPLOYMENT_TARGET to 11.0 for aarch64-apple-darwin (big sur)
+        if: ${{ inputs.target == 'aarch64-apple-darwin' }}
+        run: echo "MACOSX_DEPLOYMENT_TARGET=11.0" >> $GITHUB_ENV
+      - name: Build
+        run: make cargo_build_release TARGET=${{ inputs.target }} SLIM=${{ inputs.slim }} USE_CROSS=${{ inputs.use-cross }}
+      - name: Test
+        run: make cargo_test
+      - uses: you54f/pact-broker-in-a-box@via_ruby_test
+        if: ${{ inputs.target == 'aarch64-apple-darwin' || inputs.target == 'x86_64-unknown-linux-gnu' || inputs.target == 'x86_64-pc-windows-gnu' }}
+      - name: test pact-broker-cli with locally running Pact Broker
+        if: ${{ inputs.target == 'aarch64-apple-darwin' || inputs.target == 'x86_64-unknown-linux-gnu' || inputs.target == 'x86_64-pc-windows-gnu' }}
+        run: ./run.sh
+        env:
+          PACT_BROKER_BASE_URL: http://localhost:9292
+          BIN: target/${{ inputs.target }}/release/pact-broker-cli
+      - uses: pactflow/actions@main
+        if: ${{ inputs.target == 'aarch64-apple-darwin' }}
+      - run: pact-broker publish target/pacts -r
+        name: Publish pacts to hosted Pactflow Broker
+        if: ${{ inputs.target == 'aarch64-apple-darwin' }}
+        env:
+          PACT_BROKER_BASE_URL: ${{ secrets.broker_url }}
+          PACT_BROKER_TOKEN: ${{ secrets.broker_token }}
+      - name: Create dist
+        id: dist
+        shell: bash
+        run: |
+          ./prep_dist.sh ${{ inputs.target }}
+      - uses: actions/upload-artifact@master
+        with:
+          name: ${{ inputs.target }}
+          path: dist/
+      # - name: "Write changelog"
+      #   if: ${{ (inputs.force_release == true || startsWith(github.ref, 'refs/tags/') || github.ref == 'refs/heads/main') && inputs.target == 'x86_64-unknown-linux-gnu' }}
+      #   run: echo "${{ inputs.release_notes }}" > CHANGELOG.md
+      # - uses: stefanzweifel/git-auto-commit-action@v4
+      #   if: ${{ startsWith(github.ref, 'refs/tags/') && inputs.target == 'x86_64-unknown-linux-gnu' }}
+      #   with:
+      #     commit_message: "chore(release): v${{ inputs.version }}"
+      #     branch: main
+      #     file_pattern: 'Cargo.* CHANGELOG.md'
+      # - name: Update dev-build tag
+      #   if: ${{ (github.event_name == 'push' && github.ref == 'refs/heads/main') && inputs.target == 'x86_64-unknown-linux-gnu' }}
+      #   run: |
+      #     git tag -d ${{ env.dev_tag }} || true
+      #     git push origin :refs/tags/${{ env.dev_tag }} || true
+      #     git tag ${{ env.dev_tag }}
+      #     git push origin ${{ env.dev_tag }}
+      #   env:
+      #     dev_tag: vlatest
+      # - name: Publish archives and packages
+      #   if: ${{ github.ref == 'refs/heads/main' }}
+      #   uses: softprops/action-gh-release@master
+      #   with:
+      #     tag_name: ${{ env.dev_tag }}
+      #     name: 'Release ${{ env.dev_tag }}'
+      #     generate_release_notes: true
+      #     body: ${{ inputs.release_notes }}
+      #     files: dist/*
+      #     prerelease: true
+      #   env:
+      #     GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      #     dev_tag: vlatest
+      # - name: Publish archives and packages
+      #   if: ${{ inputs.force_release == true || startsWith(github.ref, 'refs/tags/') }}
+      #   uses: softprops/action-gh-release@master
+      #   with:
+      #     tag_name: v${{ inputs.version }}
+      #     name: 'Release v${{ inputs.version }}'
+      #     generate_release_notes: true
+      #     body: ${{ inputs.release_notes }}
+      #     files: dist/*
+      #   env:
+      #     GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

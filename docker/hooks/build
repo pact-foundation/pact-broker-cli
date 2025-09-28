@@ -1,0 +1,41 @@
+#!/bin/bash
+set -e
+DOCKER_TAG=$(echo "$DOCKER_TAG" | sed 's/^refs\/tags\/v//')
+echo "Building version $DOCKER_TAG"
+docker buildx create --name multiarch --use || true
+
+PUSH_IMAGE=${PUSH_IMAGE:-false}
+if [ ${PUSH_IMAGE} = "true" ]; then
+  PUSH_CMD="--push "
+fi
+# ppc64le
+PLATFORMS_ALPINE=${PLATFORMS_ALPINE:-linux/amd64,linux/arm64}
+PLATFORMS_DEBIAN=${PLATFORMS_ALPINE:-linux/amd64,linux/arm64}
+# Function to build and optionally push images
+build_and_push() {
+  local registry=$1
+  local tag=$2
+  local dockerfile=$3
+  local platforms=$4
+
+  docker buildx build \
+    -t ${registry}/pact-broker-cli:${tag} \
+    --build-arg VERSION=$DOCKER_TAG \
+    --platform ${platforms} \
+    ${PUSH_CMD}. \
+    -f ${dockerfile}
+}
+
+# Alpine builds
+
+# base tag
+build_and_push "you54f" "$DOCKER_TAG" "Dockerfile.alpine" "$PLATFORMS_ALPINE"
+build_and_push "ghcr.io/you54f" "$DOCKER_TAG" "Dockerfile.alpine" "$PLATFORMS_ALPINE"
+
+# alpine tagged build
+build_and_push "you54f" "$DOCKER_TAG-alpine" "Dockerfile.alpine" "$PLATFORMS_ALPINE"
+build_and_push "ghcr.io/you54f" "$DOCKER_TAG-alpine" "Dockerfile.alpine" "$PLATFORMS_ALPINE"
+
+# debian tagged build
+build_and_push "you54f" "$DOCKER_TAG-debian" "Dockerfile.debian" "$PLATFORMS_DEBIAN"
+build_and_push "ghcr.io/you54f" "$DOCKER_TAG-debian" "Dockerfile.debian" "$PLATFORMS_DEBIAN"

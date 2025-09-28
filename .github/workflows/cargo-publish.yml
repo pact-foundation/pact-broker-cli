@@ -1,0 +1,23 @@
+name: Cargo Publish
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'The version of the pact broker cli to release as'
+        required: true
+
+jobs:
+  publish_crate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Set up Rust
+        uses: actions/setup-rust@v1
+        with:
+          rust-version: stable
+      - name: cargo login
+        run: |-
+          echo "${{ secrets.CRATES_IO_API_TOKEN }}" | cargo login
+      - name: Publish to crates.io
+        run: cargo publish --no-confirm

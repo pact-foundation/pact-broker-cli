@@ -1,0 +1,18 @@
+target
+
+
+# FFI Consumers
+
+## Python
+__pycache__/
+
+## Header files
+include/
+
+## Distribution files
+/dist
+pact-broker-cli
+pact-broker-cli.exe
+
+# Pact Broker Database
+*.sqlite3

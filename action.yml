@@ -1,0 +1,13 @@
+name: pact-broker-cli
+description: A CLI client for the Pact Broker. Publish/retrieve pacts and verification results.
+runs:
+  using: "composite"
+  steps:
+  # https://docs.github.com/en/actions/sharing-automations/creating-actions/metadata-syntax-for-github-actions#runsstepsrun
+    - run: $GITHUB_ACTION_PATH/install.sh
+      shell: bash
+    - name: add to path if windows
+      if: runner.os == 'windows'
+      shell: powershell
+      run: |
+        "$pwd" >> $env:GITHUB_PATH

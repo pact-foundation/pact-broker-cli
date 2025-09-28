@@ -1,0 +1,84 @@
+on:
+  workflow_call:
+    inputs:
+      version:
+        description: 'Version of the release'
+        required: true
+        default: 'latest'
+        type: string
+      release_notes:
+        description: 'Release notes for the version'
+        default: 'Release'
+        type: string
+      force_release:
+        description: 'force release for target from branch other than main'
+        default: false
+        type: boolean
+jobs:
+  release_workflow:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@master
+        with:
+          path: dist
+          merge-multiple: true
+      - name: Display structure of downloaded files
+        run: ls -R dist
+
+      - name: update cargo toml version
+        if: ${{ inputs.force_release == true || startsWith(github.ref, 'refs/tags/') || github.ref == 'refs/heads/main' }}
+        run: |
+              awk -v ver="${{ inputs.version }}" '{
+              if (!done && $0 ~ /^version = "/) {
+                print "version = \"" ver "\""
+                done=1
+                next
+              }
+              print
+              }' Cargo.toml > Cargo.toml.tmp && rm Cargo.toml && mv Cargo.toml.tmp Cargo.toml
+      - name: "Write changelog"
+        if: ${{ inputs.force_release == true || startsWith(github.ref, 'refs/tags/') || github.ref == 'refs/heads/main' }}
+        run: echo "${{ inputs.release_notes }}" > CHANGELOG.md
+      - uses: stefanzweifel/git-auto-commit-action@v4
+        if: ${{ startsWith(github.ref, 'refs/tags/') }}
+        with:
+          commit_message: "chore(release): v${{ inputs.version }}"
+          branch: main
+          file_pattern: 'Cargo.* CHANGELOG.md'
+      - name: Update dev-build tag
+        if: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' }}
+        run: |
+          git tag -d ${{ env.dev_tag }} || true
+          git push origin :refs/tags/${{ env.dev_tag }} || true
+          git tag ${{ env.dev_tag }}
+          git push origin ${{ env.dev_tag }}
+        env:
+          dev_tag: vlatest
+      - name: Publish archives and packages
+        if: ${{ github.ref == 'refs/heads/main' }}
+        uses: softprops/action-gh-release@master
+        with:
+          tag_name: ${{ env.dev_tag }}
+          name: 'Release ${{ env.dev_tag }}'
+          generate_release_notes: true
+          body: ${{ inputs.release_notes }}
+          files: dist/*
+          prerelease: true
+          draft: false
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          dev_tag: vlatest
+      - name: Publish archives and packages
+        if: ${{ inputs.force_release == true || startsWith(github.ref, 'refs/tags/') }}
+        uses: softprops/action-gh-release@master
+        with:
+          tag_name: v${{ inputs.version }}
+          name: 'Release v${{ inputs.version }}'
+          generate_release_notes: true
+          body: ${{ inputs.release_notes }}
+          files: dist/*
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
