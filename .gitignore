@@ -16,3 +16,4 @@ pact-broker-cli.exe
 
 # Pact Broker Database
 *.sqlite3
+.DS_Store
