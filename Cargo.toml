@@ -7,7 +7,7 @@ description = "A Rust and CLI client for the Pact Broker. Publish and retrieve p
 homepage = "https://www.pact.io"
 repository = "https://github.com/you54f/pact-broker-cli"
 readme = "README.md"
-keywords = ["testing", "pact", "cdc", "contract-testing", "cli", "pact-broker"]
+keywords = ["testing", "pact", "contract-testing", "cli", "pact-broker"]
 license = "MIT"
 include = [
     "src/**",
