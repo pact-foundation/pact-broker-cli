@@ -144,7 +144,7 @@ jobs:
       # release_notes: ${{ needs.changelog.outputs.release_body }}
     secrets:
       broker_url: ${{ secrets.PACT_BROKER_BASE_URL }}
-      broker_token: ${{ secrets.PACTFLOW_PACT_FOUNDATION_TOKEN }}
+      broker_token: ${{ secrets.PACTFLOW_PACT_OSS_TOKEN }}
     # permissions:
     #   contents: write
     strategy:
@@ -176,7 +176,7 @@ jobs:
         with:
           application_name: ${{ env.PACTICIPANT }}
           broker_url: ${{ secrets.PACT_BROKER_BASE_URL }}
-          token: ${{ secrets.PACTFLOW_PACT_FOUNDATION_TOKEN }}
+          token: ${{ secrets.PACTFLOW_PACT_OSS_TOKEN }}
           to_environment: "production"
           version: ${{ github.sha }}
           retry_while_unknown: 30
@@ -198,7 +198,7 @@ jobs:
             --environment production
         env:
           PACT_BROKER_BASE_URL: ${{ secrets.PACT_BROKER_BASE_URL }}
-          PACT_BROKER_TOKEN: ${{ secrets.PACTFLOW_PACT_FOUNDATION_TOKEN }}
+          PACT_BROKER_TOKEN: ${{ secrets.PACTFLOW_PACT_OSS_TOKEN }}
 
   release:
     needs: ["build", changelog, version ]
