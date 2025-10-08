@@ -2,13 +2,13 @@
 build a single arch image
 
 ```sh
-docker buildx build -t you54f/pact-broker-cli:$DOCKER_TAG-alpine --build-arg VERSION=$DOCKER_TAG --platform linux/arm . -f Dockerfile.alpine --load
+docker buildx build -t pactfoundation/pact-broker-cli:$DOCKER_TAG-alpine --build-arg VERSION=$DOCKER_TAG --platform linux/arm . -f Dockerfile.alpine --load
 ```
 
 Run the image
 
 ```sh
-docker run --platform=linux/arm -p 8080:8080 --rm --init you54f/pact-broker-cli:0.0.9-alpine mock start
+docker run --platform=linux/arm -p 8080:8080 --rm --init pactfoundation/pact-broker-cli:0.0.9-alpine mock start
 ```
 
 Docker multi arch available args

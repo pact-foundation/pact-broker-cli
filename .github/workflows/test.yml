@@ -155,7 +155,7 @@ jobs:
     needs: [version, changelog]
     if: ${{ github.event_name != 'workflow_dispatch' }}
     name: '🛠️ Build binaries'
-    # uses: you54f/pact-broker-cli/.github/workflows/reusable-build.yml@main
+    # uses: pact-foundation/pact-broker-cli/.github/workflows/reusable-build.yml@main
     uses: ./.github/workflows/reusable-build.yml
     with:
       target: ${{ matrix.job.target }}
@@ -227,7 +227,7 @@ jobs:
     if: ${{ startsWith(github.ref, 'refs/tags/') || github.ref == 'refs/heads/main' }}
     permissions:
       contents: write
-    uses: you54f/pact-broker-cli/.github/workflows/reusable-release.yml@main
+    uses: pact-foundation/pact-broker-cli/.github/workflows/reusable-release.yml@main
     with:
       version: ${{ needs.version.outputs.version }}
       release_notes: ${{ needs.changelog.outputs.release_body }}
@@ -237,7 +237,7 @@ jobs:
     if: ${{ inputs.force_release == true }}
     permissions:
       contents: write
-    uses: you54f/pact-broker-cli/.github/workflows/reusable-release.yml@main
+    uses: pact-foundation/pact-broker-cli/.github/workflows/reusable-release.yml@main
     with:
       version: ${{ needs.version.outputs.version }}
       release_notes: ${{ needs.changelog.outputs.release_body }}

@@ -28,7 +28,7 @@ jobs:
     steps:
     - uses: actions/checkout@v4 # required for local pact and test command script
     - uses: you54f/pact-broker-in-a-box@main
-    - uses: you54f/pact-broker-cli@main
+    - uses: pact-foundation/pact-broker-cli@main
  
     - name: Show help commands
       run: |
@@ -67,7 +67,7 @@ jobs:
   #           platform: linux/s390x
   #     fail-fast: false
   #   steps:
-  #     - uses: you54f/pact-broker-cli@main
+  #     - uses: pact-foundation/pact-broker-cli@main
 
   #     - name: start standalone broker
   #       run: pact-broker-cli standalone start --detach
@@ -89,6 +89,6 @@ jobs:
   #       uses: docker/setup-qemu-action@v3
   #     - name: Run pact-broker commands
   #       run: |
-  #         docker run --platform ${{ matrix.platform }} -e PACT_BROKER_BASE_URL=$PACT_BROKER_BASE_URL --add-host=host.docker.internal:host-gateway --rm ${{ matrix.registry }}/you54f/pact-broker-cli:latest-${{ matrix.distro }} pact-broker list-latest-pact-versions
+  #         docker run --platform ${{ matrix.platform }} -e PACT_BROKER_BASE_URL=$PACT_BROKER_BASE_URL --add-host=host.docker.internal:host-gateway --rm ${{ matrix.registry }}/pact-foundation/pact-broker-cli:latest-${{ matrix.distro }} pact-broker list-latest-pact-versions
   #       env:
   #         PACT_BROKER_BASE_URL: http://host.docker.internal:9292

@@ -4,7 +4,7 @@ $pactDir = $pwd.Path
 
 Write-Host "--> Downloading Latest Pact broker Client binary)"
 
-$latestRelease = Invoke-WebRequest https://github.com/you54f/pact-broker-cli/releases/latest -Headers @{"Accept"="application/json"}
+$latestRelease = Invoke-WebRequest https://github.com/pact-foundation/pact-broker-cli/releases/latest -Headers @{"Accept"="application/json"}
 $json = $latestRelease.Content | ConvertFrom-Json
 $tag = $json.tag_name
 $architecture = [System.Runtime.InteropServices.RuntimeInformation,mscorlib]::OSArchitecture.ToString().ToLower()
@@ -16,7 +16,7 @@ if ($architecture -eq "x64") {
     Write-Host "Unsupported architecture: $architecture"
     exit 1
 }
-$url = "https://github.com/you54f/pact-broker-cli/releases/download/$tag/pact-broker-cli-$architecture-windows-msvc.exe"
+$url = "https://github.com/pact-foundation/pact-broker-cli/releases/download/$tag/pact-broker-cli-$architecture-windows-msvc.exe"
 
 
 Write-Host "Downloading $url to $pactDir"

@@ -85,7 +85,7 @@ jobs:
         run: make cargo_build_release TARGET=${{ inputs.target }} SLIM=${{ inputs.slim }} USE_CROSS=${{ inputs.use-cross }}
       - name: Test
         run: make cargo_test
-      - uses: you54f/pact-broker-in-a-box@via_ruby_test
+      - uses: you54f/pact-broker-in-a-box@main
         if: ${{ inputs.target == 'aarch64-apple-darwin' || inputs.target == 'x86_64-unknown-linux-gnu' || inputs.target == 'x86_64-pc-windows-gnu' }}
       - name: test pact-broker-cli with locally running Pact Broker
         if: ${{ inputs.target == 'aarch64-apple-darwin' || inputs.target == 'x86_64-unknown-linux-gnu' || inputs.target == 'x86_64-pc-windows-gnu' }}

@@ -32,39 +32,39 @@ It is designed as a replacement for the [pact_broker-client](https://github.com/
 Unix systems
 
 ```sh
-curl -fsSL https://raw.githubusercontent.com/you54f/pact-broker-cli/main/install.sh | sh
+curl -fsSL https://raw.githubusercontent.com/pact-foundation/pact-broker-cli/main/install.sh | sh
 ```
 
 ```sh
-wget -q https://raw.githubusercontent.com/you54f/pact-broker-cli/main/install.sh -O- | sh
+wget -q https://raw.githubusercontent.com/pact-foundation/pact-broker-cli/main/install.sh -O- | sh
 ```
 
 install fixed version - pass `PACT_BROKER_CLI_VERSION=v<PACT_BROKER_CLI_VERSION>` eg `PACT_BROKER_CLI_VERSION=v0.0.1` or set as an env var
 
 ```sh
-curl -fsSL https://raw.githubusercontent.com/you54f/pact-broker-cli/main/install.sh | PACT_BROKER_CLI_VERSION=v0.0.1 sh
+curl -fsSL https://raw.githubusercontent.com/pact-foundation/pact-broker-cli/main/install.sh | PACT_BROKER_CLI_VERSION=v0.0.1 sh
 ```
 
 ```sh
-wget -q https://raw.githubusercontent.com/you54f/pact-broker-cli/main/install.sh -O- | PACT_BROKER_CLI_VERSION=v0.0.1 sh
+wget -q https://raw.githubusercontent.com/pact-foundation/pact-broker-cli/main/install.sh -O- | PACT_BROKER_CLI_VERSION=v0.0.1 sh
 ```
 
 Windows (Powershell)
 
 ```powershell
-iwr -useb https://raw.githubusercontent.com/you54f/pact-broker-cli/main/install.ps1 | iex
+iwr -useb https://raw.githubusercontent.com/pact-foundation/pact-broker-cli/main/install.ps1 | iex
 ```
 
 To install a specific version, set the `PACT_BROKER_CLI_VERSION` environment variable before running the script:
 
 ```powershell
 $env:PACT_BROKER_CLI_VERSION = "v0.0.1"
-iwr -useb https://raw.githubusercontent.com/you54f/pact-broker-cli/main/install.ps1 | iex
+iwr -useb https://raw.githubusercontent.com/pact-foundation/pact-broker-cli/main/install.ps1 | iex
 ```
 
 ### Standalone executable
 
-Download the latest binary release for your required platform, from the [release](https://github.com/YOU54F/pact-broker-cli/releases) page.
+Download the latest binary release for your required platform, from the [release](https://github.com/pact-foundation/pact-broker-cli/releases) page.
 
 ### Cargo
 
@@ -80,12 +80,12 @@ cargo install pact-broker-cli --locked --version <VERSION>
 
 ### GitHub Action
 
-An action is available at `you54f/pact-broker-cli@<tag>`
+An action is available at `pact-foundation/pact-broker-cli@<tag>`
 
 Example
 
 ```yml
-    - uses: you54f/pact-broker-cli@main
+    - uses: pact-foundation/pact-broker-cli@main
  
     - name: Show help commands
       run: |
@@ -112,11 +112,11 @@ tags format
 
 #### DockerHub
 
-https://hub.docker.com/r/you54f/pact-broker-cli
+https://hub.docker.com/r/pactfoundation/pact-broker-cli
 
 #### GitHub Container Registry
 
-https://github.com/YOU54F/pact-broker-cli/pkgs/container/pact-broker-cli
+https://github.com/pact-foundation/pact-broker-cli/pkgs/container/pact-broker-cli
 
 ## Commands
 
