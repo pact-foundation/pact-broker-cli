@@ -30,28 +30,7 @@ on:
             - 'aarch64-unknown-linux-gnu'
             - 'aarch64-unknown-freebsd'
             - 'aarch64-pc-windows-msvc'
-            # - 'arm-unknown-linux-musleabi'
-            # - 'arm-unknown-linux-musleabihf'
-            # - 'armv7-unknown-linux-musleabi'
-            # - 'armv7-unknown-linux-musleabihf'
-            # - 'armv5te-unknown-linux-musleabi'
-            # - 'arm-unknown-linux-gnueabi'
-            # - 'arm-unknown-linux-gnueabihf'
-            # - 'armv7-unknown-linux-gnueabi'
-            # - 'armv7-unknown-linux-gnueabihf'
-            # - 'i686-unknown-linux-gnu'
-            # - 'i686-unknown-linux-musl'
-            # - 's390x-unknown-linux-gnu'
-            # - 'riscv64gc-unknown-linux-gnu'
-            # - 'armv5te-unknown-linux-gnueabi'
-            # - 'arm-linux-androideabi'
-            # - 'armv7-linux-androideabi'
-            # - 'aarch64-linux-android'
-            # - 'i686-linux-android'
-            # - 'x86_64-linux-android'
-            # - 'thumbv7neon-linux-androideabi'
-            # - 'thumbv7neon-unknown-linux-gnueabihf'
-            # - 'i686-pc-windows-msvc'
+
       slim:
         description: 'Enable slim mode'
         required: true
@@ -113,8 +92,6 @@ jobs:
         with:
           lfs: true
           fetch-depth: 0
-          # ref: ${{ github.event.pull_request.head.sha }}
-      # - run: git tag "v${{needs.version.outputs.version}}"
       - name: Generate a changelog
         uses: orhun/git-cliff-action@v4
         id: git-cliff
@@ -167,7 +144,7 @@ jobs:
       # release_notes: ${{ needs.changelog.outputs.release_body }}
     secrets:
       broker_url: ${{ secrets.PACT_BROKER_BASE_URL }}
-      broker_token: ${{ secrets.PACT_BROKER_TOKEN }}
+      broker_token: ${{ secrets.PACTFLOW_PACT_FOUNDATION_TOKEN }}
     # permissions:
     #   contents: write
     strategy:
@@ -186,43 +163,45 @@ jobs:
           - { target: aarch64-unknown-linux-gnu, os: ubuntu-latest, use-cross: true }
           - { target: aarch64-unknown-freebsd, os: ubuntu-latest, use-cross: true }
           - { target: aarch64-pc-windows-msvc, os: windows-latest, use-cross: false }
-          # - { target: arm-unknown-linux-musleabi, os: ubuntu-latest, use-cross: true }
-          # - { target: arm-unknown-linux-musleabihf, os: ubuntu-latest, use-cross: true }
-          # - { target: armv7-unknown-linux-musleabi, os: ubuntu-latest, use-cross: true }
-          # - { target: armv7-unknown-linux-musleabihf, os: ubuntu-latest, use-cross: true }
-          # - { target: armv5te-unknown-linux-musleabi, os: ubuntu-latest, use-cross: true }
-          # - { target: arm-unknown-linux-gnueabi, os: ubuntu-latest, use-cross: true }
-          # - { target: arm-unknown-linux-gnueabihf, os: ubuntu-latest, use-cross: true }
-          # - { target: armv7-unknown-linux-gnueabi, os: ubuntu-latest, use-cross: true }
-          # - { target: armv7-unknown-linux-gnueabihf, os: ubuntu-latest, use-cross: true }
-          # - { target: i686-unknown-linux-gnu, os: ubuntu-latest, use-cross: true }
-          # - { target: i686-unknown-linux-musl, os: ubuntu-latest, use-cross: true }
-          # - { target: s390x-unknown-linux-gnu, os: ubuntu-latest, use-cross: true }
-          # - { target: riscv64gc-unknown-linux-gnu, os: ubuntu-latest, use-cross: true }
-          # awaiting pr's for bsd targets
-          # https://github.com/stanislav-tkach/os_info/issues/370
-          # - { target: armv5te-unknown-linux-gnueabi, os: ubuntu-latest, use-cross: true }
-          # - { target: arm-linux-androideabi, os: ubuntu-latest, use-cross: true }
-          # - { target: armv7-linux-androideabi, os: ubuntu-latest, use-cross: true }
-          # - { target: aarch64-linux-android, os: ubuntu-latest, use-cross: true }
-          # - { target: i686-linux-android, os: ubuntu-latest, use-cross: true }
-          # - { target: x86_64-linux-android, os: ubuntu-latest, use-cross: true }
-          # - { target: thumbv7neon-linux-androideabi, os: ubuntu-latest, use-cross: true }
-          # - { target: thumbv7neon-unknown-linux-gnueabihf, os: ubuntu-latest, use-cross: true }
-          # - { target: i686-pc-windows-msvc, os: windows-latest, use-cross: false }
-          # # Fails to build when Ring is included
-          # # https://github.com/briansmith/ring/issues/1303
-          # - { target: i586-unknown-linux-gnu, os: ubuntu-latest, use-cross: true }
-          # - { target: s390x-unknown-linux-musl, os: ubuntu-latest, use-cross: true }
-          # - { target: riscv64gc-unknown-linux-musl, os: ubuntu-latest, use-cross: true }
-          # - { target: mips64-unknown-linux-gnuabi64, os: ubuntu-latest, use-cross: true }
-          # - { target: mips64el-unknown-linux-gnuabi64, os: ubuntu-latest, use-cross: true }
-          # - { target: mips64-unknown-linux-muslabi64, os: ubuntu-latest, use-cross: true }
-          # - { target: mips64el-unknown-linux-muslabi64, os: ubuntu-latest, use-cross: true }
 
+  pact-can-i-deploy:
+    needs: build
+    name: "🔍 Can I deploy?"
+    runs-on: ubuntu-latest
+    env: 
+      PACTICIPANT: "pact-broker-cli"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pactflow/actions/can-i-deploy@v2
+        with:
+          application_name: ${{ env.PACTICIPANT }}
+          broker_url: ${{ secrets.PACT_BROKER_BASE_URL }}
+          token: ${{ secrets.PACTFLOW_PACT_FOUNDATION_TOKEN }}
+          to_environment: "production"
+          version: ${{ github.sha }}
+          retry_while_unknown: 30
+          retry_interval: 10
+  pact-record-release:
+    needs: [version, release]
+    name: "📝 Record release in Pact Broker"
+    runs-on: ubuntu-latest
+    env: 
+      PACTICIPANT: "pact-broker-cli"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pactflow/actions@main
+      - run: |
+          pact-broker record-release \
+            --pacticipant ${{ env.PACTICIPANT }} \
+            --version ${{ github.sha }} \
+            --application-instance ${{ needs.version.outputs.version }} \
+            --environment production
+        env:
+          PACT_BROKER_BASE_URL: ${{ secrets.PACT_BROKER_BASE_URL }}
+          PACT_BROKER_TOKEN: ${{ secrets.PACTFLOW_PACT_FOUNDATION_TOKEN }}
 
   release:
-    needs: ["build", changelog, version]
+    needs: ["build", changelog, version ]
     name: '📦 Github release'
     if: ${{ startsWith(github.ref, 'refs/tags/') || github.ref == 'refs/heads/main' }}
     permissions:

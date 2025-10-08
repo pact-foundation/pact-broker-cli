@@ -40,8 +40,6 @@ jobs:
     runs-on: ${{ inputs.os }}
     env:
       SLIM: ${{ inputs.slim }}
-    # permissions: # only needed for release_workflow however for speed (not needing to wait for another runner to be available) we set it here
-    #   contents: write
     steps:
       - uses: actions/checkout@v4
       - name: Install stable Rust Toolchain Components
