@@ -1,0 +1,19 @@
+{
+	"$schema": "https://docs.renovatebot.com/renovate-schema.json",
+	"extends": ["config:best-practices"],
+	"pre-commit": {
+		"enabled": true
+	},
+	"git-submodules": {
+		"enabled": true
+	},
+	"prHourlyLimit": 0,
+	"prConcurrentLimit": 0,
+	"rebaseWhen": "conflicted",
+	"packageRules": [
+		{
+			"matchPackageNames": ["taiki-e/install-action"],
+			"schedule": "before 4am on monday"
+		}
+	]
+}
