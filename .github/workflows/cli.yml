@@ -33,7 +33,6 @@ jobs:
     - name: Show help commands
       run: |
         pact-broker-cli --help
-        pact-broker-cli pact-broker --help
         pact-broker-cli pactflow --help
 
     - name: Run pact-broker commands

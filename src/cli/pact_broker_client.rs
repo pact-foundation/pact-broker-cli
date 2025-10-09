@@ -315,7 +315,7 @@ pub fn run(args: &ArgMatches, raw_args: Vec<String>) {
             println!("{}", uuid::Uuid::new_v4());
         }
         _ => {
-            println!("⚠️  No option provided, try running pact-broker --help");
+            println!("⚠️  No option provided, try running --help");
             
         }
     }

@@ -741,29 +741,29 @@ $ pact-broker-cli can-i-deploy --help
   
     Before `can-i-deploy` can be used, the relevant environment resources must first be created in the Pact Broker using the
     `create-environment` command. The 'test' and 'production' environments will have been seeded for you. You can check the existing
-    environments by running `pact-broker list-environments`. See https://docs.pact.io/pact_broker/client_cli/readme#environments for more
+    environments by running `pact-broker-cli list-environments`. See https://docs.pact.io/pact_broker/client_cli/readme#environments for more
     information.
-  
-    $ pact-broker create-environment --name 'uat' --display-name 'UAT' --no-production
-  
-    After an application is deployed or released, its deployment must be recorded using the `ecord-deployment` or `ecord-release`
+
+    $ pact-broker-cli create-environment --name 'uat' --display-name 'UAT' --no-production
+
+    After an application is deployed or released, its deployment must be recorded using the `record-deployment` or `record-release`
     commands. See https://docs.pact.io/pact_broker/recording_deployments_and_releases/ for more information.
   
-    $ pact-broker record-deployment --pacticipant Foo --version 173153ae0 --environment uat
+    $ pact-broker-cli record-deployment --pacticipant Foo --version 173153ae0 --environment uat
   
     Before an application is deployed or released to an environment, the can-i-deploy command must be run to check that the application
     version is safe to deploy with the versions of each integrated application that are already in that environment.
   
-    $ pact-broker can-i-deploy --pacticipant PACTICIPANT --version VERSION --to-environment ENVIRONMENT
+    $ pact-broker-cli can-i-deploy --pacticipant PACTICIPANT --version VERSION --to-environment ENVIRONMENT
   
     Example: can I deploy version 173153ae0 of application Foo to the test environment?
   
-    $ pact-broker can-i-deploy --pacticipant Foo --version 173153ae0 --to-environment test
+    $ pact-broker-cli can-i-deploy --pacticipant Foo --version 173153ae0 --to-environment test
   
     Can-i-deploy can also be used to check if arbitrary versions have a successful verification. When asking 'Can I deploy this
     application version with the latest version from the main branch of another application' it functions as a 'can I merge' check.
   
-    $ pact-broker can-i-deploy --pacticipant Foo 173153ae0 // --pacticipant Bar --latest main
+    $ pact-broker-cli can-i-deploy --pacticipant Foo 173153ae0 // --pacticipant Bar --latest main
   
     ##### Polling
   
