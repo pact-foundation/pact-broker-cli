@@ -26,10 +26,9 @@ pub fn handle_matches(
                 cli::utils::setup_loggers(&log_level);
 
                 match results.subcommand() {
-                    Some(("pact-broker", args)) => Ok(cli::pact_broker_client::run(args, raw_args)),
                     Some(("pactflow", args)) => Ok(cli::pactflow_client::run(args, raw_args)),
                     Some(("completions", args)) => Ok(generate_completions(args)),
-                    _ => Ok(cli::build_cli().print_help().unwrap()),
+                    _ => Ok(cli::pact_broker_client::run(results, raw_args)),
                 }
             }
         },

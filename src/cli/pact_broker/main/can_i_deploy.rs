@@ -67,6 +67,7 @@ struct Data {
 struct PacticipantArgs {
     pacticipant: String,
     version: Option<String>,
+    branch: Option<String>,
     tags: Vec<String>,
     latest: bool,
     main_branch: bool,
@@ -93,6 +94,10 @@ fn parse_args_from_matches(raw_args: Vec<String>) -> Vec<PacticipantArgs> {
                     "--version" | "-e" => {
                         args.next();
                         pacticipant_args.version = args.next().map(|s| s.to_string());
+                    }
+                    "--branch" => {
+                        args.next();
+                        pacticipant_args.branch = args.next().map(|s| s.to_string());
                     }
                     "--tag" => {
                         args.next();
@@ -157,6 +162,12 @@ pub fn can_i_deploy(
             }
             if selector.latest {
                 matrix_href_path.push_str("q[][latest]=true&");
+            }
+            if selector.branch .is_some() {
+                matrix_href_path.push_str(&format!(
+                    "q[][branch]={}&",
+                    urlencoding::encode(selector.branch.as_ref().unwrap())
+                ));
             }
             for tag in &selector.tags {
                 matrix_href_path.push_str(&format!("q[][tag]={}&", urlencoding::encode(tag)));

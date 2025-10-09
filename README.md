@@ -32,39 +32,39 @@ It is designed as a replacement for the [pact_broker-client](https://github.com/
 Unix systems
 
 ```sh
-curl -fsSL https://raw.githubusercontent.com/you54f/pact-broker-cli/main/install.sh | sh
+curl -fsSL https://raw.githubusercontent.com/pact-foundation/pact-broker-cli/main/install.sh | sh
 ```
 
 ```sh
-wget -q https://raw.githubusercontent.com/you54f/pact-broker-cli/main/install.sh -O- | sh
+wget -q https://raw.githubusercontent.com/pact-foundation/pact-broker-cli/main/install.sh -O- | sh
 ```
 
 install fixed version - pass `PACT_BROKER_CLI_VERSION=v<PACT_BROKER_CLI_VERSION>` eg `PACT_BROKER_CLI_VERSION=v0.0.1` or set as an env var
 
 ```sh
-curl -fsSL https://raw.githubusercontent.com/you54f/pact-broker-cli/main/install.sh | PACT_BROKER_CLI_VERSION=v0.0.1 sh
+curl -fsSL https://raw.githubusercontent.com/pact-foundation/pact-broker-cli/main/install.sh | PACT_BROKER_CLI_VERSION=v0.0.1 sh
 ```
 
 ```sh
-wget -q https://raw.githubusercontent.com/you54f/pact-broker-cli/main/install.sh -O- | PACT_BROKER_CLI_VERSION=v0.0.1 sh
+wget -q https://raw.githubusercontent.com/pact-foundation/pact-broker-cli/main/install.sh -O- | PACT_BROKER_CLI_VERSION=v0.0.1 sh
 ```
 
 Windows (Powershell)
 
 ```powershell
-iwr -useb https://raw.githubusercontent.com/you54f/pact-broker-cli/main/install.ps1 | iex
+iwr -useb https://raw.githubusercontent.com/pact-foundation/pact-broker-cli/main/install.ps1 | iex
 ```
 
 To install a specific version, set the `PACT_BROKER_CLI_VERSION` environment variable before running the script:
 
 ```powershell
 $env:PACT_BROKER_CLI_VERSION = "v0.0.1"
-iwr -useb https://raw.githubusercontent.com/you54f/pact-broker-cli/main/install.ps1 | iex
+iwr -useb https://raw.githubusercontent.com/pact-foundation/pact-broker-cli/main/install.ps1 | iex
 ```
 
 ### Standalone executable
 
-Download the latest binary release for your required platform, from the [release](https://github.com/YOU54F/pact-broker-cli/releases) page.
+Download the latest binary release for your required platform, from the [release](https://github.com/pact-foundation/pact-broker-cli/releases) page.
 
 ### Cargo
 
@@ -80,17 +80,16 @@ cargo install pact-broker-cli --locked --version <VERSION>
 
 ### GitHub Action
 
-An action is available at `you54f/pact-broker-cli@<tag>`
+An action is available at `pact-foundation/pact-broker-cli@<tag>`
 
 Example
 
 ```yml
-    - uses: you54f/pact-broker-cli@main
+    - uses: pact-foundation/pact-broker-cli@main
  
     - name: Show help commands
       run: |
         pact-broker-cli --help
-        pact-broker-cli pact-broker --help
         pact-broker-cli pactflow --help
 ```
 
@@ -112,15 +111,15 @@ tags format
 
 #### DockerHub
 
-https://hub.docker.com/r/you54f/pact-broker-cli
+https://hub.docker.com/r/pactfoundation/pact-broker-cli
 
 #### GitHub Container Registry
 
-https://github.com/YOU54F/pact-broker-cli/pkgs/container/pact-broker-cli
+https://github.com/pact-foundation/pact-broker-cli/pkgs/container/pact-broker-cli
 
 ## Commands
 
-All commands prefixed with `pact-broker` can be used with the OSS Pact Broker and PactFlow. Commands prefixed with `pactflow` can only be used with PactFlow.
+All commands can be used with the OSS Pact Broker and PactFlow with exception to `pactflow` subcommands which can only be used with PactFlow.
 
 The Pact Broker base URL can be specified either using the environment variable `$PACT_BROKER_BASE_URL` or the `-b` or `--broker-base-url` parameters.
 
@@ -135,22 +134,16 @@ Authentication using a bearer token can be specified using the environment varia
 #### publish
 
 ```console
-$ pact-broker-cli pact-broker publish --help
+$ pact-broker-cli publish --help
 Publishes pacts to the Pact Broker
 
-Usage: pact-broker-cli pact-broker publish [OPTIONS] --broker-base-url <PACT_BROKER_BASE_URL> <--glob [<glob>...]|--file [<file>...]|--dir [<dir>...]>
+Usage: pact-broker-cli publish [OPTIONS] --broker-base-url <PACT_BROKER_BASE_URL> <--glob [<glob>...]|--file [<file>...]|--dir [<dir>...]>
 
 Options:
   -b, --broker-base-url <PACT_BROKER_BASE_URL>
           The base URL of the Pact Broker
           
           [env: PACT_BROKER_BASE_URL=]
-
-      --log-level <LEVEL>
-          Set the log level (none, off, error, warn, info, debug, trace)
-          
-          [default: off]
-          [possible values: off, none, error, warn, info, debug, trace]
 
   -u, --broker-username <PACT_BROKER_USERNAME>
           Pact Broker basic auth username
@@ -260,6 +253,12 @@ Options:
           [default: true]
           [possible values: true, false]
 
+      --log-level <LEVEL>
+          Set the log level (none, off, error, warn, info, debug, trace)
+          
+          [default: off]
+          [possible values: off, none, error, warn, info, debug, trace]
+
   -h, --help
           Print help (see a summary with '-h')
 
@@ -270,16 +269,14 @@ Publish pacts to a Pact Broker.
 #### list-latest-pact-versions
 
 ```console
-$ pact-broker-cli pact-broker list-latest-pact-versions --help
+$ pact-broker-cli list-latest-pact-versions --help
 List the latest pact for each integration
 
-Usage: pact-broker-cli pact-broker list-latest-pact-versions [OPTIONS] --broker-base-url <PACT_BROKER_BASE_URL>
+Usage: pact-broker-cli list-latest-pact-versions [OPTIONS] --broker-base-url <PACT_BROKER_BASE_URL>
 
 Options:
   -b, --broker-base-url <PACT_BROKER_BASE_URL>
           The base URL of the Pact Broker [env: PACT_BROKER_BASE_URL=]
-      --log-level <LEVEL>
-          Set the log level (none, off, error, warn, info, debug, trace) [default: off] [possible values: off, none, error, warn, info, debug, trace]
   -u, --broker-username <PACT_BROKER_USERNAME>
           Pact Broker basic auth username [env: PACT_BROKER_USERNAME=]
   -p, --broker-password <PACT_BROKER_PASSWORD>
@@ -296,6 +293,8 @@ Options:
           Skip SSL certificate verification [env: SSL_SKIP_VERIFICATION=]
       --ssl-trust-store <SSL_TRUST_STORE>
           Use the system's root trust store for SSL verification [env: SSL_TRUST_STORE=] [default: true] [possible values: true, false]
+      --log-level <LEVEL>
+          Set the log level (none, off, error, warn, info, debug, trace) [default: off] [possible values: off, none, error, warn, info, debug, trace]
   -h, --help
           Print help
 
@@ -308,14 +307,12 @@ List the latest pact for each integration
 #### create-environment
 
 ```console
-$ pact-broker-cli pact-broker create-environment --help
+$ pact-broker-cli create-environment --help
 Create an environment resource in the Pact Broker to represent a real world deployment or release environment
 
-Usage: pact-broker-cli pact-broker create-environment [OPTIONS] --name <NAME> --broker-base-url <PACT_BROKER_BASE_URL>
+Usage: pact-broker-cli create-environment [OPTIONS] --name <NAME> --broker-base-url <PACT_BROKER_BASE_URL>
 
 Options:
-      --log-level <LEVEL>
-          Set the log level (none, off, error, warn, info, debug, trace) [default: off] [possible values: off, none, error, warn, info, debug, trace]
       --name <NAME>
           The uniquely identifying name of the environment as used in deployment code
       --display-name <DISPLAY_NAME>
@@ -344,6 +341,8 @@ Options:
           Skip SSL certificate verification [env: SSL_SKIP_VERIFICATION=]
       --ssl-trust-store <SSL_TRUST_STORE>
           Use the system's root trust store for SSL verification [env: SSL_TRUST_STORE=] [default: true] [possible values: true, false]
+      --log-level <LEVEL>
+          Set the log level (none, off, error, warn, info, debug, trace) [default: off] [possible values: off, none, error, warn, info, debug, trace]
   -h, --help
           Print help
 
@@ -354,14 +353,12 @@ Create an environment resource in the Pact Broker to represent a real world depl
 #### update-environment
 
 ```console
-$ pact-broker-cli pact-broker update-environment --help
+$ pact-broker-cli update-environment --help
 Update an environment resource in the Pact Broker
 
-Usage: pact-broker-cli pact-broker update-environment [OPTIONS] --uuid <UUID> --broker-base-url <PACT_BROKER_BASE_URL>
+Usage: pact-broker-cli update-environment [OPTIONS] --uuid <UUID> --broker-base-url <PACT_BROKER_BASE_URL>
 
 Options:
-      --log-level <LEVEL>
-          Set the log level (none, off, error, warn, info, debug, trace) [default: off] [possible values: off, none, error, warn, info, debug, trace]
       --uuid <UUID>
           The UUID of the environment to update
       --name <NAME>
@@ -392,6 +389,8 @@ Options:
           Skip SSL certificate verification [env: SSL_SKIP_VERIFICATION=]
       --ssl-trust-store <SSL_TRUST_STORE>
           Use the system's root trust store for SSL verification [env: SSL_TRUST_STORE=] [default: true] [possible values: true, false]
+      --log-level <LEVEL>
+          Set the log level (none, off, error, warn, info, debug, trace) [default: off] [possible values: off, none, error, warn, info, debug, trace]
   -h, --help
           Print help
 
@@ -402,14 +401,12 @@ Update an environment resource in the Pact Broker.
 #### describe-environment
 
 ```console
-$ pact-broker-cli pact-broker describe-environment --help
+$ pact-broker-cli describe-environment --help
 Describe an environment
 
-Usage: pact-broker-cli pact-broker describe-environment [OPTIONS] --uuid <UUID> --broker-base-url <PACT_BROKER_BASE_URL>
+Usage: pact-broker-cli describe-environment [OPTIONS] --uuid <UUID> --broker-base-url <PACT_BROKER_BASE_URL>
 
 Options:
-      --log-level <LEVEL>
-          Set the log level (none, off, error, warn, info, debug, trace) [default: off] [possible values: off, none, error, warn, info, debug, trace]
       --uuid <UUID>
           The UUID of the environment to describe
   -o, --output <OUTPUT>
@@ -430,6 +427,8 @@ Options:
           Skip SSL certificate verification [env: SSL_SKIP_VERIFICATION=]
       --ssl-trust-store <SSL_TRUST_STORE>
           Use the system's root trust store for SSL verification [env: SSL_TRUST_STORE=] [default: true] [possible values: true, false]
+      --log-level <LEVEL>
+          Set the log level (none, off, error, warn, info, debug, trace) [default: off] [possible values: off, none, error, warn, info, debug, trace]
   -h, --help
           Print help
 
@@ -440,14 +439,12 @@ Describe an environment
 #### delete-environment
 
 ```console
-$ pact-broker-cli pact-broker delete-environment --help
+$ pact-broker-cli delete-environment --help
 Delete an environment
 
-Usage: pact-broker-cli pact-broker delete-environment [OPTIONS] --uuid <UUID> --broker-base-url <PACT_BROKER_BASE_URL>
+Usage: pact-broker-cli delete-environment [OPTIONS] --uuid <UUID> --broker-base-url <PACT_BROKER_BASE_URL>
 
 Options:
-      --log-level <LEVEL>
-          Set the log level (none, off, error, warn, info, debug, trace) [default: off] [possible values: off, none, error, warn, info, debug, trace]
       --uuid <UUID>
           The UUID of the environment to delete
   -b, --broker-base-url <PACT_BROKER_BASE_URL>
@@ -466,6 +463,8 @@ Options:
           Skip SSL certificate verification [env: SSL_SKIP_VERIFICATION=]
       --ssl-trust-store <SSL_TRUST_STORE>
           Use the system's root trust store for SSL verification [env: SSL_TRUST_STORE=] [default: true] [possible values: true, false]
+      --log-level <LEVEL>
+          Set the log level (none, off, error, warn, info, debug, trace) [default: off] [possible values: off, none, error, warn, info, debug, trace]
   -h, --help
           Print help
 
@@ -476,14 +475,12 @@ Delete an environment
 #### list-environments
 
 ```console
-$ pact-broker-cli pact-broker list-environments --help
+$ pact-broker-cli list-environments --help
 List environments
 
-Usage: pact-broker-cli pact-broker list-environments [OPTIONS] --broker-base-url <PACT_BROKER_BASE_URL>
+Usage: pact-broker-cli list-environments [OPTIONS] --broker-base-url <PACT_BROKER_BASE_URL>
 
 Options:
-      --log-level <LEVEL>
-          Set the log level (none, off, error, warn, info, debug, trace) [default: off] [possible values: off, none, error, warn, info, debug, trace]
   -o, --output <OUTPUT>
           Value must be one of ["json", "text", "pretty"] [default: text] [possible values: json, text, pretty]
   -b, --broker-base-url <PACT_BROKER_BASE_URL>
@@ -502,6 +499,8 @@ Options:
           Skip SSL certificate verification [env: SSL_SKIP_VERIFICATION=]
       --ssl-trust-store <SSL_TRUST_STORE>
           Use the system's root trust store for SSL verification [env: SSL_TRUST_STORE=] [default: true] [possible values: true, false]
+      --log-level <LEVEL>
+          Set the log level (none, off, error, warn, info, debug, trace) [default: off] [possible values: off, none, error, warn, info, debug, trace]
   -h, --help
           Print help
 
@@ -514,16 +513,14 @@ List environments
 #### record-deployment
 
 ```console
-$ pact-broker-cli pact-broker record-deployment --help
+$ pact-broker-cli record-deployment --help
 Record deployment of a pacticipant version to an environment
 
-Usage: pact-broker-cli pact-broker record-deployment [OPTIONS] --pacticipant <PACTICIPANT> --version <VERSION> --environment <ENVIRONMENT> --broker-base-url <PACT_BROKER_BASE_URL>
+Usage: pact-broker-cli record-deployment [OPTIONS] --pacticipant <PACTICIPANT> --version <VERSION> --environment <ENVIRONMENT> --broker-base-url <PACT_BROKER_BASE_URL>
 
 Options:
   -a, --pacticipant <PACTICIPANT>
           The name of the pacticipant that was deployed
-      --log-level <LEVEL>
-          Set the log level (none, off, error, warn, info, debug, trace) [default: off] [possible values: off, none, error, warn, info, debug, trace]
   -e, --version <VERSION>
           The pacticipant version number that was deployed
       --environment <ENVIRONMENT>
@@ -548,6 +545,8 @@ Options:
           Skip SSL certificate verification [env: SSL_SKIP_VERIFICATION=]
       --ssl-trust-store <SSL_TRUST_STORE>
           Use the system's root trust store for SSL verification [env: SSL_TRUST_STORE=] [default: true] [possible values: true, false]
+      --log-level <LEVEL>
+          Set the log level (none, off, error, warn, info, debug, trace) [default: off] [possible values: off, none, error, warn, info, debug, trace]
   -h, --help
           Print help
 
@@ -558,22 +557,16 @@ Record deployment of a pacticipant version to an environment. See https://docs.p
 #### record-undeployment
 
 ```console
-$ pact-broker-cli pact-broker record-undeployment --help
+$ pact-broker-cli record-undeployment --help
 Record undeployment of a pacticipant version from an environment.
 
 Note that use of this command is only required if you are permanently removing an application instance from an environment. It is not required if you are deploying over a previous version, as record-deployment will automatically mark the previously deployed version as undeployed for you. See https://docs.pact.io/go/record-undeployment for more information.
 
-Usage: pact-broker-cli pact-broker record-undeployment [OPTIONS] --pacticipant <PACTICIPANT> --environment <ENVIRONMENT> --broker-base-url <PACT_BROKER_BASE_URL>
+Usage: pact-broker-cli record-undeployment [OPTIONS] --pacticipant <PACTICIPANT> --environment <ENVIRONMENT> --broker-base-url <PACT_BROKER_BASE_URL>
 
 Options:
   -a, --pacticipant <PACTICIPANT>
           The name of the pacticipant that was undeployed
-
-      --log-level <LEVEL>
-          Set the log level (none, off, error, warn, info, debug, trace)
-          
-          [default: off]
-          [possible values: off, none, error, warn, info, debug, trace]
 
       --environment <ENVIRONMENT>
           The name of the environment that the pacticipant version was undeployed from
@@ -627,6 +620,12 @@ Options:
           [default: true]
           [possible values: true, false]
 
+      --log-level <LEVEL>
+          Set the log level (none, off, error, warn, info, debug, trace)
+          
+          [default: off]
+          [possible values: off, none, error, warn, info, debug, trace]
+
   -h, --help
           Print help (see a summary with '-h')
 
@@ -642,16 +641,14 @@ Description:
 #### record-release
 
 ```console
-$ pact-broker-cli pact-broker record-release --help
+$ pact-broker-cli record-release --help
 Record release of a pacticipant version to an environment.
 
-Usage: pact-broker-cli pact-broker record-release [OPTIONS] --pacticipant <PACTICIPANT> --version <VERSION> --environment <ENVIRONMENT> --broker-base-url <PACT_BROKER_BASE_URL>
+Usage: pact-broker-cli record-release [OPTIONS] --pacticipant <PACTICIPANT> --version <VERSION> --environment <ENVIRONMENT> --broker-base-url <PACT_BROKER_BASE_URL>
 
 Options:
   -a, --pacticipant <PACTICIPANT>
           The name of the pacticipant that was released.
-      --log-level <LEVEL>
-          Set the log level (none, off, error, warn, info, debug, trace) [default: off] [possible values: off, none, error, warn, info, debug, trace]
   -e, --version <VERSION>
           The pacticipant version number that was released.
       --environment <ENVIRONMENT>
@@ -674,6 +671,8 @@ Options:
           Skip SSL certificate verification [env: SSL_SKIP_VERIFICATION=]
       --ssl-trust-store <SSL_TRUST_STORE>
           Use the system's root trust store for SSL verification [env: SSL_TRUST_STORE=] [default: true] [possible values: true, false]
+      --log-level <LEVEL>
+          Set the log level (none, off, error, warn, info, debug, trace) [default: off] [possible values: off, none, error, warn, info, debug, trace]
   -h, --help
           Print help
 
@@ -684,16 +683,14 @@ Record release of a pacticipant version to an environment. See See https://docs.
 #### record-support-ended
 
 ```console
-$ pact-broker-cli pact-broker record-support-ended --help
+$ pact-broker-cli record-support-ended --help
 Record the end of support for a pacticipant version in an environment.
 
-Usage: pact-broker-cli pact-broker record-support-ended [OPTIONS] --pacticipant <PACTICIPANT> --version <VERSION> --environment <ENVIRONMENT> --broker-base-url <PACT_BROKER_BASE_URL>
+Usage: pact-broker-cli record-support-ended [OPTIONS] --pacticipant <PACTICIPANT> --version <VERSION> --environment <ENVIRONMENT> --broker-base-url <PACT_BROKER_BASE_URL>
 
 Options:
   -a, --pacticipant <PACTICIPANT>
           The name of the pacticipant.
-      --log-level <LEVEL>
-          Set the log level (none, off, error, warn, info, debug, trace) [default: off] [possible values: off, none, error, warn, info, debug, trace]
   -e, --version <VERSION>
           The pacticipant version number for which support is ended.
       --environment <ENVIRONMENT>
@@ -716,6 +713,8 @@ Options:
           Skip SSL certificate verification [env: SSL_SKIP_VERIFICATION=]
       --ssl-trust-store <SSL_TRUST_STORE>
           Use the system's root trust store for SSL verification [env: SSL_TRUST_STORE=] [default: true] [possible values: true, false]
+      --log-level <LEVEL>
+          Set the log level (none, off, error, warn, info, debug, trace) [default: off] [possible values: off, none, error, warn, info, debug, trace]
   -h, --help
           Print help
 
@@ -728,7 +727,7 @@ Record the end of support for a pacticipant version in an environment. See https
 #### can-i-deploy
 
 ```console
-$ pact-broker-cli pact-broker can-i-deploy --help
+$ pact-broker-cli can-i-deploy --help
     Check if a pacticipant can be deployed.
 
     Description:
@@ -742,29 +741,29 @@ $ pact-broker-cli pact-broker can-i-deploy --help
   
     Before `can-i-deploy` can be used, the relevant environment resources must first be created in the Pact Broker using the
     `create-environment` command. The 'test' and 'production' environments will have been seeded for you. You can check the existing
-    environments by running `pact-broker list-environments`. See https://docs.pact.io/pact_broker/client_cli/readme#environments for more
+    environments by running `pact-broker-cli list-environments`. See https://docs.pact.io/pact_broker/client_cli/readme#environments for more
     information.
-  
-    $ pact-broker create-environment --name 'uat' --display-name 'UAT' --no-production
-  
-    After an application is deployed or released, its deployment must be recorded using the `ecord-deployment` or `ecord-release`
+
+    $ pact-broker-cli create-environment --name 'uat' --display-name 'UAT' --no-production
+
+    After an application is deployed or released, its deployment must be recorded using the `record-deployment` or `record-release`
     commands. See https://docs.pact.io/pact_broker/recording_deployments_and_releases/ for more information.
   
-    $ pact-broker record-deployment --pacticipant Foo --version 173153ae0 --environment uat
+    $ pact-broker-cli record-deployment --pacticipant Foo --version 173153ae0 --environment uat
   
     Before an application is deployed or released to an environment, the can-i-deploy command must be run to check that the application
     version is safe to deploy with the versions of each integrated application that are already in that environment.
   
-    $ pact-broker can-i-deploy --pacticipant PACTICIPANT --version VERSION --to-environment ENVIRONMENT
+    $ pact-broker-cli can-i-deploy --pacticipant PACTICIPANT --version VERSION --to-environment ENVIRONMENT
   
     Example: can I deploy version 173153ae0 of application Foo to the test environment?
   
-    $ pact-broker can-i-deploy --pacticipant Foo --version 173153ae0 --to-environment test
+    $ pact-broker-cli can-i-deploy --pacticipant Foo --version 173153ae0 --to-environment test
   
     Can-i-deploy can also be used to check if arbitrary versions have a successful verification. When asking 'Can I deploy this
     application version with the latest version from the main branch of another application' it functions as a 'can I merge' check.
   
-    $ pact-broker can-i-deploy --pacticipant Foo 173153ae0 // --pacticipant Bar --latest main
+    $ pact-broker-cli can-i-deploy --pacticipant Foo 173153ae0 // --pacticipant Bar --latest main
   
     ##### Polling
   
@@ -773,17 +772,11 @@ $ pact-broker-cli pact-broker can-i-deploy --help
     TIMES` and `--retry-interval SECONDS`, set to appropriate values for your pipeline.
     
 
-Usage: pact-broker-cli pact-broker can-i-deploy [OPTIONS] --pacticipant <PACTICIPANT> --broker-base-url <PACT_BROKER_BASE_URL>
+Usage: pact-broker-cli can-i-deploy [OPTIONS] --pacticipant <PACTICIPANT> --broker-base-url <PACT_BROKER_BASE_URL>
 
 Options:
   -a, --pacticipant <PACTICIPANT>
           The pacticipant name. Use once for each pacticipant being checked. The following options (--version, --latest, --tag, --branch, --main-branch, --no-main-branch, --skip-main-branch) must come after each --pacticipant.
-
-      --log-level <LEVEL>
-          Set the log level (none, off, error, warn, info, debug, trace)
-          
-          [default: off]
-          [possible values: off, none, error, warn, info, debug, trace]
 
   -e, --version <VERSION>
           The pacticipant version. Must be entered after the --pacticipant that it relates to.
@@ -794,7 +787,7 @@ Options:
       --tag <TAG>
           The tag of the version for which you want to check the verification results. Must be entered after the --pacticipant that it relates to.
 
-      --branch
+      --branch <BRANCH>
           The branch of the version for which you want to check the verification results. Must be entered after the --pacticipant that it relates to.
 
       --main-branch
@@ -870,6 +863,12 @@ Options:
           [default: true]
           [possible values: true, false]
 
+      --log-level <LEVEL>
+          Set the log level (none, off, error, warn, info, debug, trace)
+          
+          [default: off]
+          [possible values: off, none, error, warn, info, debug, trace]
+
   -h, --help
           Print help (see a summary with '-h')
 
@@ -888,26 +887,26 @@ Description:
   "test" and "production" environments will have been seeded for you. You can check the existing environments by running `pact-broker list-environments`. See
   https://docs.pact.io/pact_broker/client_cli/readme#environments for more information.
 
-`$ pact-broker-cli pact-broker create-environment --name "uat" --display-name "UAT" --no-production`
+`$ pact-broker-cli create-environment --name "uat" --display-name "UAT" --no-production`
 
   After an application is deployed or released, its deployment must be recorded using the `record-deployment` or `record-release` commands. See
   https://docs.pact.io/pact_broker/recording_deployments_and_releases/ for more information.
 
-`$ pact-broker-cli pact-broker record-deployment --pacticipant Foo --version 173153ae0 --environment uat`
+`$ pact-broker-cli record-deployment --pacticipant Foo --version 173153ae0 --environment uat`
 
   Before an application is deployed or released to an environment, the can-i-deploy command must be run to check that the application version is safe to deploy
   with the versions of each integrated application that are already in that environment.
 
-`$ pact-broker-cli pact-broker can-i-deploy --pacticipant PACTICIPANT --version VERSION --to-environment ENVIRONMENT`
+`$ pact-broker-cli can-i-deploy --pacticipant PACTICIPANT --version VERSION --to-environment ENVIRONMENT`
 
   Example: can I deploy version 173153ae0 of application Foo to the test environment?
 
-`$ pact-broker-cli pact-broker can-i-deploy --pacticipant Foo --version 173153ae0 --to-environment test`
+`$ pact-broker-cli can-i-deploy --pacticipant Foo --version 173153ae0 --to-environment test`
 
   Can-i-deploy can also be used to check if arbitrary versions have a successful verification. When asking "Can I deploy this application version with the
   latest version from the main branch of another application" it functions as a "can I merge" check.
 
-`$ pact-broker-cli pact-broker can-i-deploy --pacticipant Foo 173153ae0 \ --pacticipant Bar --latest main`
+`$ pact-broker-cli can-i-deploy --pacticipant Foo 173153ae0 \ --pacticipant Bar --latest main`
 
 ##### Polling
 
@@ -918,16 +917,14 @@ appropriate values for your pipeline.
 #### can-i-merge
 
 ```console
-$ pact-broker-cli pact-broker can-i-merge --help
+$ pact-broker-cli can-i-merge --help
 Checks if the specified pacticipant version is compatible with the configured main branch of each of the pacticipants with which it is integrated.
 
-Usage: pact-broker-cli pact-broker can-i-merge [OPTIONS] --broker-base-url <PACT_BROKER_BASE_URL> --pacticipant <PACTICIPANT>
+Usage: pact-broker-cli can-i-merge [OPTIONS] --broker-base-url <PACT_BROKER_BASE_URL> --pacticipant <PACTICIPANT>
 
 Options:
   -b, --broker-base-url <PACT_BROKER_BASE_URL>
           The base URL of the Pact Broker [env: PACT_BROKER_BASE_URL=]
-      --log-level <LEVEL>
-          Set the log level (none, off, error, warn, info, debug, trace) [default: off] [possible values: off, none, error, warn, info, debug, trace]
   -u, --broker-username <PACT_BROKER_USERNAME>
           Pact Broker basic auth username [env: PACT_BROKER_USERNAME=]
   -p, --broker-password <PACT_BROKER_PASSWORD>
@@ -954,6 +951,8 @@ Options:
           Skip SSL certificate verification [env: SSL_SKIP_VERIFICATION=]
       --ssl-trust-store <SSL_TRUST_STORE>
           Use the system's root trust store for SSL verification [env: SSL_TRUST_STORE=] [default: true] [possible values: true, false]
+      --log-level <LEVEL>
+          Set the log level (none, off, error, warn, info, debug, trace) [default: off] [possible values: off, none, error, warn, info, debug, trace]
   -h, --help
           Print help
 
@@ -967,16 +966,14 @@ Description:
 #### create-or-update-pacticipant
 
 ```console
-$ pact-broker-cli pact-broker create-or-update-pacticipant --help
+$ pact-broker-cli create-or-update-pacticipant --help
 Create or update pacticipant by name
 
-Usage: pact-broker-cli pact-broker create-or-update-pacticipant [OPTIONS] --broker-base-url <PACT_BROKER_BASE_URL> --name <NAME>
+Usage: pact-broker-cli create-or-update-pacticipant [OPTIONS] --broker-base-url <PACT_BROKER_BASE_URL> --name <NAME>
 
 Options:
   -b, --broker-base-url <PACT_BROKER_BASE_URL>
           The base URL of the Pact Broker [env: PACT_BROKER_BASE_URL=]
-      --log-level <LEVEL>
-          Set the log level (none, off, error, warn, info, debug, trace) [default: off] [possible values: off, none, error, warn, info, debug, trace]
   -u, --broker-username <PACT_BROKER_USERNAME>
           Pact Broker basic auth username [env: PACT_BROKER_USERNAME=]
   -p, --broker-password <PACT_BROKER_PASSWORD>
@@ -1001,6 +998,8 @@ Options:
           Skip SSL certificate verification [env: SSL_SKIP_VERIFICATION=]
       --ssl-trust-store <SSL_TRUST_STORE>
           Use the system's root trust store for SSL verification [env: SSL_TRUST_STORE=] [default: true] [possible values: true, false]
+      --log-level <LEVEL>
+          Set the log level (none, off, error, warn, info, debug, trace) [default: off] [possible values: off, none, error, warn, info, debug, trace]
   -h, --help
           Print help
 
@@ -1011,16 +1010,14 @@ Create or update pacticipant by name
 #### describe-pacticipant
 
 ```console
-$ pact-broker-cli pact-broker describe-pacticipant --help
+$ pact-broker-cli describe-pacticipant --help
 Describe a pacticipant
 
-Usage: pact-broker-cli pact-broker describe-pacticipant [OPTIONS] --broker-base-url <PACT_BROKER_BASE_URL> --name <NAME>
+Usage: pact-broker-cli describe-pacticipant [OPTIONS] --broker-base-url <PACT_BROKER_BASE_URL> --name <NAME>
 
 Options:
   -b, --broker-base-url <PACT_BROKER_BASE_URL>
           The base URL of the Pact Broker [env: PACT_BROKER_BASE_URL=]
-      --log-level <LEVEL>
-          Set the log level (none, off, error, warn, info, debug, trace) [default: off] [possible values: off, none, error, warn, info, debug, trace]
   -u, --broker-username <PACT_BROKER_USERNAME>
           Pact Broker basic auth username [env: PACT_BROKER_USERNAME=]
   -p, --broker-password <PACT_BROKER_PASSWORD>
@@ -1039,6 +1036,8 @@ Options:
           Skip SSL certificate verification [env: SSL_SKIP_VERIFICATION=]
       --ssl-trust-store <SSL_TRUST_STORE>
           Use the system's root trust store for SSL verification [env: SSL_TRUST_STORE=] [default: true] [possible values: true, false]
+      --log-level <LEVEL>
+          Set the log level (none, off, error, warn, info, debug, trace) [default: off] [possible values: off, none, error, warn, info, debug, trace]
   -h, --help
           Print help
 
@@ -1049,16 +1048,14 @@ Describe a pacticipant
 #### list-pacticipants
 
 ```console
-$ pact-broker-cli pact-broker list-pacticipants --help
+$ pact-broker-cli list-pacticipants --help
 List pacticipants
 
-Usage: pact-broker-cli pact-broker list-pacticipants [OPTIONS] --broker-base-url <PACT_BROKER_BASE_URL>
+Usage: pact-broker-cli list-pacticipants [OPTIONS] --broker-base-url <PACT_BROKER_BASE_URL>
 
 Options:
   -b, --broker-base-url <PACT_BROKER_BASE_URL>
           The base URL of the Pact Broker [env: PACT_BROKER_BASE_URL=]
-      --log-level <LEVEL>
-          Set the log level (none, off, error, warn, info, debug, trace) [default: off] [possible values: off, none, error, warn, info, debug, trace]
   -u, --broker-username <PACT_BROKER_USERNAME>
           Pact Broker basic auth username [env: PACT_BROKER_USERNAME=]
   -p, --broker-password <PACT_BROKER_PASSWORD>
@@ -1075,6 +1072,8 @@ Options:
           Skip SSL certificate verification [env: SSL_SKIP_VERIFICATION=]
       --ssl-trust-store <SSL_TRUST_STORE>
           Use the system's root trust store for SSL verification [env: SSL_TRUST_STORE=] [default: true] [possible values: true, false]
+      --log-level <LEVEL>
+          Set the log level (none, off, error, warn, info, debug, trace) [default: off] [possible values: off, none, error, warn, info, debug, trace]
   -h, --help
           Print help
 
@@ -1087,17 +1086,15 @@ List pacticipants
 #### create-webhook
 
 ```console
-$ pact-broker-cli pact-broker create-webhook --help
+$ pact-broker-cli create-webhook --help
 Create a webhook
 
-Usage: pact-broker-cli pact-broker create-webhook [OPTIONS] --broker-base-url <PACT_BROKER_BASE_URL> <URL>
+Usage: pact-broker-cli create-webhook [OPTIONS] --broker-base-url <PACT_BROKER_BASE_URL> <URL>
 
 Arguments:
   <URL>  Webhook URL
 
 Options:
-      --log-level <LEVEL>
-          Set the log level (none, off, error, warn, info, debug, trace) [default: off] [possible values: off, none, error, warn, info, debug, trace]
   -X, --request <METHOD>
           Webhook HTTP method
   -H, --header [<one two three>]
@@ -1146,6 +1143,8 @@ Options:
           Skip SSL certificate verification [env: SSL_SKIP_VERIFICATION=]
       --ssl-trust-store <SSL_TRUST_STORE>
           Use the system's root trust store for SSL verification [env: SSL_TRUST_STORE=] [default: true] [possible values: true, false]
+      --log-level <LEVEL>
+          Set the log level (none, off, error, warn, info, debug, trace) [default: off] [possible values: off, none, error, warn, info, debug, trace]
   -h, --help
           Print help
 
@@ -1161,10 +1160,10 @@ Description:
 #### create-or-update-webhook
 
 ```console
-$ pact-broker-cli pact-broker create-or-update-webhook --help
+$ pact-broker-cli create-or-update-webhook --help
 Create or update a webhook
 
-Usage: pact-broker-cli pact-broker create-or-update-webhook [OPTIONS] --broker-base-url <PACT_BROKER_BASE_URL> --uuid <UUID> <URL>
+Usage: pact-broker-cli create-or-update-webhook [OPTIONS] --broker-base-url <PACT_BROKER_BASE_URL> --uuid <UUID> <URL>
 
 Arguments:
   <URL>  Webhook URL
@@ -1172,8 +1171,6 @@ Arguments:
 Options:
   -b, --broker-base-url <PACT_BROKER_BASE_URL>
           The base URL of the Pact Broker [env: PACT_BROKER_BASE_URL=]
-      --log-level <LEVEL>
-          Set the log level (none, off, error, warn, info, debug, trace) [default: off] [possible values: off, none, error, warn, info, debug, trace]
   -u, --broker-username <PACT_BROKER_USERNAME>
           Pact Broker basic auth username [env: PACT_BROKER_USERNAME=]
   -p, --broker-password <PACT_BROKER_PASSWORD>
@@ -1222,6 +1219,8 @@ Options:
           Skip SSL certificate verification [env: SSL_SKIP_VERIFICATION=]
       --ssl-trust-store <SSL_TRUST_STORE>
           Use the system's root trust store for SSL verification [env: SSL_TRUST_STORE=] [default: true] [possible values: true, false]
+      --log-level <LEVEL>
+          Set the log level (none, off, error, warn, info, debug, trace) [default: off] [possible values: off, none, error, warn, info, debug, trace]
   -h, --help
           Print help
 
@@ -1238,14 +1237,12 @@ Description:
 #### test-webhook
 
 ```console
-$ pact-broker-cli pact-broker test-webhook --help
+$ pact-broker-cli test-webhook --help
 Test a webhook
 
-Usage: pact-broker-cli pact-broker test-webhook [OPTIONS] --uuid <UUID> --broker-base-url <PACT_BROKER_BASE_URL>
+Usage: pact-broker-cli test-webhook [OPTIONS] --uuid <UUID> --broker-base-url <PACT_BROKER_BASE_URL>
 
 Options:
-      --log-level <LEVEL>
-          Set the log level (none, off, error, warn, info, debug, trace) [default: off] [possible values: off, none, error, warn, info, debug, trace]
       --uuid <UUID>
           Specify the uuid for the webhook
   -b, --broker-base-url <PACT_BROKER_BASE_URL>
@@ -1264,6 +1261,8 @@ Options:
           Skip SSL certificate verification [env: SSL_SKIP_VERIFICATION=]
       --ssl-trust-store <SSL_TRUST_STORE>
           Use the system's root trust store for SSL verification [env: SSL_TRUST_STORE=] [default: true] [possible values: true, false]
+      --log-level <LEVEL>
+          Set the log level (none, off, error, warn, info, debug, trace) [default: off] [possible values: off, none, error, warn, info, debug, trace]
   -h, --help
           Print help
 
@@ -1276,16 +1275,14 @@ Test the execution of a webhook
 #### delete-branch
 
 ```console
-$ pact-broker-cli pact-broker delete-branch --help
+$ pact-broker-cli delete-branch --help
 Deletes a pacticipant branch. Does not delete the versions or pacts/verifications associated with the branch, but does make the pacts inaccessible for verification via consumer versions selectors or WIP pacts.
 
-Usage: pact-broker-cli pact-broker delete-branch [OPTIONS] --broker-base-url <PACT_BROKER_BASE_URL> --branch <BRANCH> --pacticipant <PACTICIPANT>
+Usage: pact-broker-cli delete-branch [OPTIONS] --broker-base-url <PACT_BROKER_BASE_URL> --branch <BRANCH> --pacticipant <PACTICIPANT>
 
 Options:
   -b, --broker-base-url <PACT_BROKER_BASE_URL>
           The base URL of the Pact Broker [env: PACT_BROKER_BASE_URL=]
-      --log-level <LEVEL>
-          Set the log level (none, off, error, warn, info, debug, trace) [default: off] [possible values: off, none, error, warn, info, debug, trace]
   -u, --broker-username <PACT_BROKER_USERNAME>
           Pact Broker basic auth username [env: PACT_BROKER_USERNAME=]
   -p, --broker-password <PACT_BROKER_PASSWORD>
@@ -1306,6 +1303,8 @@ Options:
           Skip SSL certificate verification [env: SSL_SKIP_VERIFICATION=]
       --ssl-trust-store <SSL_TRUST_STORE>
           Use the system's root trust store for SSL verification [env: SSL_TRUST_STORE=] [default: true] [possible values: true, false]
+      --log-level <LEVEL>
+          Set the log level (none, off, error, warn, info, debug, trace) [default: off] [possible values: off, none, error, warn, info, debug, trace]
   -h, --help
           Print help
 
@@ -1318,16 +1317,14 @@ Deletes a pacticipant branch. Does not delete the versions or pacts/verification
 #### create-version-tag
 
 ```console
-$ pact-broker-cli pact-broker create-version-tag --help
+$ pact-broker-cli create-version-tag --help
 Add a tag to a pacticipant version
 
-Usage: pact-broker-cli pact-broker create-version-tag [OPTIONS] --broker-base-url <PACT_BROKER_BASE_URL> --pacticipant <PACTICIPANT> --version <VERSION> --tag <TAG>...
+Usage: pact-broker-cli create-version-tag [OPTIONS] --broker-base-url <PACT_BROKER_BASE_URL> --pacticipant <PACTICIPANT> --version <VERSION> --tag <TAG>...
 
 Options:
   -b, --broker-base-url <PACT_BROKER_BASE_URL>
           The base URL of the Pact Broker [env: PACT_BROKER_BASE_URL=]
-      --log-level <LEVEL>
-          Set the log level (none, off, error, warn, info, debug, trace) [default: off] [possible values: off, none, error, warn, info, debug, trace]
   -u, --broker-username <PACT_BROKER_USERNAME>
           Pact Broker basic auth username [env: PACT_BROKER_USERNAME=]
   -p, --broker-password <PACT_BROKER_PASSWORD>
@@ -1350,6 +1347,8 @@ Options:
           Skip SSL certificate verification [env: SSL_SKIP_VERIFICATION=]
       --ssl-trust-store <SSL_TRUST_STORE>
           Use the system's root trust store for SSL verification [env: SSL_TRUST_STORE=] [default: true] [possible values: true, false]
+      --log-level <LEVEL>
+          Set the log level (none, off, error, warn, info, debug, trace) [default: off] [possible values: off, none, error, warn, info, debug, trace]
   -h, --help
           Print help
 
@@ -1362,16 +1361,14 @@ Add a tag to a pacticipant version
 #### describe-version
 
 ```console
-$ pact-broker-cli pact-broker describe-version --help
+$ pact-broker-cli describe-version --help
 Describes a pacticipant version. If no version or tag is specified, the latest version is described.
 
-Usage: pact-broker-cli pact-broker describe-version [OPTIONS] --broker-base-url <PACT_BROKER_BASE_URL> --pacticipant <PACTICIPANT>
+Usage: pact-broker-cli describe-version [OPTIONS] --broker-base-url <PACT_BROKER_BASE_URL> --pacticipant <PACTICIPANT>
 
 Options:
   -b, --broker-base-url <PACT_BROKER_BASE_URL>
           The base URL of the Pact Broker [env: PACT_BROKER_BASE_URL=]
-      --log-level <LEVEL>
-          Set the log level (none, off, error, warn, info, debug, trace) [default: off] [possible values: off, none, error, warn, info, debug, trace]
   -u, --broker-username <PACT_BROKER_USERNAME>
           Pact Broker basic auth username [env: PACT_BROKER_USERNAME=]
   -p, --broker-password <PACT_BROKER_PASSWORD>
@@ -1392,6 +1389,8 @@ Options:
           Skip SSL certificate verification [env: SSL_SKIP_VERIFICATION=]
       --ssl-trust-store <SSL_TRUST_STORE>
           Use the system's root trust store for SSL verification [env: SSL_TRUST_STORE=] [default: true] [possible values: true, false]
+      --log-level <LEVEL>
+          Set the log level (none, off, error, warn, info, debug, trace) [default: off] [possible values: off, none, error, warn, info, debug, trace]
   -h, --help
           Print help
 
@@ -1402,16 +1401,14 @@ Describes a pacticipant version. If no version or tag is specified, the latest v
 #### create-or-update-version
 
 ```console
-$ pact-broker-cli pact-broker create-or-update-version --help
+$ pact-broker-cli create-or-update-version --help
 Create or update pacticipant version by version number
 
-Usage: pact-broker-cli pact-broker create-or-update-version [OPTIONS] --broker-base-url <PACT_BROKER_BASE_URL> --pacticipant <PACTICIPANT> --version <VERSION>
+Usage: pact-broker-cli create-or-update-version [OPTIONS] --broker-base-url <PACT_BROKER_BASE_URL> --pacticipant <PACTICIPANT> --version <VERSION>
 
 Options:
   -b, --broker-base-url <PACT_BROKER_BASE_URL>
           The base URL of the Pact Broker [env: PACT_BROKER_BASE_URL=]
-      --log-level <LEVEL>
-          Set the log level (none, off, error, warn, info, debug, trace) [default: off] [possible values: off, none, error, warn, info, debug, trace]
   -u, --broker-username <PACT_BROKER_USERNAME>
           Pact Broker basic auth username [env: PACT_BROKER_USERNAME=]
   -p, --broker-password <PACT_BROKER_PASSWORD>
@@ -1434,6 +1431,8 @@ Options:
           Skip SSL certificate verification [env: SSL_SKIP_VERIFICATION=]
       --ssl-trust-store <SSL_TRUST_STORE>
           Use the system's root trust store for SSL verification [env: SSL_TRUST_STORE=] [default: true] [possible values: true, false]
+      --log-level <LEVEL>
+          Set the log level (none, off, error, warn, info, debug, trace) [default: off] [possible values: off, none, error, warn, info, debug, trace]
   -h, --help
           Print help
 
@@ -1446,20 +1445,20 @@ Create or update pacticipant version by version number
 #### generate-uuid
 
 ```console
-$ pact-broker-cli pact-broker generate-uuid --help
+$ pact-broker-cli generate-uuid --help
 Generate a UUID for use when calling create-or-update-webhook
 
-Usage: pact-broker-cli pact-broker generate-uuid [OPTIONS]
+Usage: pact-broker-cli generate-uuid [OPTIONS]
 
 Options:
   -c, --ssl-certificate <SSL_CERT_FILE>
           The path to a valid SSL certificate file [env: SSL_CERT_FILE=]
-      --log-level <LEVEL>
-          Set the log level (none, off, error, warn, info, debug, trace) [default: off] [possible values: off, none, error, warn, info, debug, trace]
       --skip-ssl-verification
           Skip SSL certificate verification [env: SSL_SKIP_VERIFICATION=]
       --ssl-trust-store <SSL_TRUST_STORE>
           Use the system's root trust store for SSL verification [env: SSL_TRUST_STORE=] [default: true] [possible values: true, false]
+      --log-level <LEVEL>
+          Set the log level (none, off, error, warn, info, debug, trace) [default: off] [possible values: off, none, error, warn, info, debug, trace]
   -h, --help
           Print help
 
@@ -1483,8 +1482,6 @@ Arguments:
 Options:
   -b, --broker-base-url <PACT_BROKER_BASE_URL>
           The base URL of the Pact Broker [env: PACT_BROKER_BASE_URL=]
-      --log-level <LEVEL>
-          Set the log level (none, off, error, warn, info, debug, trace) [default: off] [possible values: off, none, error, warn, info, debug, trace]
   -u, --broker-username <PACT_BROKER_USERNAME>
           Pact Broker basic auth username [env: PACT_BROKER_USERNAME=]
   -p, --broker-password <PACT_BROKER_PASSWORD>
@@ -1529,6 +1526,8 @@ Options:
           Value must be one of ["json", "text"] [default: text] [possible values: json, text]
   -v, --verbose
           Verbose output.
+      --log-level <LEVEL>
+          Set the log level (none, off, error, warn, info, debug, trace) [default: off] [possible values: off, none, error, warn, info, debug, trace]
   -h, --help
           Print help
 

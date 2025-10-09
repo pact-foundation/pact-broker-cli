@@ -1,14 +1,14 @@
 #!/bin/sh -e
 ## Tested with https://www.shellcheck.net/
 # Usage: (install latest)
-#   $ curl -fsSL https://raw.githubusercontent.com/you54f/pact-broker-cli/main/install.sh | sh
+#   $ curl -fsSL https://raw.githubusercontent.com/pact-foundation/pact-broker-cli/main/install.sh | sh
 # or
-#   $ wget -q https://raw.githubusercontent.com/you54f/pact-broker-cli/main/install.sh -O- | sh
+#   $ wget -q https://raw.githubusercontent.com/pact-foundation/pact-broker-cli/main/install.sh -O- | sh
 #
 # Usage: (install fixed version) - pass PACT_BROKER_CLI_VERSION=v<PACT_BROKER_CLI_VERSION> eg PACT_BROKER_CLI_VERSION=v1.92.0 or set as an env var
-#   $ curl -fsSL https://raw.githubusercontent.com/you54f/pact-broker-cli/main/install.sh | PACT_BROKER_CLI_VERSION=v1.92.0 sh
+#   $ curl -fsSL https://raw.githubusercontent.com/pact-foundation/pact-broker-cli/main/install.sh | PACT_BROKER_CLI_VERSION=v1.92.0 sh
 # or
-#   $ wget -q https://raw.githubusercontent.com/you54f/pact-broker-cli/main/install.sh -O- | PACT_BROKER_CLI_VERSION=v1.92.0 sh
+#   $ wget -q https://raw.githubusercontent.com/pact-foundation/pact-broker-cli/main/install.sh -O- | PACT_BROKER_CLI_VERSION=v1.92.0 sh
 #
 if [ "$tag" ]; then
   echo "setting $tag as PACT_BROKER_CLI_VERSION for legacy reasons"
@@ -26,11 +26,11 @@ fi
 
 if [ -z "$PACT_BROKER_CLI_VERSION" ]; then
   if command -v curl >/dev/null 2>&1; then
-    PACT_BROKER_CLI_VERSION=$(basename "$(curl -fs -o/dev/null -w "%{redirect_url}" https://github.com/you54f/pact-broker-cli/releases/latest)")
+    PACT_BROKER_CLI_VERSION=$(basename "$(curl -fs -o/dev/null -w "%{redirect_url}" https://github.com/pact-foundation/pact-broker-cli/releases/latest)")
   elif command -v wget >/dev/null 2>&1; then
-    PACT_BROKER_CLI_VERSION=$(basename "$(wget -q -S -O /dev/null https://github.com/you54f/pact-broker-cli/releases/latest 2>&1 | grep -i "Location:" | awk '{print $2}')")
+    PACT_BROKER_CLI_VERSION=$(basename "$(wget -q -S -O /dev/null https://github.com/pact-foundation/pact-broker-cli/releases/latest 2>&1 | grep -i "Location:" | awk '{print $2}')")
   else
-    echo "Sorry, you need set a version number PACT_BROKER_CLI_VERSION as we can't determine the latest at this time. See https://github.com/you54f/pact-broker-cli/releases/latest."
+    echo "Sorry, you need set a version number PACT_BROKER_CLI_VERSION as we can't determine the latest at this time. See https://github.com/pact-foundation/pact-broker-cli/releases/latest."
     exit 1
   fi
 
@@ -40,7 +40,7 @@ if [ -z "$PACT_BROKER_CLI_VERSION" ]; then
   echo "-----"
   echo "You can download a fixed version by setting the PACT_BROKER_CLI_VERSION environment variable eg PACT_BROKER_CLI_VERSION=v1.92.0"
   echo "example:"
-  echo "curl -fsSL https://raw.githubusercontent.com/you54f/pact-broker-cli/master/install.sh | PACT_BROKER_CLI_VERSION=v1.92.0 sh"
+  echo "curl -fsSL https://raw.githubusercontent.com/pact-foundation/pact-broker-cli/master/install.sh | PACT_BROKER_CLI_VERSION=v1.92.0 sh"
 else
   echo "Thanks for downloading pact-broker-cli $PACT_BROKER_CLI_VERSION."
 fi
@@ -111,7 +111,7 @@ echo
 echo "-------------"
 echo "Downloading ${filename} - version ${PACT_BROKER_CLI_VERSION}"
 echo "-------------"
-($downloader https://github.com/you54f/pact-broker-cli/releases/download/"${PACT_BROKER_CLI_VERSION}"/"${filename}" && echo downloaded "${filename}") || (echo "Sorry, you'll need to install the pact-broker-cli manually." && exit 1)
+($downloader https://github.com/pact-foundation/pact-broker-cli/releases/download/"${PACT_BROKER_CLI_VERSION}"/"${filename}" && echo downloaded "${filename}") || (echo "Sorry, you'll need to install the pact-broker-cli manually." && exit 1)
 (chmod +x "${filename}" && echo unarchived "${filename}") || (echo "Sorry, you'll need to unarchived the pact-broker-cli manually." && exit 1)
 echo "pact-broker-cli ${PACT_BROKER_CLI_VERSION} installed to $(pwd)"
 echo "-------------------"

@@ -29,13 +29,13 @@ build_and_push() {
 # Alpine builds
 
 # base tag
-build_and_push "you54f" "$DOCKER_TAG" "Dockerfile.alpine" "$PLATFORMS_ALPINE"
-build_and_push "ghcr.io/you54f" "$DOCKER_TAG" "Dockerfile.alpine" "$PLATFORMS_ALPINE"
+build_and_push "pactfoundation" "$DOCKER_TAG" "Dockerfile.alpine" "$PLATFORMS_ALPINE"
+build_and_push "ghcr.io/pact-foundation" "$DOCKER_TAG" "Dockerfile.alpine" "$PLATFORMS_ALPINE"
 
 # alpine tagged build
-build_and_push "you54f" "$DOCKER_TAG-alpine" "Dockerfile.alpine" "$PLATFORMS_ALPINE"
-build_and_push "ghcr.io/you54f" "$DOCKER_TAG-alpine" "Dockerfile.alpine" "$PLATFORMS_ALPINE"
+build_and_push "pactfoundation" "$DOCKER_TAG-alpine" "Dockerfile.alpine" "$PLATFORMS_ALPINE"
+build_and_push "ghcr.io/pact-foundation" "$DOCKER_TAG-alpine" "Dockerfile.alpine" "$PLATFORMS_ALPINE"
 
 # debian tagged build
-build_and_push "you54f" "$DOCKER_TAG-debian" "Dockerfile.debian" "$PLATFORMS_DEBIAN"
-build_and_push "ghcr.io/you54f" "$DOCKER_TAG-debian" "Dockerfile.debian" "$PLATFORMS_DEBIAN"
+build_and_push "pactfoundation" "$DOCKER_TAG-debian" "Dockerfile.debian" "$PLATFORMS_DEBIAN"
+build_and_push "ghcr.io/pact-foundation" "$DOCKER_TAG-debian" "Dockerfile.debian" "$PLATFORMS_DEBIAN"

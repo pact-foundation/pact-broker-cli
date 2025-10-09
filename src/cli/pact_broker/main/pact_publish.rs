@@ -21,7 +21,7 @@ use crate::cli::pact_broker::main::utils::get_ssl_options;
 use crate::cli::pact_broker::main::utils::{
     get_auth, get_broker_relation, get_broker_url, handle_error,
 };
-use crate::cli::utils;
+use crate::cli::utils::{self, git_info};
 
 use super::verification::{VerificationResult, display_results, verify_json};
 
@@ -225,15 +225,15 @@ pub fn publish_pacts(args: &ArgMatches) -> Result<Value, i32> {
             let build_url = args.get_one::<String>("build-url");
             let (git_commit, git_branch);
             if auto_detect_version_properties {
-                git_commit = get_git_commit();
-                git_branch = get_git_branch();
+                git_commit = git_info::commit(false);
+                git_branch = git_info::branch(false);
             } else {
-                git_commit = "".to_string();
-                git_branch = "".to_string();
+                git_commit = Some("".to_string());
+                git_branch = Some("".to_string());
             }
             if auto_detect_version_properties {
                 if consumer_app_version == None {
-                    consumer_app_version = Some(&git_commit);
+                    consumer_app_version = git_commit.as_ref();
                     println!(
                         "🔍 Auto detected git commit: {}",
                         consumer_app_version.unwrap().to_string()
@@ -246,7 +246,7 @@ pub fn publish_pacts(args: &ArgMatches) -> Result<Value, i32> {
                     );
                 }
                 if branch == None {
-                    branch = Some(&git_branch);
+                    branch = git_branch.as_ref();
                     println!(
                         "🔍 Auto detected git branch: {}",
                         branch.unwrap().to_string()

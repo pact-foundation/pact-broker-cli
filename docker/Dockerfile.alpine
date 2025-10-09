@@ -43,7 +43,7 @@ RUN if [ "$TARGETARCH" = "amd64" ]; then \
         echo "Invalid TARGETARCH: ${TARGETARCH}"; \
         exit 1; \
     fi \
-    && wget -O pact-broker-cli https://github.com/you54f/pact-broker-cli/releases/download/v${VERSION}/${BIN_FILE} && \
+    && wget -O pact-broker-cli https://github.com/pact-foundation/pact-broker-cli/releases/download/v${VERSION}/${BIN_FILE} && \
     chmod +x pact-broker-cli
 
 FROM --platform=linux/${TARGETARCH}${TARGETVARIANT:+/${TARGETVARIANT}} ${BASE_IMAGE}

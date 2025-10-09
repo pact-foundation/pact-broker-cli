@@ -25,13 +25,16 @@ on:
         description: 'Version of the release'
         default: 'latest'
         type: string
+      broker_url:
+        description: 'Version of the release'
+        required: false
+        type: string
+                
       # force_release:
       #   description: 'force release for target from branch other than main'
       #   default: false
       #   type: boolean
     secrets:
-      broker_url:
-        required: false        
       broker_token:
         required: false        
 jobs:
@@ -40,8 +43,6 @@ jobs:
     runs-on: ${{ inputs.os }}
     env:
       SLIM: ${{ inputs.slim }}
-    # permissions: # only needed for release_workflow however for speed (not needing to wait for another runner to be available) we set it here
-    #   contents: write
     steps:
       - uses: actions/checkout@v4
       - name: Install stable Rust Toolchain Components
@@ -85,7 +86,7 @@ jobs:
         run: make cargo_build_release TARGET=${{ inputs.target }} SLIM=${{ inputs.slim }} USE_CROSS=${{ inputs.use-cross }}
       - name: Test
         run: make cargo_test
-      - uses: you54f/pact-broker-in-a-box@via_ruby_test
+      - uses: you54f/pact-broker-in-a-box@main
         if: ${{ inputs.target == 'aarch64-apple-darwin' || inputs.target == 'x86_64-unknown-linux-gnu' || inputs.target == 'x86_64-pc-windows-gnu' }}
       - name: test pact-broker-cli with locally running Pact Broker
         if: ${{ inputs.target == 'aarch64-apple-darwin' || inputs.target == 'x86_64-unknown-linux-gnu' || inputs.target == 'x86_64-pc-windows-gnu' }}
@@ -99,7 +100,7 @@ jobs:
         name: Publish pacts to hosted Pactflow Broker
         if: ${{ inputs.target == 'aarch64-apple-darwin' }}
         env:
-          PACT_BROKER_BASE_URL: ${{ secrets.broker_url }}
+          PACT_BROKER_BASE_URL: ${{ inputs.broker_url }}
           PACT_BROKER_TOKEN: ${{ secrets.broker_token }}
       - name: Create dist
         id: dist

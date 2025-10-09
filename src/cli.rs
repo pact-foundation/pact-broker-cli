@@ -7,13 +7,10 @@ pub mod pactflow_client;
 pub mod utils;
 
 pub fn build_cli() -> Command {
-    let app = command!()
+    let app = pact_broker_client::add_pact_broker_client_command().version(env!("CARGO_PKG_VERSION"))
         .version(env!("CARGO_PKG_VERSION"))
         .about("A pact cli tool")
         .args(add_logging_arguments())
-        .subcommand(
-            pact_broker_client::add_pact_broker_client_command().version(env!("CARGO_PKG_VERSION")),
-        )
         .subcommand(
             pactflow_client::add_pactflow_client_command().version(env!("CARGO_PKG_VERSION")),
         )
