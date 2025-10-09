@@ -35,9 +35,9 @@ use crate::cli::pact_broker::main::versions::describe::describe_version;
 use crate::cli::pact_broker::main::webhooks::create::create_webhook;
 use crate::cli::pact_broker::main::webhooks::test::test_webhook;
 use crate::cli::pact_broker::main::{can_i_deploy, pact_publish};
-use clap::{ArgMatches, Command};
+use clap::{ArgMatches, Command, command};
 pub fn add_pact_broker_client_command() -> Command {
-    Command::new("pact-broker")
+    command!()
         .args(crate::cli::add_output_arguments(
             ["json", "text", "table", "pretty"].to_vec(),
             "text",
@@ -316,6 +316,7 @@ pub fn run(args: &ArgMatches, raw_args: Vec<String>) {
         }
         _ => {
             println!("⚠️  No option provided, try running pact-broker --help");
+            
         }
     }
 }
