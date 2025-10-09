@@ -140,10 +140,10 @@ jobs:
       use-cross: ${{ matrix.job.use-cross }}
       slim: false
       version: ${{ needs.version.outputs.version }}
+      broker_url: ${{ vars.PACT_BROKER_BASE_URL }}
       # force_release: false
       # release_notes: ${{ needs.changelog.outputs.release_body }}
     secrets:
-      broker_url: ${{ secrets.PACT_BROKER_BASE_URL }}
       broker_token: ${{ secrets.PACTFLOW_PACT_OSS_TOKEN }}
     # permissions:
     #   contents: write
@@ -175,9 +175,12 @@ jobs:
       - uses: pactflow/actions@main
       - run: |
           pact-broker can-i-deploy \
-            --pacticipant ${{ env.PACTICIPANT }} --version ${{ github.sha }} \
+            --pacticipant ${{ env.PACTICIPANT }} --version ${{ github.event.pull_request.head.sha || github.sha }} \
             --pacticipant "Pact Broker" --branch master \
             --retry while-unknown 30 --retry-interval 10
+        env:
+          PACT_BROKER_BASE_URL: ${{ vars.PACT_BROKER_BASE_URL }}
+          PACT_BROKER_TOKEN: ${{ secrets.PACTFLOW_PACT_OSS_TOKEN }}
   pact-record-release:
     needs: [version, pact-can-i-deploy, release]
     name: "📝 Record release in Pact Broker"
@@ -190,11 +193,11 @@ jobs:
       - run: |
           pact-broker record-release \
             --pacticipant ${{ env.PACTICIPANT }} \
-            --version ${{ github.sha }} \
+            --version ${{ github.event.pull_request.head.sha || github.sha }} \
             --application-instance ${{ needs.version.outputs.version }} \
             --environment production
         env:
-          PACT_BROKER_BASE_URL: ${{ secrets.PACT_BROKER_BASE_URL }}
+          PACT_BROKER_BASE_URL: ${{ vars.PACT_BROKER_BASE_URL }}
           PACT_BROKER_TOKEN: ${{ secrets.PACTFLOW_PACT_OSS_TOKEN }}
 
   release:
