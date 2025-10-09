@@ -175,9 +175,9 @@ jobs:
       - uses: pactflow/actions@main
       - run: |
           pact-broker can-i-deploy \
-            --pacticipant ${{ env.PACTICIPANT }} --version ${{ github.event.pull_request.head.sha || github.sha }} \
+            --pacticipant ${{ env.PACTICIPANT }} --version ${{ github.sha }} \
             --pacticipant "Pact Broker" --branch master \
-            --retry while-unknown 30 --retry-interval 10
+            --retry-while-unknown 30 --retry-interval 10
         env:
           PACT_BROKER_BASE_URL: ${{ vars.PACT_BROKER_BASE_URL }}
           PACT_BROKER_TOKEN: ${{ secrets.PACTFLOW_PACT_OSS_TOKEN }}
@@ -193,7 +193,7 @@ jobs:
       - run: |
           pact-broker record-release \
             --pacticipant ${{ env.PACTICIPANT }} \
-            --version ${{ github.event.pull_request.head.sha || github.sha }} \
+            --version ${{ github.sha }} \
             --application-instance ${{ needs.version.outputs.version }} \
             --environment production
         env:
