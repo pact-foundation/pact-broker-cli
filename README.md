@@ -794,7 +794,7 @@ Options:
       --tag <TAG>
           The tag of the version for which you want to check the verification results. Must be entered after the --pacticipant that it relates to.
 
-      --branch
+      --branch <BRANCH>
           The branch of the version for which you want to check the verification results. Must be entered after the --pacticipant that it relates to.
 
       --main-branch
