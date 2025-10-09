@@ -10,7 +10,7 @@ use crate::cli::{
         pact_publish::{get_git_branch, get_git_commit},
         utils::{get_auth, get_broker_relation, get_broker_url, get_ssl_options, handle_error},
     },
-    utils,
+    utils::{self, git_info},
 };
 
 #[derive(Default, Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -140,15 +140,15 @@ pub fn publish(args: &ArgMatches) -> Result<Value, i32> {
                 args.get_flag("auto-detect-version-properties");
             let (git_commit, git_branch);
             if auto_detect_version_properties {
-                git_commit = get_git_commit();
-                git_branch = get_git_branch();
+                git_commit = git_info::commit(false);
+                git_branch = git_info::branch(false);
             } else {
-                git_commit = "".to_string();
-                git_branch = "".to_string();
+                git_commit = Some("".to_string());
+                git_branch = Some("".to_string());
             }
             if auto_detect_version_properties {
                 if provider_app_version == None {
-                    provider_app_version = Some(&git_commit);
+                    provider_app_version = git_commit.as_ref();
                     println!(
                         "🔍 Auto detected git commit: {}",
                         provider_app_version.unwrap().to_string()
@@ -161,7 +161,7 @@ pub fn publish(args: &ArgMatches) -> Result<Value, i32> {
                     );
                 }
                 if branch == None {
-                    branch = Some(&git_branch);
+                    branch = git_branch.as_ref();
                     println!(
                         "🔍 Auto detected git branch: {}",
                         branch.unwrap().to_string()

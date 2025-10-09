@@ -193,3 +193,221 @@ mod debug_as_curl_tests {
         );
     }
 }
+
+
+pub mod git_info {
+use std::env;
+use std::process::Command;
+
+    const BRANCH_ENV_VAR_NAMES: &[&str] = &[
+        "GITHUB_HEAD_REF",
+        "GITHUB_REF",
+        "BUILDKITE_BRANCH",
+        "CIRCLE_BRANCH",
+        "TRAVIS_BRANCH",
+        "GIT_BRANCH",
+        "GIT_LOCAL_BRANCH",
+        "APPVEYOR_REPO_BRANCH",
+        "CI_COMMIT_REF_NAME",
+        "BITBUCKET_BRANCH",
+        "BUILD_SOURCEBRANCHNAME",
+        "CIRRUS_BRANCH",
+    ];
+
+    const COMMIT_ENV_VAR_NAMES: &[&str] = &[
+        "GITHUB_SHA",
+        "BUILDKITE_COMMIT",
+        "CIRCLE_SHA1",
+        "TRAVIS_COMMIT",
+        "GIT_COMMIT",
+        "APPVEYOR_REPO_COMMIT",
+        "CI_COMMIT_ID",
+        "BITBUCKET_COMMIT",
+        "BUILD_SOURCEVERSION",
+        "CIRRUS_CHANGE_IN_REPO",
+    ];
+
+    const BUILD_URL_ENV_VAR_NAMES: &[&str] = &[
+        "BUILDKITE_BUILD_URL",
+        "CIRCLE_BUILD_URL",
+        "TRAVIS_BUILD_WEB_URL",
+        "BUILD_URL",
+    ];
+
+    pub fn commit(raise_error: bool) -> Option<String> {
+        find_commit_from_env_vars().or_else(|| commit_from_git_command(raise_error))
+    }
+
+    pub fn branch(raise_error: bool) -> Option<String> {
+        find_branch_from_known_env_vars()
+            .or_else(find_branch_from_env_var_ending_with_branch)
+            .or_else(|| branch_from_git_command(raise_error))
+    }
+
+    pub fn build_url() -> Option<String> {
+        github_build_url().or_else(|| {
+            BUILD_URL_ENV_VAR_NAMES
+                .iter()
+                .filter_map(|&name| value_from_env_var(name))
+                .next()
+        })
+    }
+
+    fn find_commit_from_env_vars() -> Option<String> {
+        COMMIT_ENV_VAR_NAMES
+            .iter()
+            .filter_map(|&name| value_from_env_var(name))
+            .next()
+    }
+
+    fn find_branch_from_known_env_vars() -> Option<String> {
+        BRANCH_ENV_VAR_NAMES
+            .iter()
+            .filter_map(|&name| value_from_env_var(name))
+            .next()
+            .map(|val| val.trim_start_matches("refs/heads/").to_string())
+    }
+
+    fn find_branch_from_env_var_ending_with_branch() -> Option<String> {
+        let values: Vec<String> = env::vars()
+            .filter(|(k, _)| k.ends_with("_BRANCH"))
+            .filter_map(|(_, v)| {
+                let v = v.trim();
+                if !v.is_empty() {
+                    Some(v.to_string())
+                } else {
+                    None
+                }
+            })
+            .collect();
+        if values.len() == 1 {
+            Some(values[0].clone())
+        } else {
+            None
+        }
+    }
+
+    fn value_from_env_var(name: &str) -> Option<String> {
+        env::var(name).ok().and_then(|v| {
+            let v = v.trim();
+            if !v.is_empty() {
+                Some(v.to_string())
+            } else {
+                None
+            }
+        })
+    }
+
+    fn branch_from_git_command(raise_error: bool) -> Option<String> {
+        let branch_names = execute_and_parse_command(raise_error);
+        if raise_error {
+            validate_branch_names(&branch_names);
+        }
+        if branch_names.len() == 1 {
+            Some(branch_names[0].clone())
+        } else {
+            None
+        }
+    }
+
+    fn commit_from_git_command(raise_error: bool) -> Option<String> {
+        match execute_git_commit_command() {
+            Ok(s) => {
+                let trimmed = s.trim();
+                if trimmed.is_empty() {
+                    None
+                } else {
+                    Some(trimmed.to_string())
+                }
+            }
+            Err(e) => {
+                if raise_error {
+                    panic!(
+                        "Could not determine current git commit using command `git rev-parse HEAD`. {}",
+                        e
+                    );
+                }
+                None
+            }
+        }
+    }
+
+    fn validate_branch_names(branch_names: &[String]) {
+        if branch_names.is_empty() {
+            panic!(
+                "Command `git rev-parse --abbrev-ref HEAD` didn't return anything that could be identified as the current branch."
+            );
+        }
+        if branch_names.len() > 1 {
+            panic!(
+                "Command `git rev-parse --abbrev-ref HEAD` returned multiple branches: {}. You will need to get the branch name another way.",
+                branch_names.join(", ")
+            );
+        }
+    }
+
+    fn execute_git_command() -> Result<String, String> {
+        Command::new("git")
+            .args(&["rev-parse", "--abbrev-ref", "HEAD"])
+            .output()
+            .map_err(|e| e.to_string())
+            .and_then(|output| {
+                if output.status.success() {
+                    Ok(String::from_utf8_lossy(&output.stdout).to_string())
+                } else {
+                    Err(String::from_utf8_lossy(&output.stderr).to_string())
+                }
+            })
+    }
+
+    fn execute_git_commit_command() -> Result<String, String> {
+        Command::new("git")
+            .args(&["rev-parse", "HEAD"])
+            .output()
+            .map_err(|e| e.to_string())
+            .and_then(|output| {
+                if output.status.success() {
+                    Ok(String::from_utf8_lossy(&output.stdout).to_string())
+                } else {
+                    Err(String::from_utf8_lossy(&output.stderr).to_string())
+                }
+            })
+    }
+
+    fn execute_and_parse_command(raise_error: bool) -> Vec<String> {
+        match execute_git_command() {
+            Ok(output) => output
+                .lines()
+                .map(str::trim)
+                .filter(|l| !l.is_empty())
+                .map(|l| l.split_whitespace().next().unwrap_or("").to_string())
+                .map(|l| l.trim_start_matches("origin/").to_string())
+                .filter(|l| l != "HEAD")
+                .collect(),
+            Err(e) => {
+                if raise_error {
+                    panic!(
+                        "Could not determine current git branch using command `git rev-parse --abbrev-ref HEAD`. {}",
+                        e
+                    );
+                }
+                vec![]
+            }
+        }
+    }
+
+    fn github_build_url() -> Option<String> {
+        let parts: Vec<String> = ["GITHUB_SERVER_URL", "GITHUB_REPOSITORY", "GITHUB_RUN_ID"]
+            .iter()
+            .filter_map(|&name| value_from_env_var(name))
+            .collect();
+        if parts.len() == 3 {
+            Some(format!(
+                "{}/{}/actions/runs/{}",
+                parts[0], parts[1], parts[2]
+            ))
+        } else {
+            None
+        }
+    }
+}
