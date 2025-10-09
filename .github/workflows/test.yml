@@ -151,18 +151,18 @@ jobs:
       fail-fast: false
       matrix:
         job:
-          - { target: x86_64-apple-darwin, os: macos-14, use-cross: false }
-          - { target: x86_64-unknown-linux-gnu, os: ubuntu-latest, use-cross: true }
-          - { target: x86_64-unknown-linux-musl, os: ubuntu-latest, use-cross: true }
-          - { target: x86_64-unknown-netbsd, os: ubuntu-latest, use-cross: true }
-          - { target: x86_64-unknown-freebsd, os: ubuntu-latest, use-cross: true }
-          - { target: x86_64-pc-windows-msvc, os: windows-latest, use-cross: false }
-          - { target: x86_64-pc-windows-gnu, os: windows-latest, use-cross: false }
+          # - { target: x86_64-apple-darwin, os: macos-14, use-cross: false }
+          # - { target: x86_64-unknown-linux-gnu, os: ubuntu-latest, use-cross: true }
+          # - { target: x86_64-unknown-linux-musl, os: ubuntu-latest, use-cross: true }
+          # - { target: x86_64-unknown-netbsd, os: ubuntu-latest, use-cross: true }
+          # - { target: x86_64-unknown-freebsd, os: ubuntu-latest, use-cross: true }
+          # - { target: x86_64-pc-windows-msvc, os: windows-latest, use-cross: false }
+          # - { target: x86_64-pc-windows-gnu, os: windows-latest, use-cross: false }
           - { target: aarch64-apple-darwin, os: macos-14, use-cross: false }
-          - { target: aarch64-unknown-linux-musl, os: ubuntu-latest, use-cross: true }
-          - { target: aarch64-unknown-linux-gnu, os: ubuntu-latest, use-cross: true }
-          - { target: aarch64-unknown-freebsd, os: ubuntu-latest, use-cross: true }
-          - { target: aarch64-pc-windows-msvc, os: windows-latest, use-cross: false }
+          # - { target: aarch64-unknown-linux-musl, os: ubuntu-latest, use-cross: true }
+          # - { target: aarch64-unknown-linux-gnu, os: ubuntu-latest, use-cross: true }
+          # - { target: aarch64-unknown-freebsd, os: ubuntu-latest, use-cross: true }
+          # - { target: aarch64-pc-windows-msvc, os: windows-latest, use-cross: false }
 
   pact-can-i-deploy:
     needs: build
@@ -182,7 +182,7 @@ jobs:
           retry_while_unknown: 30
           retry_interval: 10
   pact-record-release:
-    needs: [version, release]
+    needs: [version, pact-can-i-deploy, release]
     name: "📝 Record release in Pact Broker"
     runs-on: ubuntu-latest
     env: 
