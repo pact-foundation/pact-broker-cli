@@ -172,15 +172,12 @@ jobs:
       PACTICIPANT: "pact-broker-cli"
     steps:
       - uses: actions/checkout@v4
-      - uses: pactflow/actions/can-i-deploy@v2
-        with:
-          application_name: ${{ env.PACTICIPANT }}
-          broker_url: ${{ secrets.PACT_BROKER_BASE_URL }}
-          token: ${{ secrets.PACTFLOW_PACT_OSS_TOKEN }}
-          to_environment: "production"
-          version: ${{ github.sha }}
-          retry_while_unknown: 30
-          retry_interval: 10
+      - uses: pactflow/actions@main
+      - run: |
+          pact-broker can-i-deploy \
+            --pacticipant ${{ env.PACTICIPANT }} --version ${{ github.sha }} \
+            --pacticipant "Pact Broker" --branch master \
+            --retry while-unknown 30 --retry-interval 10
   pact-record-release:
     needs: [version, pact-can-i-deploy, release]
     name: "📝 Record release in Pact Broker"
