@@ -5,7 +5,11 @@ runs:
   steps:
   # https://docs.github.com/en/actions/sharing-automations/creating-actions/metadata-syntax-for-github-actions#runsstepsrun
     - run: $GITHUB_ACTION_PATH/install.sh
+      if: runner.os != 'windows'
       shell: bash
+    - run: . "$env:GITHUB_ACTION_PATH\install.ps1"
+      if: runner.os == 'windows'
+      shell: powershell
     - name: add to path if windows
       if: runner.os == 'windows'
       shell: powershell
