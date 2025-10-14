@@ -167,31 +167,6 @@ pub fn handle_matches(args: &ArgMatches) -> Result<Vec<VerificationResult>, i32>
     }
 }
 
-pub fn get_git_branch() -> String {
-    let git_branch_output = std::process::Command::new("git")
-        .arg("rev-parse")
-        .arg("--abbrev-ref")
-        .arg("HEAD")
-        .output()
-        .expect("Failed to get git branch");
-    let git_branch = std::str::from_utf8(&git_branch_output.stdout)
-        .unwrap()
-        .trim();
-    return git_branch.to_string();
-}
-
-pub fn get_git_commit() -> String {
-    let git_commit_output = std::process::Command::new("git")
-        .arg("rev-parse")
-        .arg("HEAD")
-        .output()
-        .expect("Failed to get git commit");
-    let git_commit = std::str::from_utf8(&git_commit_output.stdout)
-        .unwrap()
-        .trim();
-    return git_commit.to_string();
-}
-
 pub fn publish_pacts(args: &ArgMatches) -> Result<Value, i32> {
     let files = load_files(args);
     if files.is_err() {
@@ -304,10 +279,11 @@ pub fn publish_pacts(args: &ArgMatches) -> Result<Value, i32> {
                             if !payload.get("tags").map_or(false, |v| v.is_array()) {
                                 payload["tags"] = serde_json::Value::Array(vec![]);
                             }
-                            payload["tags"]
-                                .as_array_mut()
-                                .unwrap()
-                                .push(serde_json::Value::String(get_git_branch().to_string()));
+                            payload["tags"].as_array_mut().unwrap().push(
+                                serde_json::Value::String(
+                                    git_info::commit(false).unwrap_or_default(),
+                                ),
+                            );
                         }
 
                         payload["contracts"] = serde_json::Value::Array(vec![json!({
@@ -468,52 +444,57 @@ pub fn publish_pacts(args: &ArgMatches) -> Result<Value, i32> {
 }
 
 pub fn load_files(args: &ArgMatches) -> anyhow::Result<Vec<(String, Value)>> {
-    let mut sources: Vec<(String, anyhow::Result<Value>)> = vec![];
-    if let Some(values) = args.get_many::<String>("dir") {
-        for value in values {
-            let files = load_files_from_dir(value)?;
-            for (source, pact_json) in files {
-                sources.push((source, Ok(pact_json)));
+    let mut collected: Vec<(String, anyhow::Result<Value>)> = Vec::new();
+
+    if let Some(inputs) = args.get_many::<String>("pact-files-dirs-or-globs") {
+        for input in inputs {
+            let path = std::path::Path::new(input);
+
+            match (path.exists(), path.is_file(), path.is_dir()) {
+                (true, true, _) => {
+                    collected.push((input.to_string(), load_file(input)));
+                }
+                (true, false, true) => match load_files_from_dir(input) {
+                    Ok(files) => {
+                        for (name, pact) in files {
+                            collected.push((name, Ok(pact)));
+                        }
+                    }
+                    Err(e) => collected.push((input.to_string(), Err(e))),
+                },
+                _ => {
+                    // Treat as glob pattern
+                    match glob(input) {
+                        Ok(paths) => {
+                            for entry in paths {
+                                match entry {
+                                    Ok(pathbuf) => {
+                                        if let Some(fname) = pathbuf.to_str() {
+                                            collected.push((fname.to_string(), load_file(fname)));
+                                        }
+                                    }
+                                    Err(e) => collected.push((input.to_string(), Err(anyhow!(e)))),
+                                }
+                            }
+                        }
+                        Err(e) => collected.push((input.to_string(), Err(anyhow!(e)))),
+                    }
+                }
             }
         }
-    };
-    if let Some(values) = args.get_many::<String>("file") {
-        sources.extend(
-            values
-                .map(|v| (v.to_string(), load_file(v)))
-                .collect::<Vec<(String, anyhow::Result<Value>)>>(),
-        );
-    };
-    if let Some(values) = args.get_many::<String>("url") {
-        sources.extend(
-            values
-                .map(|v| (v.to_string(), fetch_pact(v, args).map(|(_, value)| value)))
-                .collect::<Vec<(String, anyhow::Result<Value>)>>(),
-        );
-    };
+    }
 
-    if let Some(values) = args.get_many::<String>("glob") {
-        for value in values {
-            for entry in glob(value)? {
-                let entry = entry?;
-                let file_name = entry
-                    .to_str()
-                    .ok_or(anyhow!("Glob matched non-UTF-8 entry"))?;
-                sources.push((file_name.to_string(), load_file(file_name)));
-            }
-        }
-    };
-
-    if sources.iter().any(|(_, res)| res.is_err()) {
+    let failures: Vec<_> = collected.iter().filter(|(_, res)| res.is_err()).collect();
+    if !failures.is_empty() {
         error!("Failed to load the following pact files:");
-        for (source, result) in sources.iter().filter(|(_, res)| res.is_err()) {
-            error!("    '{}' - {}", source, result.as_ref().unwrap_err());
+        for (src, err) in failures {
+            error!("    '{}' - {}", src, err.as_ref().unwrap_err());
         }
-        Err(anyhow!("Failed to load one or more pact files"))
+        Err(anyhow!("One or more pact files could not be loaded"))
     } else {
-        Ok(sources
-            .iter()
-            .map(|(source, result)| (source.clone(), result.as_ref().unwrap().clone()))
+        Ok(collected
+            .into_iter()
+            .map(|(src, res)| (src, res.unwrap()))
             .collect())
     }
 }
@@ -714,10 +695,9 @@ mod publish_contracts_tests {
             .args(crate::cli::add_ssl_arguments())
             .get_matches_from(vec![
                 "publish",
+                pact_file_path,
                 "-b",
                 mock_server_url.as_str(),
-                "--file",
-                pact_file_path,
                 "--consumer-app-version",
                 version_number,
                 "--branch",

@@ -4,7 +4,9 @@ use crate::cli::pactflow::main::{
     provider_contracts, subcommands::add_publish_provider_contract_subcommand,
 };
 pub fn add_pactflow_client_command() -> Command {
-    Command::new("pactflow").about("PactFlow specific commands").subcommand(add_publish_provider_contract_subcommand())
+    Command::new("pactflow")
+        .about("PactFlow specific commands")
+        .subcommand(add_publish_provider_contract_subcommand())
 }
 
 pub fn run(args: &ArgMatches, raw_args: Vec<String>) {

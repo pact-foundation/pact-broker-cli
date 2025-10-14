@@ -163,7 +163,7 @@ pub fn can_i_deploy(
             if selector.latest {
                 matrix_href_path.push_str("q[][latest]=true&");
             }
-            if selector.branch .is_some() {
+            if selector.branch.is_some() {
                 matrix_href_path.push_str(&format!(
                     "q[][branch]={}&",
                     urlencoding::encode(selector.branch.as_ref().unwrap())

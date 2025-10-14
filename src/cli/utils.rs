@@ -194,10 +194,9 @@ mod debug_as_curl_tests {
     }
 }
 
-
 pub mod git_info {
-use std::env;
-use std::process::Command;
+    use std::env;
+    use std::process::Command;
 
     const BRANCH_ENV_VAR_NAMES: &[&str] = &[
         "GITHUB_HEAD_REF",
