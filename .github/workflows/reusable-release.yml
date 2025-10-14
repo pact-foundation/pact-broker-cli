@@ -39,6 +39,7 @@ jobs:
               }
               print
               }' Cargo.toml > Cargo.toml.tmp && rm Cargo.toml && mv Cargo.toml.tmp Cargo.toml
+              cargo update pact-broker-cli
       - name: "Write changelog"
         if: ${{ inputs.force_release == true || startsWith(github.ref, 'refs/tags/') || github.ref == 'refs/heads/main' }}
         run: echo "${{ inputs.release_notes }}" > CHANGELOG.md
