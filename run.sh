@@ -19,8 +19,8 @@ ${BIN} update-environment --uuid $ENV_UUID --name name_foo9 --contact-name conta
 ${BIN} delete-environment --uuid $ENV_UUID
 ${BIN} list-environments | awk -F '│' '{print $2}' | sed -n '3,$p' | sed '$d' | awk '{print $1}' | xargs -I {} ${BIN} delete-environment --uuid {} 
 ${BIN} create-environment --name production --production
-${BIN} publish --dir pacts -r
-${BIN} publish --dir pacts -a foo --branch bar
+${BIN} publish pacts -r
+${BIN} publish pacts -a foo --branch bar
 ${BIN} can-i-deploy --pacticipant GettingStartedOrderWeb --version foo --to prod || echo "can-i-deploy fails due to no verification result - expected"
 ${BIN} can-i-deploy --pacticipant GettingStartedOrderWeb --version foo --to prod --dry-run
 ${BIN} record-deployment --version foo --environment production --pacticipant GettingStartedOrderWeb

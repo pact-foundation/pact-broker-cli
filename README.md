@@ -137,7 +137,30 @@ Authentication using a bearer token can be specified using the environment varia
 $ pact-broker-cli publish --help
 Publishes pacts to the Pact Broker
 
-Usage: pact-broker-cli publish [OPTIONS] --broker-base-url <PACT_BROKER_BASE_URL> <--glob [<glob>...]|--file [<file>...]|--dir [<dir>...]>
+Usage: pact-broker-cli publish [OPTIONS] --broker-base-url <PACT_BROKER_BASE_URL> <PACT_FILES_DIRS_OR_GLOBS>...
+
+Arguments:
+  <PACT_FILES_DIRS_OR_GLOBS>...
+          
+          Glob pattern to match pact files to publish
+          
+          ?      matches any single character.
+          *      matches any (possibly empty) sequence of characters.
+          **     matches the current directory and arbitrary subdirectories. This sequence must form
+                   a single path component, so both **a and b** are invalid and will result in an
+                   error. A sequence of more than two consecutive * characters is also invalid.
+          [...]  matches any character inside the brackets. Character sequences can also specify
+                   ranges of characters, as ordered by Unicode, so e.g. [0-9] specifies any character
+                   between 0 and 9 inclusive. An unclosed bracket is invalid.
+          [!...] is the negation of [...], i.e. it matches any characters not in the brackets.
+          
+          The metacharacters ?, *, [, ] can be matched by using brackets (e.g. [?]). When a ]
+          occurs immediately following [ or [! then it is interpreted as being part of, rather
+          then ending, the character set, so ] and NOT ] can be matched by []] and [!]] respectively.
+          The - character can be specified inside a character sequence pattern by placing it at
+          the start or the end, e.g. [abc-].
+          
+          See https://docs.rs/glob/0.3.0/glob/struct.Pattern.html
 
 Options:
   -b, --broker-base-url <PACT_BROKER_BASE_URL>
@@ -159,46 +182,6 @@ Options:
           Pact Broker bearer token
           
           [env: PACT_BROKER_TOKEN=]
-
-      --url <url>
-          The url of the pact file
-
-      --username <username>
-          username for pact url auth
-
-      --password <password>
-          password for pact url auth
-
-      --token <token>
-          bearer token for pact url
-
-  -f, --file [<file>...]
-          Pact file to publish (can be repeated)
-
-  -d, --dir [<dir>...]
-          Directory of pact files to publish (can be repeated)
-
-  -g, --glob [<glob>...]
-          
-          Glob pattern to match pact files to publish
-          
-          ?      matches any single character.
-          *      matches any (possibly empty) sequence of characters.
-          **     matches the current directory and arbitrary subdirectories. This sequence must form
-                   a single path component, so both **a and b** are invalid and will result in an
-                   error. A sequence of more than two consecutive * characters is also invalid.
-          [...]  matches any character inside the brackets. Character sequences can also specify
-                   ranges of characters, as ordered by Unicode, so e.g. [0-9] specifies any character
-                   between 0 and 9 inclusive. An unclosed bracket is invalid.
-          [!...] is the negation of [...], i.e. it matches any characters not in the brackets.
-          
-          The metacharacters ?, *, [, ] can be matched by using brackets (e.g. [?]). When a ]
-          occurs immediately following [ or [! then it is interpreted as being part of, rather
-          then ending, the character set, so ] and NOT ] can be matched by []] and [!]] respectively.
-          The - character can be specified inside a character sequence pattern by placing it at
-          the start or the end, e.g. [abc-].
-          
-          See https://docs.rs/glob/0.3.0/glob/struct.Pattern.html
 
       --validate
           Validate the Pact files before publishing.
@@ -1477,7 +1460,7 @@ Publish provider contract to PactFlow
 Usage: pact-broker-cli pactflow publish-provider-contract [OPTIONS] --broker-base-url <PACT_BROKER_BASE_URL> --provider <PROVIDER> <CONTRACT_FILE>
 
 Arguments:
-  <CONTRACT_FILE>  The contract file(s)
+  <CONTRACT_FILE>  The contract file to publish
 
 Options:
   -b, --broker-base-url <PACT_BROKER_BASE_URL>

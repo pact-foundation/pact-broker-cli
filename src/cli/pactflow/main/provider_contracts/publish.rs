@@ -7,7 +7,6 @@ use serde_json::{Value, json};
 use crate::cli::{
     pact_broker::main::{
         HALClient,
-        pact_publish::{get_git_branch, get_git_commit},
         utils::{get_auth, get_broker_relation, get_broker_url, get_ssl_options, handle_error},
     },
     utils::{self, git_info},
@@ -264,7 +263,9 @@ pub fn publish(args: &ArgMatches) -> Result<Value, i32> {
                 payload["tags"]
                     .as_array_mut()
                     .unwrap()
-                    .push(serde_json::Value::String(get_git_branch().to_string()));
+                    .push(serde_json::Value::String(
+                        git_info::branch(false).unwrap_or_default(),
+                    ));
             }
 
             if let Some(branch) = branch {

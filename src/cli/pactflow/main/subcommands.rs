@@ -9,7 +9,7 @@ pub fn add_publish_provider_contract_subcommand() -> Command {
         .num_args(1)
         .value_name("CONTRACT_FILE")
         .required(true)
-        .help("The contract file(s)"))
+        .help("The contract file to publish"))
     .arg(Arg::new("provider")
         .long("provider")
         .value_name("PROVIDER")

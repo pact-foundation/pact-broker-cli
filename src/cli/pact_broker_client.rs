@@ -316,7 +316,6 @@ pub fn run(args: &ArgMatches, raw_args: Vec<String>) {
         }
         _ => {
             println!("⚠️  No option provided, try running --help");
-            
         }
     }
 }
