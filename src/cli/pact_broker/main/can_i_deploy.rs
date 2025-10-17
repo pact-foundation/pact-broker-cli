@@ -69,7 +69,7 @@ struct PacticipantArgs {
     version: Option<String>,
     branch: Option<String>,
     tags: Vec<String>,
-    latest: bool,
+    latest: Option<Option<String>>,
     main_branch: bool,
 }
 
@@ -107,7 +107,17 @@ fn parse_args_from_matches(raw_args: Vec<String>) -> Vec<PacticipantArgs> {
                     }
                     "--latest" | "-l" => {
                         args.next();
-                        pacticipant_args.latest = true;
+                        match args.peek() {
+                            Some(next_val)
+                                if !next_val.starts_with("--") && !next_val.starts_with("-") =>
+                            {
+                                pacticipant_args.latest = Some(Some(next_val.to_string()));
+                                args.next();
+                            }
+                            _ => {
+                                pacticipant_args.latest = Some(None);
+                            }
+                        }
                     }
                     "--main-branch" => {
                         args.next();
@@ -160,8 +170,17 @@ pub fn can_i_deploy(
                 matrix_href_path
                     .push_str(&format!("q[][version]={}&", urlencoding::encode(version)));
             }
-            if selector.latest {
-                matrix_href_path.push_str("q[][latest]=true&");
+            if let Some(latest) = &selector.latest {
+                match latest {
+                    Some(tag) if !tag.is_empty() => {
+                        matrix_href_path.push_str("q[][latest]=true&");
+                        matrix_href_path
+                            .push_str(&format!("q[][tag]={}&", urlencoding::encode(tag)));
+                    }
+                    _ => {
+                        matrix_href_path.push_str("q[][latest]=true&");
+                    }
+                }
             }
             if selector.branch.is_some() {
                 matrix_href_path.push_str(&format!(

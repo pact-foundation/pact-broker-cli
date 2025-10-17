@@ -764,7 +764,7 @@ Options:
   -e, --version <VERSION>
           The pacticipant version. Must be entered after the --pacticipant that it relates to.
 
-  -l, --latest
+  -l, --latest [<TAG>]
           Use the latest pacticipant version. Optionally specify a TAG to use the latest version with the specified tag. Must be entered after the --pacticipant that it relates to.
 
       --tag <TAG>

@@ -1,11 +1,11 @@
-use clap::{Arg, Command, command};
+use clap::builder::ArgPredicate;
+use clap::{Arg, Command};
 
 pub mod pact_broker;
 pub mod pact_broker_client;
 pub mod pactflow;
 pub mod pactflow_client;
 pub mod utils;
-
 pub fn build_cli() -> Command {
     let app = pact_broker_client::add_pact_broker_client_command()
         .version(env!("CARGO_PKG_VERSION"))
@@ -28,7 +28,14 @@ pub fn add_logging_arguments() -> Vec<Arg> {
             .value_parser(clap::builder::PossibleValuesParser::new([
                 "off", "none", "error", "warn", "info", "debug", "trace",
             ]))
-            .default_value("off"),
+            .default_value("off")
+            .default_value_if("verbose", "true", Some("info")),
+        Arg::new("verbose")
+            .long("verbose")
+            .global(true)
+            .action(clap::ArgAction::SetTrue)
+            .help("DEPRECATED: Compatibility layer for pact_broker-client. Sets log level to info.")
+            .hide(true),
     ]
 }
 pub fn add_output_arguments(
