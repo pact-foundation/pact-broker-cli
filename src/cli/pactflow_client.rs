@@ -6,7 +6,8 @@ use crate::cli::pactflow::main::{
 pub fn add_pactflow_client_command() -> Command {
     Command::new("pactflow")
         .about("PactFlow specific commands")
-        .subcommand(add_publish_provider_contract_subcommand())
+        .subcommand(add_publish_provider_contract_subcommand()
+        .args(crate::cli::add_ssl_arguments()))
 }
 
 pub fn run(args: &ArgMatches, raw_args: Vec<String>) {
