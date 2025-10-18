@@ -168,9 +168,13 @@ pub fn handle_matches(args: &ArgMatches) -> Result<Vec<VerificationResult>, i32>
 }
 
 pub fn publish_pacts(args: &ArgMatches) -> Result<Value, i32> {
-    let files = load_files(args);
+    let files: Result<Vec<(String, Value)>, anyhow::Error> = load_files(args);
     if files.is_err() {
         println!("{}", files.err().unwrap());
+        return Err(1);
+    }
+    if files.as_ref().unwrap().is_empty() {
+        println!("❌ No pact files found to publish");
         return Err(1);
     }
     let files = files.map_err(|_| 1)?;
