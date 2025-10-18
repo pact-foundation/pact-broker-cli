@@ -102,9 +102,7 @@ pub fn describe_version(args: &clap::ArgMatches) -> Result<String, PactBrokerErr
 #[cfg(test)]
 mod describe_version_tests {
     use super::describe_version;
-    use crate::cli::{
-        add_ssl_arguments, pact_broker::main::subcommands::add_describe_version_subcommand,
-    };
+    use crate::cli::pact_broker::main::subcommands::add_describe_version_subcommand;
     use pact_consumer::prelude::*;
     use pact_models::PactSpecification;
     use serde_json::json;
@@ -178,19 +176,17 @@ mod describe_version_tests {
         let mock_server_url = pact_broker_service.url();
 
         // Arrange CLI args
-        let matches = add_describe_version_subcommand()
-            .args(add_ssl_arguments())
-            .get_matches_from(vec![
-                "describe-versions",
-                "-b",
-                mock_server_url.as_str(),
-                "--pacticipant",
-                pacticipant_name,
-                "--version",
-                version_number,
-                "--output",
-                "table",
-            ]);
+        let matches = add_describe_version_subcommand().get_matches_from(vec![
+            "describe-versions",
+            "-b",
+            mock_server_url.as_str(),
+            "--pacticipant",
+            pacticipant_name,
+            "--version",
+            version_number,
+            "--output",
+            "table",
+        ]);
 
         // Act
         let result = describe_version(&matches);
@@ -269,19 +265,17 @@ mod describe_version_tests {
         let mock_server_url = pact_broker_service.url();
 
         // Arrange CLI args
-        let matches = add_describe_version_subcommand()
-            .args(add_ssl_arguments())
-            .get_matches_from(vec![
-                "describe-versions",
-                "-b",
-                mock_server_url.as_str(),
-                "--pacticipant",
-                pacticipant_name,
-                "--version",
-                version_number,
-                "--output",
-                "json",
-            ]);
+        let matches = add_describe_version_subcommand().get_matches_from(vec![
+            "describe-versions",
+            "-b",
+            mock_server_url.as_str(),
+            "--pacticipant",
+            pacticipant_name,
+            "--version",
+            version_number,
+            "--output",
+            "json",
+        ]);
 
         // Act
         let result = describe_version(&matches);
@@ -357,19 +351,17 @@ mod describe_version_tests {
         let mock_server_url = pact_broker_service.url();
 
         // Arrange CLI args
-        let matches = add_describe_version_subcommand()
-            .args(add_ssl_arguments())
-            .get_matches_from(vec![
-                "describe-versions",
-                "-b",
-                mock_server_url.as_str(),
-                "--pacticipant",
-                pacticipant_name,
-                "--version",
-                version_number,
-                "--output",
-                "table",
-            ]);
+        let matches = add_describe_version_subcommand().get_matches_from(vec![
+            "describe-versions",
+            "-b",
+            mock_server_url.as_str(),
+            "--pacticipant",
+            pacticipant_name,
+            "--version",
+            version_number,
+            "--output",
+            "table",
+        ]);
 
         // Act
         let result = describe_version(&matches);

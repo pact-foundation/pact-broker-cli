@@ -360,19 +360,17 @@ mod record_undeployment_tests {
         let mock_server_url = pact_broker_service.url();
 
         // Arrange CLI args
-        let matches = add_record_undeployment_subcommand()
-            .args(crate::cli::add_ssl_arguments())
-            .get_matches_from(vec![
-                "record-undeployment",
-                "-b",
-                mock_server_url.as_str(),
-                "--pacticipant",
-                pacticipant_name,
-                "--environment",
-                environment_name,
-                "--application-instance",
-                application_instance,
-            ]);
+        let matches = add_record_undeployment_subcommand().get_matches_from(vec![
+            "record-undeployment",
+            "-b",
+            mock_server_url.as_str(),
+            "--pacticipant",
+            pacticipant_name,
+            "--environment",
+            environment_name,
+            "--application-instance",
+            application_instance,
+        ]);
 
         // Act
         let result = record_undeployment(&matches);

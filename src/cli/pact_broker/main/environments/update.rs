@@ -204,9 +204,7 @@ mod update_environment_tests {
         if production {
             args.push("--production");
         }
-        add_update_environment_subcommand()
-            .args(crate::cli::add_ssl_arguments())
-            .get_matches_from(args)
+        add_update_environment_subcommand().get_matches_from(args)
     }
 
     #[test]

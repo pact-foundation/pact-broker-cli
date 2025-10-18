@@ -691,23 +691,21 @@ mod publish_contracts_tests {
         let mock_server_url = pact_broker_service.url();
 
         // Arrange - set up the command line arguments
-        let matches = add_publish_pacts_subcommand()
-            .args(crate::cli::add_ssl_arguments())
-            .get_matches_from(vec![
-                "publish",
-                pact_file_path,
-                "-b",
-                mock_server_url.as_str(),
-                "--consumer-app-version",
-                version_number,
-                "--branch",
-                branch,
-                "--tag",
-                tag,
-                "--build-url",
-                build_url,
-                "--merge",
-            ]);
+        let matches = add_publish_pacts_subcommand().get_matches_from(vec![
+            "publish",
+            pact_file_path,
+            "-b",
+            mock_server_url.as_str(),
+            "--consumer-app-version",
+            version_number,
+            "--branch",
+            branch,
+            "--tag",
+            tag,
+            "--build-url",
+            build_url,
+            "--merge",
+        ]);
 
         // Act
         let result = publish_pacts(&matches);

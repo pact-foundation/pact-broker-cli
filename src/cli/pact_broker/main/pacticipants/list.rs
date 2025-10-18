@@ -11,7 +11,6 @@ use crate::{
 pub fn list_pacticipants(
     broker_details: &BrokerDetails,
     output_type: OutputType,
-    _verbose: bool,
 ) -> Result<String, PactBrokerError> {
     // setup client with broker url and credentials
     let broker_url = &broker_details.url;
@@ -193,7 +192,7 @@ mod list_pacticipants_tests {
             ssl_options: Default::default(),
         };
 
-        let result = list_pacticipants(&broker_details, OutputType::Json, false);
+        let result = list_pacticipants(&broker_details, OutputType::Json);
 
         assert!(result.is_ok());
         let json: serde_json::Value = serde_json::from_str(&result.unwrap()).unwrap();

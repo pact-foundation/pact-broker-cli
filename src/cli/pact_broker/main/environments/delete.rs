@@ -112,9 +112,7 @@ mod delete_environment_tests {
 
     fn build_matches(broker_url: &str, uuid: &str, output: &str) -> clap::ArgMatches {
         let args = vec!["delete-environment", "-b", broker_url, "--uuid", uuid];
-        add_delete_environment_subcommand()
-            .args(crate::cli::add_ssl_arguments())
-            .get_matches_from(args)
+        add_delete_environment_subcommand().get_matches_from(args)
     }
 
     #[test]

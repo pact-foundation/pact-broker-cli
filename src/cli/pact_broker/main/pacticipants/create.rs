@@ -245,17 +245,15 @@ mod create_or_update_pacticipant_tests {
         ]);
         let mock_server_url = mock_server.url();
 
-        let matches = add_create_or_update_pacticipant_subcommand()
-            .args(crate::cli::add_ssl_arguments())
-            .get_matches_from(vec![
-                "create-or-update-pacticipant",
-                "-b",
-                mock_server_url.as_str(),
-                "--name",
-                pacticipant_name,
-                "--repository-url",
-                repository_url,
-            ]);
+        let matches = add_create_or_update_pacticipant_subcommand().get_matches_from(vec![
+            "create-or-update-pacticipant",
+            "-b",
+            mock_server_url.as_str(),
+            "--name",
+            pacticipant_name,
+            "--repository-url",
+            repository_url,
+        ]);
 
         let result = create_or_update_pacticipant(&matches);
 
@@ -355,17 +353,15 @@ mod create_or_update_pacticipant_tests {
         ]);
         let mock_server_url = mock_server.url();
 
-        let matches = add_create_or_update_pacticipant_subcommand()
-            .args(crate::cli::add_ssl_arguments())
-            .get_matches_from(vec![
-                "create-or-update-pacticipant",
-                "-b",
-                mock_server_url.as_str(),
-                "--name",
-                pacticipant_name,
-                "--repository-url",
-                repository_url,
-            ]);
+        let matches = add_create_or_update_pacticipant_subcommand().get_matches_from(vec![
+            "create-or-update-pacticipant",
+            "-b",
+            mock_server_url.as_str(),
+            "--name",
+            pacticipant_name,
+            "--repository-url",
+            repository_url,
+        ]);
 
         let result = create_or_update_pacticipant(&matches);
 

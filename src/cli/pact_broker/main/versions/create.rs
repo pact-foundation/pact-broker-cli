@@ -158,21 +158,19 @@ mod create_or_update_version_tests {
         let mock_server_url = pact_broker_service.url();
 
         // Arrange CLI args
-        let matches = add_create_or_update_version_subcommand()
-            .args(crate::cli::add_ssl_arguments())
-            .get_matches_from(vec![
-                "create-or-update-version",
-                "-b",
-                mock_server_url.as_str(),
-                "--pacticipant",
-                pacticipant_name,
-                "--version",
-                version_number,
-                "--branch",
-                branch_name,
-                "--tag",
-                tag_name,
-            ]);
+        let matches = add_create_or_update_version_subcommand().get_matches_from(vec![
+            "create-or-update-version",
+            "-b",
+            mock_server_url.as_str(),
+            "--pacticipant",
+            pacticipant_name,
+            "--version",
+            version_number,
+            "--branch",
+            branch_name,
+            "--tag",
+            tag_name,
+        ]);
 
         // Act
         let result = create_or_update_version(&matches);
@@ -223,17 +221,15 @@ mod create_or_update_version_tests {
         let mock_server_url = pact_broker_service.url();
 
         // Arrange CLI args
-        let matches = add_create_or_update_version_subcommand()
-            .args(crate::cli::add_ssl_arguments())
-            .get_matches_from(vec![
-                "create-or-update-version",
-                "-b",
-                mock_server_url.as_str(),
-                "--pacticipant",
-                pacticipant_name,
-                "--version",
-                version_number,
-            ]);
+        let matches = add_create_or_update_version_subcommand().get_matches_from(vec![
+            "create-or-update-version",
+            "-b",
+            mock_server_url.as_str(),
+            "--pacticipant",
+            pacticipant_name,
+            "--version",
+            version_number,
+        ]);
 
         // Act
         let result = create_or_update_version(&matches);

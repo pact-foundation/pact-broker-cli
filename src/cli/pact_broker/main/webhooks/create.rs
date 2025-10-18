@@ -369,9 +369,8 @@ mod create_webhook_tests {
         ]);
         let mock_server_url = mock_server.url();
 
-        let matches = add_create_webhook_subcommand()
-            .args(crate::cli::add_ssl_arguments())
-            .get_matches_from(base_args(mock_server_url.as_str()));
+        let matches =
+            add_create_webhook_subcommand().get_matches_from(base_args(mock_server_url.as_str()));
 
         let result = create_webhook(&matches);
 
@@ -456,7 +455,6 @@ mod create_webhook_tests {
         args.push("--provider-verification-failed");
 
         let matches = add_create_webhook_subcommand()
-            .args(crate::cli::add_ssl_arguments())
             .get_matches_from(args.iter().map(|s| *s).collect::<Vec<_>>());
 
         let result = create_webhook(&matches);
@@ -531,7 +529,6 @@ mod create_webhook_tests {
         let idx = args.iter().position(|&a| a == "--data").unwrap() + 1;
         args[idx] = xml_body;
         let matches = add_create_webhook_subcommand()
-            .args(crate::cli::add_ssl_arguments())
             .get_matches_from(args.iter().map(|s| *s).collect::<Vec<_>>());
 
         let result = create_webhook(&matches);
@@ -596,7 +593,6 @@ mod create_webhook_tests {
         let idx = args.iter().position(|&a| a == "https://webhook").unwrap();
         args.remove(idx);
         let matches = add_create_webhook_subcommand()
-            .args(crate::cli::add_ssl_arguments())
             .get_matches_from(args.iter().map(|s| *s).collect::<Vec<_>>());
 
         let result = create_webhook(&matches);
@@ -667,7 +663,6 @@ mod create_webhook_tests {
         args.remove(idx);
         args.remove(idx);
         let matches = add_create_webhook_subcommand()
-            .args(crate::cli::add_ssl_arguments())
             .get_matches_from(args.iter().map(|s| *s).collect::<Vec<_>>());
 
         let result = create_webhook(&matches);
@@ -739,7 +734,6 @@ mod create_webhook_tests {
         args.remove(idx);
 
         let matches = add_create_webhook_subcommand()
-            .args(crate::cli::add_ssl_arguments())
             .get_matches_from(args.iter().map(|s| *s).collect::<Vec<_>>());
 
         let result = create_webhook(&matches);
@@ -834,7 +828,6 @@ mod create_webhook_tests {
         args.push("--uuid");
         args.push(uuid);
         let matches = add_create_or_update_webhook_subcommand()
-            .args(crate::cli::add_ssl_arguments())
             .get_matches_from(args.iter().map(|s| *s).collect::<Vec<_>>());
 
         let result = create_webhook(&matches);
@@ -928,7 +921,6 @@ mod create_webhook_tests {
         args.push("--uuid");
         args.push(uuid);
         let matches = add_create_or_update_webhook_subcommand()
-            .args(crate::cli::add_ssl_arguments())
             .get_matches_from(args.iter().map(|s| *s).collect::<Vec<_>>());
 
         let result = create_webhook(&matches);

@@ -9,7 +9,6 @@ use crate::{
 pub fn list_latest_pact_versions(
     broker_details: &BrokerDetails,
     output_type: OutputType,
-    _verbose: bool,
 ) -> Result<String, PactBrokerError> {
     // setup client with broker url and credentials
     let broker_url = &broker_details.url;
@@ -187,7 +186,7 @@ mod lists_latest_pact_versions_tests {
         };
 
         // act
-        let result = list_latest_pact_versions(&broker_details, OutputType::Json, false);
+        let result = list_latest_pact_versions(&broker_details, OutputType::Json);
 
         // assert
         assert!(result.is_ok());
