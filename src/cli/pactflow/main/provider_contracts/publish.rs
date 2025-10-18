@@ -1,12 +1,13 @@
 use base64::Engine;
 use base64::engine::general_purpose::STANDARD as Base64;
 use clap::ArgMatches;
+use pact_models::pact::Pact;
 use serde::{Deserialize, Serialize};
 use serde_json::{Value, json};
 
 use crate::cli::{
     pact_broker::main::{
-        HALClient,
+        HALClient, PactBrokerError,
         utils::{get_auth, get_broker_relation, get_broker_url, get_ssl_options, handle_error},
     },
     utils::{self, git_info},
@@ -92,14 +93,14 @@ struct Notice {
     type_field: String,
 }
 
-pub fn publish(args: &ArgMatches) -> Result<Value, i32> {
+pub fn publish(args: &ArgMatches) -> Result<Value, PactBrokerError> {
     // Load contract file
     let contract_file = args
         .get_one::<String>("contract-file")
         .expect("CONTRACT_FILE is required");
     let contract_content = std::fs::read_to_string(contract_file).map_err(|e| {
         println!("❌ Failed to read contract file: {}", e);
-        1
+        PactBrokerError::IoError(e.to_string())
     })?;
 
     let broker_url = get_broker_url(args).trim_end_matches('/').to_string();
@@ -117,7 +118,6 @@ pub fn publish(args: &ArgMatches) -> Result<Value, i32> {
         )
         .await
     });
-    println!("🔍 Using broker: {}", broker_url);
     match publish_contract_href_path {
         Ok(publish_contract_href) => {
             let provider_name = args
@@ -340,6 +340,7 @@ pub fn publish(args: &ArgMatches) -> Result<Value, i32> {
                                         "⚠️ Warning: Failed to process response notices - Error: {:?}",
                                         err
                                     );
+                                    return Err(PactBrokerError::ContentError(err.to_string()));
                                 }
                             }
                         }
@@ -349,14 +350,13 @@ pub fn publish(args: &ArgMatches) -> Result<Value, i32> {
                     }
                 },
                 Err(err) => {
-                    println!("❌ {}", err.to_string());
+                    return Err(err);
                 }
             }
             Ok(json!({}))
         }
         Err(err) => {
-            handle_error(err);
-            return Err(1);
+            Err(err)
         }
     }
 }

@@ -18,9 +18,7 @@ use serde_json::{Value, json};
 
 use crate::cli::pact_broker::main::HALClient;
 use crate::cli::pact_broker::main::utils::get_ssl_options;
-use crate::cli::pact_broker::main::utils::{
-    get_auth, get_broker_relation, get_broker_url, handle_error,
-};
+use crate::cli::pact_broker::main::utils::{get_auth, get_broker_relation, get_broker_url};
 use crate::cli::utils::{self, git_info};
 
 use super::verification::{VerificationResult, display_results, verify_json};
@@ -145,7 +143,7 @@ pub fn handle_matches(args: &ArgMatches) -> Result<Vec<VerificationResult>, i32>
         return Ok(vec![]);
     }
     let files = load_files(args).map_err(|_| 1)?;
-    let results = files
+    let results: Vec<VerificationResult> = files
         .iter()
         .map(|(source, pact_json)| {
             let spec_version =
@@ -157,7 +155,12 @@ pub fn handle_matches(args: &ArgMatches) -> Result<Vec<VerificationResult>, i32>
         })
         .collect();
 
+    if results.is_empty() {
+        println!("❌ No pact files found to publish");
+        return Err(1);
+    }
     let display_result = display_results(&results, "json");
+
     if display_result.is_err() {
         return Err(3);
     } else if results.iter().any(|res| res.has_errors()) {
@@ -171,10 +174,6 @@ pub fn publish_pacts(args: &ArgMatches) -> Result<Value, i32> {
     let files: Result<Vec<(String, Value)>, anyhow::Error> = load_files(args);
     if files.is_err() {
         println!("{}", files.err().unwrap());
-        return Err(1);
-    }
-    if files.as_ref().unwrap().is_empty() {
-        println!("❌ No pact files found to publish");
         return Err(1);
     }
     let files = files.map_err(|_| 1)?;
@@ -430,18 +429,19 @@ pub fn publish_pacts(args: &ArgMatches) -> Result<Value, i32> {
                             },
                             Err(err) => {
                                 println!("❌ {}", err.to_string());
+                                Err(1)?
                             }
                         }
                     }
                     _ => {
                         println!("❌ Failed to load pact from JSON: {:?}", pact_res);
+                        return Err(1);
                     }
                 }
             }
             Ok(json!({}))
         }
         Err(err) => {
-            handle_error(err);
             return Err(1);
         }
     }

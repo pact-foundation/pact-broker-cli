@@ -1,8 +1,9 @@
 use clap::{ArgMatches, Command};
 use tracing::error;
 
-use crate::cli::pactflow::main::{
-    provider_contracts, subcommands::add_publish_provider_contract_subcommand,
+use crate::cli::{
+    pact_broker::main::utils::handle_error,
+    pactflow::main::{provider_contracts, subcommands::add_publish_provider_contract_subcommand},
 };
 pub fn add_pactflow_client_command() -> Command {
     Command::new("pactflow")
@@ -15,9 +16,11 @@ pub fn run(args: &ArgMatches, raw_args: Vec<String>) -> Result<serde_json::Value
     match args.subcommand() {
         Some(("publish-provider-contract", args)) => {
             let res = provider_contracts::publish::publish(args);
-            match res {
-                Ok(res) => Ok(serde_json::to_value(res).unwrap()),
-                Err(err) => Err(err),
+            if let Err(err) = res {
+                handle_error(err);
+                Err(1)
+            } else {
+                Ok(serde_json::to_value(res.unwrap()).unwrap())
             }
         }
         _ => {

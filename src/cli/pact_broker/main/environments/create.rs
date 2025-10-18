@@ -110,37 +110,7 @@ pub fn create_environment(args: &clap::ArgMatches) -> Result<String, PactBrokerE
                 }
                 Ok(format!("Successfully created environment"))
             }
-            Err(err) => {
-                Err(match err {
-                    // TODO process output based on user selection
-                    PactBrokerError::LinkError(error) => {
-                        println!("❌ {}", utils::RED.apply_to(error.clone()));
-                        PactBrokerError::LinkError(error)
-                    }
-                    PactBrokerError::ContentError(error) => {
-                        println!("❌ {}", utils::RED.apply_to(error.clone()));
-                        PactBrokerError::ContentError(error)
-                    }
-                    PactBrokerError::IoError(error) => {
-                        println!("❌ {}", utils::RED.apply_to(error.clone()));
-                        PactBrokerError::IoError(error)
-                    }
-                    PactBrokerError::NotFound(error) => {
-                        println!("❌ {}", utils::RED.apply_to(error.clone()));
-                        PactBrokerError::NotFound(error)
-                    }
-                    PactBrokerError::ValidationError(errors) => {
-                        for error in &errors {
-                            println!("❌ {}", utils::RED.apply_to(error.clone()));
-                        }
-                        PactBrokerError::ValidationError(errors)
-                    }
-                    err => {
-                        println!("❌ {}", utils::RED.apply_to(err.to_string()));
-                        err
-                    }
-                })
-            }
+            Err(err) => Err(err)
         }
     })
 }

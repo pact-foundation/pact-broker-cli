@@ -90,37 +90,9 @@ pub fn record_release(args: &clap::ArgMatches) -> Result<String, PactBrokerError
                                             }
                                         Ok(message.to_string())
                                     }
-                                    Err(err) => {
-                                        Err(match err {
-                                            // TODO process output based on user selection
-                                            PactBrokerError::LinkError(error) => {
-                                                println!("❌ {}", utils::RED.apply_to(error.clone()));
-                                                PactBrokerError::LinkError(error)
-                                            }
-                                            PactBrokerError::ContentError(error) => {
-                                                println!("❌ {}", utils::RED.apply_to(error.clone()));
-                                                PactBrokerError::ContentError(error)
-                                            }
-                                            PactBrokerError::IoError(error) => {
-                                                println!("❌ {}", utils::RED.apply_to(error.clone()));
-                                                PactBrokerError::IoError(error)
-                                            }
-                                            PactBrokerError::NotFound(error) => {
-                                                println!("❌ {}", utils::RED.apply_to(error.clone()));
-                                                PactBrokerError::NotFound(error)
-                                            }
-                                            PactBrokerError::ValidationError(errors) => {
-                                                for error in &errors {
-                                                    println!("❌ {}", utils::RED.apply_to(error.clone()));
-                                                }
-                                                PactBrokerError::ValidationError(errors)
-                                            }
-                                            err => {
-                                                println!("❌ {}", utils::RED.apply_to(err.to_string()));
-                                                err
-                                            }
-                                        })
-                                    }
+            Err(err) => Err(match err {
+                err => err,
+            }),
                                 }
                                         }
                             None => {
@@ -137,31 +109,7 @@ pub fn record_release(args: &clap::ArgMatches) -> Result<String, PactBrokerError
                 }
             Err(err) => {
                 Err(match err {
-                    // TODO process output based on user selection
-                    PactBrokerError::LinkError(error) => {
-                        println!("❌ {}", utils::RED.apply_to(error.clone()));
-                        PactBrokerError::LinkError(error)
-                    }
-                    PactBrokerError::ContentError(error) => {
-                        println!("❌ {}", utils::RED.apply_to(error.clone()));
-                        PactBrokerError::ContentError(error)
-                    }
-                    PactBrokerError::IoError(error) => {
-                        println!("❌ {}", utils::RED.apply_to(error.clone()));
-                        PactBrokerError::IoError(error)
-                    }
-                    PactBrokerError::NotFound(error) => {
-                        println!("❌ {}", utils::RED.apply_to(error.clone()));
-                        PactBrokerError::NotFound(error)
-                    }
-                    PactBrokerError::ValidationError(errors) => {
-                        for error in &errors {
-                            println!("❌ {}", utils::RED.apply_to(error.clone()));
-                        }
-                        PactBrokerError::ValidationError(errors)
-                    }
                     err => {
-                        println!("❌ {}", utils::RED.apply_to(err.to_string()));
                         err
                     }
                 })

@@ -3,7 +3,7 @@ use serde_json::json;
 use crate::cli::{
     pact_broker::main::{
         HALClient, PactBrokerError,
-        utils::{get_auth, get_broker_url, get_ssl_options, handle_error},
+        utils::{get_auth, get_broker_url, get_ssl_options},
     },
     utils,
 };
@@ -43,7 +43,7 @@ pub fn record_support_ended(args: &clap::ArgMatches) -> Result<String, PactBroke
                     Ok(_) => {
                     }
                     Err(err) => {
-                        handle_error(err);
+                        return Err(err);
                     }
                 }
 
@@ -121,9 +121,7 @@ pub fn record_support_ended(args: &clap::ArgMatches) -> Result<String, PactBroke
                                                                     println!("✅ ♻️ {}", message);
                                                                     return Ok(message);
                                                                 }
-                                                                Err(err) => {
-                                                                    handle_error(err);
-                                                                }
+                                                                Err(err) => return Err(err),
                                                             }
                                                         } else {
                                                             let message = format!("❌ No currently released versions found for {} in {} environment", pacticipant.unwrap(), environment.unwrap());
@@ -144,14 +142,10 @@ pub fn record_support_ended(args: &clap::ArgMatches) -> Result<String, PactBroke
                                                 return Err(PactBrokerError::NotFound(message));
                                             }
                                         }
-                                        Err(err) => {
-                                            handle_error(err);
-                                        }
+                                        Err(err) => return Err(err),
                                     }
                                 }
-                                Err(err) => {
-                                    handle_error(err);
-                                }
+                                Err(err) => return Err(err),
                             }
                             } else {
                                 let message = format!("❌ Environment {} not found", environment.unwrap());
@@ -159,11 +153,8 @@ pub fn record_support_ended(args: &clap::ArgMatches) -> Result<String, PactBroke
                                 return Err(PactBrokerError::NotFound(message));
                             }
                         }
-                        Err(err) => {
-                            handle_error(err);
-                            }
+                            Err(err) => return Err(err),
                         }
-                    Ok("Support ended recorded successfully".to_string())
             })
 }
 
