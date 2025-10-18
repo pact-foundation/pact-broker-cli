@@ -216,9 +216,6 @@ Options:
           [default: text]
           [possible values: json, text, pretty]
 
-  -v, --verbose
-          Verbose output.
-
   -c, --ssl-certificate <SSL_CERT_FILE>
           The path to a valid SSL certificate file
           
@@ -266,16 +263,14 @@ Options:
           Pact Broker basic auth password [env: PACT_BROKER_PASSWORD=]
   -k, --broker-token <PACT_BROKER_TOKEN>
           Pact Broker bearer token [env: PACT_BROKER_TOKEN=]
-  -v, --verbose
-          Verbose output.
-  -o, --output <OUTPUT>
-          Value must be one of ["json", "table"] [default: table] [possible values: json, table]
   -c, --ssl-certificate <SSL_CERT_FILE>
           The path to a valid SSL certificate file [env: SSL_CERT_FILE=]
       --skip-ssl-verification
           Skip SSL certificate verification [env: SSL_SKIP_VERIFICATION=]
       --ssl-trust-store <SSL_TRUST_STORE>
           Use the system's root trust store for SSL verification [env: SSL_TRUST_STORE=] [default: true] [possible values: true, false]
+  -o, --output <OUTPUT>
+          Value must be one of ["json", "table"] [default: table] [possible values: json, table]
       --log-level <LEVEL>
           Set the log level (none, off, error, warn, info, debug, trace) [default: off] [possible values: off, none, error, warn, info, debug, trace]
   -h, --help
@@ -316,8 +311,6 @@ Options:
           Pact Broker basic auth password [env: PACT_BROKER_PASSWORD=]
   -k, --broker-token <PACT_BROKER_TOKEN>
           Pact Broker bearer token [env: PACT_BROKER_TOKEN=]
-  -v, --verbose
-          Verbose output.
   -c, --ssl-certificate <SSL_CERT_FILE>
           The path to a valid SSL certificate file [env: SSL_CERT_FILE=]
       --skip-ssl-verification
@@ -364,8 +357,6 @@ Options:
           Pact Broker basic auth password [env: PACT_BROKER_PASSWORD=]
   -k, --broker-token <PACT_BROKER_TOKEN>
           Pact Broker bearer token [env: PACT_BROKER_TOKEN=]
-  -v, --verbose
-          Verbose output.
   -c, --ssl-certificate <SSL_CERT_FILE>
           The path to a valid SSL certificate file [env: SSL_CERT_FILE=]
       --skip-ssl-verification
@@ -402,8 +393,6 @@ Options:
           Pact Broker basic auth password [env: PACT_BROKER_PASSWORD=]
   -k, --broker-token <PACT_BROKER_TOKEN>
           Pact Broker bearer token [env: PACT_BROKER_TOKEN=]
-  -v, --verbose
-          Verbose output.
   -c, --ssl-certificate <SSL_CERT_FILE>
           The path to a valid SSL certificate file [env: SSL_CERT_FILE=]
       --skip-ssl-verification
@@ -438,8 +427,6 @@ Options:
           Pact Broker basic auth password [env: PACT_BROKER_PASSWORD=]
   -k, --broker-token <PACT_BROKER_TOKEN>
           Pact Broker bearer token [env: PACT_BROKER_TOKEN=]
-  -v, --verbose
-          Verbose output.
   -c, --ssl-certificate <SSL_CERT_FILE>
           The path to a valid SSL certificate file [env: SSL_CERT_FILE=]
       --skip-ssl-verification
@@ -474,8 +461,6 @@ Options:
           Pact Broker basic auth password [env: PACT_BROKER_PASSWORD=]
   -k, --broker-token <PACT_BROKER_TOKEN>
           Pact Broker bearer token [env: PACT_BROKER_TOKEN=]
-  -v, --verbose
-          Verbose output.
   -c, --ssl-certificate <SSL_CERT_FILE>
           The path to a valid SSL certificate file [env: SSL_CERT_FILE=]
       --skip-ssl-verification
@@ -520,8 +505,6 @@ Options:
           Pact Broker basic auth password [env: PACT_BROKER_PASSWORD=]
   -k, --broker-token <PACT_BROKER_TOKEN>
           Pact Broker bearer token [env: PACT_BROKER_TOKEN=]
-  -v, --verbose
-          Verbose output.
   -c, --ssl-certificate <SSL_CERT_FILE>
           The path to a valid SSL certificate file [env: SSL_CERT_FILE=]
       --skip-ssl-verification
@@ -577,15 +560,6 @@ Options:
           
           [env: PACT_BROKER_TOKEN=]
 
-  -v, --verbose
-          Verbose output.
-
-  -o, --output <OUTPUT>
-          Value must be one of ["json", "text", "pretty"]
-          
-          [default: text]
-          [possible values: json, text, pretty]
-
   -c, --ssl-certificate <SSL_CERT_FILE>
           The path to a valid SSL certificate file
           
@@ -602,6 +576,12 @@ Options:
           [env: SSL_TRUST_STORE=]
           [default: true]
           [possible values: true, false]
+
+  -o, --output <OUTPUT>
+          Value must be one of ["json", "text", "pretty"]
+          
+          [default: text]
+          [possible values: json, text, pretty]
 
       --log-level <LEVEL>
           Set the log level (none, off, error, warn, info, debug, trace)
@@ -646,8 +626,6 @@ Options:
           Pact Broker basic auth password [env: PACT_BROKER_PASSWORD=]
   -k, --broker-token <PACT_BROKER_TOKEN>
           Pact Broker bearer token [env: PACT_BROKER_TOKEN=]
-  -v, --verbose
-          Verbose output.
   -c, --ssl-certificate <SSL_CERT_FILE>
           The path to a valid SSL certificate file [env: SSL_CERT_FILE=]
       --skip-ssl-verification
@@ -688,8 +666,6 @@ Options:
           Pact Broker basic auth password [env: PACT_BROKER_PASSWORD=]
   -k, --broker-token <PACT_BROKER_TOKEN>
           Pact Broker bearer token [env: PACT_BROKER_TOKEN=]
-  -v, --verbose
-          Verbose output.
   -c, --ssl-certificate <SSL_CERT_FILE>
           The path to a valid SSL certificate file [env: SSL_CERT_FILE=]
       --skip-ssl-verification
@@ -826,9 +802,6 @@ Options:
           
           [env: PACT_BROKER_TOKEN=]
 
-  -v, --verbose
-          Verbose output.
-
   -c, --ssl-certificate <SSL_CERT_FILE>
           The path to a valid SSL certificate file
           
@@ -926,8 +899,6 @@ Options:
           The time between retries in seconds. Use in conjuction with --retry-while-unknown
       --dry-run
           When dry-run is enabled, always exit process with a success code. Can also be enabled by setting the environment variable PACT_BROKER_CAN_I_DEPLOY_DRY_RUN=true. This mode is useful when setting up your CI/CD pipeline for the first time, or in a 'break glass' situation where you need to knowingly deploy what Pact considers a breaking change. For the second scenario, it is recommended to use the environment variable and just set it for the build required to deploy that particular version, so you don't accidentally leave the dry run mode enabled.
-  -v, --verbose
-          Verbose output.
   -c, --ssl-certificate <SSL_CERT_FILE>
           The path to a valid SSL certificate file [env: SSL_CERT_FILE=]
       --skip-ssl-verification
@@ -973,8 +944,6 @@ Options:
           The repository URL of the pacticipant
   -o, --output <OUTPUT>
           Value must be one of ["json", "text"] [default: text] [possible values: json, text]
-  -v, --verbose
-          Verbose output.
   -c, --ssl-certificate <SSL_CERT_FILE>
           The path to a valid SSL certificate file [env: SSL_CERT_FILE=]
       --skip-ssl-verification
@@ -1011,8 +980,6 @@ Options:
           Pacticipant name
   -o, --output <OUTPUT>
           Value must be one of ["json", "text", "table"] [default: text] [possible values: json, text, table]
-  -v, --verbose
-          Verbose output.
   -c, --ssl-certificate <SSL_CERT_FILE>
           The path to a valid SSL certificate file [env: SSL_CERT_FILE=]
       --skip-ssl-verification
@@ -1047,8 +1014,6 @@ Options:
           Pact Broker bearer token [env: PACT_BROKER_TOKEN=]
   -o, --output <OUTPUT>
           Value must be one of ["json", "table"] [default: table] [possible values: json, table]
-  -v, --verbose
-          Verbose output.
   -c, --ssl-certificate <SSL_CERT_FILE>
           The path to a valid SSL certificate file [env: SSL_CERT_FILE=]
       --skip-ssl-verification
@@ -1118,8 +1083,6 @@ Options:
           Pact Broker basic auth password [env: PACT_BROKER_PASSWORD=]
   -k, --broker-token <PACT_BROKER_TOKEN>
           Pact Broker bearer token [env: PACT_BROKER_TOKEN=]
-  -v, --verbose
-          Verbose output.
   -c, --ssl-certificate <SSL_CERT_FILE>
           The path to a valid SSL certificate file [env: SSL_CERT_FILE=]
       --skip-ssl-verification
@@ -1194,8 +1157,6 @@ Options:
           Trigger this webhook when a contract is published that requires verification
       --team-uuid <UUID>
           UUID of the PactFlow team to which the webhook should be assigned (PactFlow only)
-  -v, --verbose
-          Verbose output.
   -c, --ssl-certificate <SSL_CERT_FILE>
           The path to a valid SSL certificate file [env: SSL_CERT_FILE=]
       --skip-ssl-verification
@@ -1236,8 +1197,6 @@ Options:
           Pact Broker basic auth password [env: PACT_BROKER_PASSWORD=]
   -k, --broker-token <PACT_BROKER_TOKEN>
           Pact Broker bearer token [env: PACT_BROKER_TOKEN=]
-  -v, --verbose
-          Verbose output.
   -c, --ssl-certificate <SSL_CERT_FILE>
           The path to a valid SSL certificate file [env: SSL_CERT_FILE=]
       --skip-ssl-verification
@@ -1278,8 +1237,6 @@ Options:
           The name of the pacticipant that the branch belongs to
       --error-when-not-found <error-when-not-found>
           Raise an error if the branch that is to be deleted is not found [default: false] [possible values: true, false]
-  -v, --verbose
-          Verbose output.
   -c, --ssl-certificate <SSL_CERT_FILE>
           The path to a valid SSL certificate file [env: SSL_CERT_FILE=]
       --skip-ssl-verification
@@ -1364,14 +1321,14 @@ Options:
           The pacticipant version number
   -l, --latest [<TAG>]
           Describe the latest pacticipant version. Optionally specify a TAG to describe the latest version with the specified tag
-  -o, --output <OUTPUT>
-          Value must be one of ["json", "table"] [default: table] [possible values: json, table]
   -c, --ssl-certificate <SSL_CERT_FILE>
           The path to a valid SSL certificate file [env: SSL_CERT_FILE=]
       --skip-ssl-verification
           Skip SSL certificate verification [env: SSL_SKIP_VERIFICATION=]
       --ssl-trust-store <SSL_TRUST_STORE>
           Use the system's root trust store for SSL verification [env: SSL_TRUST_STORE=] [default: true] [possible values: true, false]
+  -o, --output <OUTPUT>
+          Value must be one of ["json", "table"] [default: table] [possible values: json, table]
       --log-level <LEVEL>
           Set the log level (none, off, error, warn, info, debug, trace) [default: off] [possible values: off, none, error, warn, info, debug, trace]
   -h, --help
@@ -1434,16 +1391,8 @@ Generate a UUID for use when calling create-or-update-webhook
 Usage: pact-broker-cli generate-uuid [OPTIONS]
 
 Options:
-  -c, --ssl-certificate <SSL_CERT_FILE>
-          The path to a valid SSL certificate file [env: SSL_CERT_FILE=]
-      --skip-ssl-verification
-          Skip SSL certificate verification [env: SSL_SKIP_VERIFICATION=]
-      --ssl-trust-store <SSL_TRUST_STORE>
-          Use the system's root trust store for SSL verification [env: SSL_TRUST_STORE=] [default: true] [possible values: true, false]
-      --log-level <LEVEL>
-          Set the log level (none, off, error, warn, info, debug, trace) [default: off] [possible values: off, none, error, warn, info, debug, trace]
-  -h, --help
-          Print help
+      --log-level <LEVEL>  Set the log level (none, off, error, warn, info, debug, trace) [default: off] [possible values: off, none, error, warn, info, debug, trace]
+  -h, --help               Print help
 
 ```
 
@@ -1507,8 +1456,12 @@ Options:
           Tag provider version with the name of the current git branch. Supports Buildkite, Circle CI, Travis CI, GitHub Actions, Jenkins, Hudson, AppVeyor, GitLab, CodeShip, Bitbucket and Azure DevOps.
   -o, --output <OUTPUT>
           Value must be one of ["json", "text"] [default: text] [possible values: json, text]
-  -v, --verbose
-          Verbose output.
+  -c, --ssl-certificate <SSL_CERT_FILE>
+          The path to a valid SSL certificate file [env: SSL_CERT_FILE=]
+      --skip-ssl-verification
+          Skip SSL certificate verification [env: SSL_SKIP_VERIFICATION=]
+      --ssl-trust-store <SSL_TRUST_STORE>
+          Use the system's root trust store for SSL verification [env: SSL_TRUST_STORE=] [default: true] [possible values: true, false]
       --log-level <LEVEL>
           Set the log level (none, off, error, warn, info, debug, trace) [default: off] [possible values: off, none, error, warn, info, debug, trace]
   -h, --help

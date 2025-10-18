@@ -35,70 +35,10 @@ pub fn delete_environment(args: &clap::ArgMatches) -> Result<String, PactBrokerE
                         println!("{}", message);
                         Ok(message)
                     }
-                    Err(err) => {
-                        Err(match err {
-                            // TODO process output based on user selection
-                            PactBrokerError::LinkError(error) => {
-                                println!("❌ {}", utils::RED.apply_to(error.clone()));
-                                PactBrokerError::LinkError(error)
-                            }
-                            PactBrokerError::ContentError(error) => {
-                                println!("❌ {}", utils::RED.apply_to(error.clone()));
-                                PactBrokerError::ContentError(error)
-                            }
-                            PactBrokerError::IoError(error) => {
-                                println!("❌ {}", utils::RED.apply_to(error.clone()));
-                                PactBrokerError::IoError(error)
-                            }
-                            PactBrokerError::NotFound(error) => {
-                                println!("❌ {}", utils::RED.apply_to(error.clone()));
-                                PactBrokerError::NotFound(error)
-                            }
-                            PactBrokerError::ValidationError(errors) => {
-                                for error in &errors {
-                                    println!("❌ {}", utils::RED.apply_to(error.clone()));
-                                }
-                                PactBrokerError::ValidationError(errors)
-                            }
-                            err => {
-                                println!("❌ {}", utils::RED.apply_to(err.to_string()));
-                                err
-                            }
-                        })
-                    }
+                    Err(err) => Err(err)
                 }
             }
-            Err(err) => {
-                Err(match err {
-                    // TODO process output based on user selection
-                    PactBrokerError::LinkError(error) => {
-                        println!("❌ {}", utils::RED.apply_to(error.clone()));
-                        PactBrokerError::LinkError(error)
-                    }
-                    PactBrokerError::ContentError(error) => {
-                        println!("❌ {}", utils::RED.apply_to(error.clone()));
-                        PactBrokerError::ContentError(error)
-                    }
-                    PactBrokerError::IoError(error) => {
-                        println!("❌ {}", utils::RED.apply_to(error.clone()));
-                        PactBrokerError::IoError(error)
-                    }
-                    PactBrokerError::NotFound(error) => {
-                        println!("❌ {}", utils::RED.apply_to(error.clone()));
-                        PactBrokerError::NotFound(error)
-                    }
-                    PactBrokerError::ValidationError(errors) => {
-                        for error in &errors {
-                            println!("❌ {}", utils::RED.apply_to(error.clone()));
-                        }
-                        PactBrokerError::ValidationError(errors)
-                    }
-                    err => {
-                        println!("❌ {}", utils::RED.apply_to(err.to_string()));
-                        err
-                    }
-                })
-            }
+            Err(err) => Err(err)
         }
     })
 }
@@ -112,9 +52,7 @@ mod delete_environment_tests {
 
     fn build_matches(broker_url: &str, uuid: &str, output: &str) -> clap::ArgMatches {
         let args = vec!["delete-environment", "-b", broker_url, "--uuid", uuid];
-        add_delete_environment_subcommand()
-            .args(crate::cli::add_ssl_arguments())
-            .get_matches_from(args)
+        add_delete_environment_subcommand().get_matches_from(args)
     }
 
     #[test]

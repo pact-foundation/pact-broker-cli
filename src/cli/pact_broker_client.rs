@@ -36,61 +36,53 @@ use crate::cli::pact_broker::main::webhooks::create::create_webhook;
 use crate::cli::pact_broker::main::webhooks::test::test_webhook;
 use crate::cli::pact_broker::main::{can_i_deploy, pact_publish};
 use clap::{ArgMatches, Command, command};
+use tracing::error;
 pub fn add_pact_broker_client_command() -> Command {
     command!()
+        .arg_required_else_help(true)
         .args(crate::cli::add_output_arguments(
             ["json", "text", "table", "pretty"].to_vec(),
             "text",
         ))
-        .subcommand(add_publish_pacts_subcommand().args(crate::cli::add_ssl_arguments()))
-        .subcommand(
-            add_list_latest_pact_versions_subcommand().args(crate::cli::add_ssl_arguments()),
-        )
-        .subcommand(add_create_environment_subcommand().args(crate::cli::add_ssl_arguments()))
-        .subcommand(add_update_environment_subcommand().args(crate::cli::add_ssl_arguments()))
-        .subcommand(add_delete_environment_subcommand().args(crate::cli::add_ssl_arguments()))
-        .subcommand(add_describe_environment_subcommand().args(crate::cli::add_ssl_arguments()))
-        .subcommand(add_list_environments_subcommand().args(crate::cli::add_ssl_arguments()))
-        .subcommand(add_record_deployment_subcommand().args(crate::cli::add_ssl_arguments()))
-        .subcommand(add_record_undeployment_subcommand().args(crate::cli::add_ssl_arguments()))
-        .subcommand(add_record_release_subcommand().args(crate::cli::add_ssl_arguments()))
-        .subcommand(add_record_support_ended_subcommand().args(crate::cli::add_ssl_arguments()))
-        .subcommand(add_can_i_deploy_subcommand().args(crate::cli::add_ssl_arguments()))
-        .subcommand(add_can_i_merge_subcommand().args(crate::cli::add_ssl_arguments()))
-        .subcommand(
-            add_create_or_update_pacticipant_subcommand().args(crate::cli::add_ssl_arguments()),
-        )
-        .subcommand(add_describe_pacticipant_subcommand().args(crate::cli::add_ssl_arguments()))
-        .subcommand(add_list_pacticipants_subcommand().args(crate::cli::add_ssl_arguments()))
-        .subcommand(add_create_webhook_subcommand().args(crate::cli::add_ssl_arguments()))
-        .subcommand(add_create_or_update_webhook_subcommand().args(crate::cli::add_ssl_arguments()))
-        .subcommand(add_test_webhook_subcommand().args(crate::cli::add_ssl_arguments()))
-        .subcommand(add_delete_branch_subcommand().args(crate::cli::add_ssl_arguments()))
-        .subcommand(add_create_version_tag_subcommand().args(crate::cli::add_ssl_arguments()))
-        .subcommand(add_describe_version_subcommand().args(crate::cli::add_ssl_arguments()))
-        .subcommand(add_create_or_update_version_subcommand().args(crate::cli::add_ssl_arguments()))
-        .subcommand(add_generate_uuid_subcommand().args(crate::cli::add_ssl_arguments()))
+        .subcommand(add_publish_pacts_subcommand())
+        .subcommand(add_list_latest_pact_versions_subcommand())
+        .subcommand(add_create_environment_subcommand())
+        .subcommand(add_update_environment_subcommand())
+        .subcommand(add_delete_environment_subcommand())
+        .subcommand(add_describe_environment_subcommand())
+        .subcommand(add_list_environments_subcommand())
+        .subcommand(add_record_deployment_subcommand())
+        .subcommand(add_record_undeployment_subcommand())
+        .subcommand(add_record_release_subcommand())
+        .subcommand(add_record_support_ended_subcommand())
+        .subcommand(add_can_i_deploy_subcommand())
+        .subcommand(add_can_i_merge_subcommand())
+        .subcommand(add_create_or_update_pacticipant_subcommand())
+        .subcommand(add_describe_pacticipant_subcommand())
+        .subcommand(add_list_pacticipants_subcommand())
+        .subcommand(add_create_webhook_subcommand())
+        .subcommand(add_create_or_update_webhook_subcommand())
+        .subcommand(add_test_webhook_subcommand())
+        .subcommand(add_delete_branch_subcommand())
+        .subcommand(add_create_version_tag_subcommand())
+        .subcommand(add_describe_version_subcommand())
+        .subcommand(add_create_or_update_version_subcommand())
+        .subcommand(add_generate_uuid_subcommand())
 }
 
-pub fn run(args: &ArgMatches, raw_args: Vec<String>) {
+pub fn run(args: &ArgMatches, raw_args: Vec<String>) -> Result<serde_json::Value, i32> {
     match args.subcommand() {
         Some(("publish", args)) => {
-            let res = pact_publish::handle_matches(args);
-            match res {
+            let pacts = pact_publish::handle_matches(args);
+            match pacts {
                 Ok(_) => {
                     let res = pact_publish::publish_pacts(args);
                     match res {
-                        Ok(_res) => {
-                            std::process::exit(0);
-                        }
-                        Err(err) => {
-                            std::process::exit(err);
-                        }
+                        Ok(res) => Ok(serde_json::to_value(res).unwrap()),
+                        Err(err) => Err(err),
                     }
                 }
-                Err(err) => {
-                    std::process::exit(err);
-                }
+                Err(err) => Err(err),
             }
         }
         Some(("list-latest-pact-versions", args)) => {
@@ -113,95 +105,120 @@ pub fn run(args: &ArgMatches, raw_args: Vec<String>) {
                 _ => OutputType::Text,
             };
 
-            let verbose = args.get_flag("verbose");
-            let res = list_latest_pact_versions(&broker_details, output, verbose);
+            let res = list_latest_pact_versions(&broker_details, output);
             if let Err(err) = res {
                 handle_error(err);
-                std::process::exit(1);
+                Err(1)
+            } else {
+                Ok(serde_json::to_value(res.unwrap()).unwrap())
             }
         }
         Some(("create-environment", args)) => {
             let res = create_environment(args);
             if let Err(err) = res {
                 handle_error(err);
-                std::process::exit(1);
+                Err(1)
+            } else {
+                Ok(serde_json::to_value(res.unwrap()).unwrap())
             }
         }
         Some(("update-environment", args)) => {
             let res = update_environment(args);
             if let Err(err) = res {
                 handle_error(err);
-                std::process::exit(1);
+                Err(1)
+            } else {
+                Ok(serde_json::to_value(res.unwrap()).unwrap())
             }
         }
         Some(("describe-environment", args)) => {
             let res = describe_environment(args);
             if let Err(err) = res {
                 handle_error(err);
-                std::process::exit(1);
+                Err(1)
+            } else {
+                Ok(serde_json::to_value(res.unwrap()).unwrap())
             }
         }
         Some(("delete-environment", args)) => {
             let res = delete_environment(args);
             if let Err(err) = res {
                 handle_error(err);
-                std::process::exit(1);
+                Err(1)
+            } else {
+                Ok(serde_json::to_value(res.unwrap()).unwrap())
             }
         }
         Some(("list-environments", args)) => {
             let res = list_environments(args);
             if let Err(err) = res {
                 handle_error(err);
-                std::process::exit(1);
+                Err(1)
+            } else {
+                Ok(serde_json::to_value(res.unwrap()).unwrap())
             }
         }
         Some(("record-deployment", args)) => {
             let res = record_deployment(args);
             if let Err(err) = res {
                 handle_error(err);
-                std::process::exit(1);
+                Err(1)
+            } else {
+                Ok(serde_json::to_value(res.unwrap()).unwrap())
             }
         }
         Some(("record-undeployment", args)) => {
             let res = record_undeployment(args);
             if let Err(err) = res {
                 handle_error(err);
-                std::process::exit(1);
+                Err(1)
+            } else {
+                Ok(serde_json::to_value(res.unwrap()).unwrap())
             }
         }
         Some(("record-release", args)) => {
             let res = record_release(args);
             if let Err(err) = res {
                 handle_error(err);
-                std::process::exit(1);
+                Err(1)
+            } else {
+                Ok(serde_json::to_value(res.unwrap()).unwrap())
             }
         }
         Some(("record-support-ended", args)) => {
             let res = record_support_ended(args);
             if let Err(err) = res {
                 handle_error(err);
-                std::process::exit(1);
+                Err(1)
+            } else {
+                Ok(serde_json::to_value(res.unwrap()).unwrap())
             }
         }
         Some(("can-i-deploy", args)) => {
             let res = can_i_deploy::can_i_deploy(args, raw_args, false);
             if let Err(err) = res {
                 handle_error(err);
-                std::process::exit(1);
+                Err(1)
+            } else {
+                Ok(serde_json::to_value(res.unwrap()).unwrap())
             }
         }
         Some(("can-i-merge", args)) => {
             let res = can_i_deploy::can_i_deploy(args, raw_args, true);
             if let Err(err) = res {
                 handle_error(err);
-                std::process::exit(1);
+                Err(1)
+            } else {
+                Ok(serde_json::to_value(res.unwrap()).unwrap())
             }
         }
         Some(("create-or-update-pacticipant", args)) => {
             let res = create_or_update_pacticipant(args);
             if let Err(err) = res {
                 handle_error(err);
-                std::process::exit(1);
+                Err(1)
+            } else {
+                Ok(serde_json::to_value(res.unwrap()).unwrap())
             }
         }
         Some(("describe-pacticipant", args)) => {
@@ -224,16 +241,12 @@ pub fn run(args: &ArgMatches, raw_args: Vec<String>) {
                 _ => OutputType::Text,
             };
 
-            let verbose = args.get_flag("verbose");
-            let res = describe_pacticipant(
-                pacticipant_name.to_string(),
-                &broker_details,
-                output,
-                verbose,
-            );
+            let res = describe_pacticipant(pacticipant_name.to_string(), &broker_details, output);
             if let Err(err) = res {
                 handle_error(err);
-                std::process::exit(1);
+                Err(1)
+            } else {
+                Ok(serde_json::to_value(res.unwrap()).unwrap())
             }
         }
         Some(("list-pacticipants", args)) => {
@@ -255,67 +268,87 @@ pub fn run(args: &ArgMatches, raw_args: Vec<String>) {
                 _ => OutputType::Text,
             };
 
-            let verbose = args.get_flag("verbose");
-            let res = list_pacticipants(&broker_details, output, verbose);
+            let res = list_pacticipants(&broker_details, output);
             if let Err(err) = res {
                 handle_error(err);
-                std::process::exit(1);
+                Err(1)
+            } else {
+                Ok(serde_json::to_value(res.unwrap()).unwrap())
             }
         }
         Some(("create-webhook", args)) => {
             let res = create_webhook(args);
             if let Err(err) = res {
                 handle_error(err);
-                std::process::exit(1);
+                Err(1)
+            } else {
+                Ok(serde_json::to_value(res.unwrap()).unwrap())
             }
         }
         Some(("create-or-update-webhook", args)) => {
             let res = create_webhook(args);
             if let Err(err) = res {
                 handle_error(err);
-                std::process::exit(1);
+                Err(1)
+            } else {
+                Ok(serde_json::to_value(res.unwrap()).unwrap())
             }
         }
         Some(("test-webhook", args)) => {
             let res = test_webhook(args);
             if let Err(err) = res {
                 handle_error(err);
-                std::process::exit(1);
+                Err(1)
+            } else {
+                Ok(serde_json::to_value(res.unwrap()).unwrap())
             }
         }
         Some(("delete-branch", args)) => {
             let res = delete_branch::delete_branch(args);
             if let Err(err) = res {
                 handle_error(err);
-                std::process::exit(1);
+                Err(1)
+            } else {
+                Ok(serde_json::to_value(res.unwrap()).unwrap())
             }
         }
         Some(("create-version-tag", args)) => {
             let res = create_version_tag::create_version_tag(args);
             if let Err(err) = res {
                 handle_error(err);
-                std::process::exit(1);
+                Err(1)
+            } else {
+                Ok(serde_json::to_value(res.unwrap()).unwrap())
             }
         }
         Some(("describe-version", args)) => {
             let res = describe_version(args);
             if let Err(err) = res {
                 handle_error(err);
-                std::process::exit(1);
+                Err(1)
+            } else {
+                Ok(serde_json::to_value(res.unwrap()).unwrap())
             }
         }
         Some(("create-or-update-version", args)) => {
             let res = create_or_update_version(args);
             if let Err(err) = res {
                 handle_error(err);
-                std::process::exit(1);
+                Err(1)
+            } else {
+                Ok(serde_json::to_value(res.unwrap()).unwrap())
             }
         }
         Some(("generate-uuid", _args)) => {
-            println!("{}", uuid::Uuid::new_v4());
+            let value = serde_json::json!({
+                "uuid": uuid::Uuid::new_v4().to_string()
+            });
+            println!("{}", value["uuid"].as_str().unwrap());
+            Ok(value)
         }
         _ => {
-            println!("⚠️  No option provided, try running --help");
+            error!("⚠️ No option provided, try running --help");
+            Err(1)
         }
     }
 }

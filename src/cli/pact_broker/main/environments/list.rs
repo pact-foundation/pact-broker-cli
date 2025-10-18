@@ -79,37 +79,7 @@ pub fn list_environments(args: &clap::ArgMatches) -> Result<String, PactBrokerEr
 
                 Ok("".to_string())
             }
-            Err(err) => {
-                Err(match err {
-                    // TODO process output based on user selection
-                    PactBrokerError::LinkError(error) => {
-                        println!("❌ {}", utils::RED.apply_to(error.clone()));
-                        PactBrokerError::LinkError(error)
-                    }
-                    PactBrokerError::ContentError(error) => {
-                        println!("❌ {}", utils::RED.apply_to(error.clone()));
-                        PactBrokerError::ContentError(error)
-                    }
-                    PactBrokerError::IoError(error) => {
-                        println!("❌ {}", utils::RED.apply_to(error.clone()));
-                        PactBrokerError::IoError(error)
-                    }
-                    PactBrokerError::NotFound(error) => {
-                        println!("❌ {}", utils::RED.apply_to(error.clone()));
-                        PactBrokerError::NotFound(error)
-                    }
-                    PactBrokerError::ValidationError(errors) => {
-                        for error in &errors {
-                            println!("❌ {}", utils::RED.apply_to(error.clone()));
-                        }
-                        PactBrokerError::ValidationError(errors)
-                    }
-                    err => {
-                        println!("❌ {}", utils::RED.apply_to(err.to_string()));
-                        err
-                    }
-                })
-            }
+            Err(err) => Err(err)
         }
     })
 }
@@ -187,15 +157,13 @@ mod list_environments_tests {
         let mock_server_url = pact_broker_service.url();
 
         // arrange - set up the command line arguments
-        let matches = add_list_environments_subcommand()
-            .args(crate::cli::add_ssl_arguments())
-            .get_matches_from(vec![
-                "list-environments",
-                "-b",
-                mock_server_url.as_str(),
-                "--output",
-                "text",
-            ]);
+        let matches = add_list_environments_subcommand().get_matches_from(vec![
+            "list-environments",
+            "-b",
+            mock_server_url.as_str(),
+            "--output",
+            "text",
+        ]);
 
         // act
         let sut = list_environments(&matches);

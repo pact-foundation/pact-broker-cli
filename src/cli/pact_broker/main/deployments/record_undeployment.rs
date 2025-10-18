@@ -5,7 +5,6 @@ use crate::cli::{
         HALClient, PactBrokerError,
         utils::{
             follow_broker_relation, get_auth, get_broker_relation, get_broker_url, get_ssl_options,
-            handle_error,
         },
     },
     utils,
@@ -114,9 +113,7 @@ pub fn record_undeployment(args: &clap::ArgMatches) -> Result<String, PactBroker
                                                                 // Handle success
                                                                 print!("✅ ♻️ Undeployed {} from {} environment", utils::GREEN.apply_to(pacticipant.unwrap()), utils::GREEN.apply_to(environment.unwrap()));
                                                             }
-                                                            Err(err) => {
-                                                                handle_error(err);
-                                                            }
+                                                            Err(err) => return Err(err),
                                                         }
                                                     } else {
                                                         print!("❌ No currently deployed versions found for {} in {} environment" ,pacticipant.unwrap(), environment.unwrap());
@@ -138,16 +135,13 @@ pub fn record_undeployment(args: &clap::ArgMatches) -> Result<String, PactBroker
                                                     "Could not process hal relation link".to_string()
                                                 );
                                             }
-                                    }
-                                    Err(err) => {
-                                        handle_error(err);
+                                        }
+                                    Err(err) => return Err(err),
+
                                     }
                                 }
+                                Err(err) => return Err(err),
                             }
-                            Err(err) => {
-                                handle_error(err);
-                            }
-                        }
                         } else {
                             println!("❌ Environment not found");
                             PactBrokerError::NotFound(
@@ -155,12 +149,9 @@ pub fn record_undeployment(args: &clap::ArgMatches) -> Result<String, PactBroker
                             );
                         }
                     }
-                    Err(err) => {
-                        handle_error(err);
-                        }
-                    }
+                    Err(err) => return Err(err),
+                }
                 Ok("Undeployment recorded successfully".to_string())
-
                 })
 }
 
@@ -360,19 +351,17 @@ mod record_undeployment_tests {
         let mock_server_url = pact_broker_service.url();
 
         // Arrange CLI args
-        let matches = add_record_undeployment_subcommand()
-            .args(crate::cli::add_ssl_arguments())
-            .get_matches_from(vec![
-                "record-undeployment",
-                "-b",
-                mock_server_url.as_str(),
-                "--pacticipant",
-                pacticipant_name,
-                "--environment",
-                environment_name,
-                "--application-instance",
-                application_instance,
-            ]);
+        let matches = add_record_undeployment_subcommand().get_matches_from(vec![
+            "record-undeployment",
+            "-b",
+            mock_server_url.as_str(),
+            "--pacticipant",
+            pacticipant_name,
+            "--environment",
+            environment_name,
+            "--application-instance",
+            application_instance,
+        ]);
 
         // Act
         let result = record_undeployment(&matches);

@@ -5,7 +5,7 @@ use tracing::debug;
 use crate::cli::{
     pact_broker::main::{
         HALClient, PactBrokerError,
-        utils::{get_auth, get_broker_url, get_ssl_options, handle_error},
+        utils::{get_auth, get_broker_url, get_ssl_options},
     },
     utils,
 };
@@ -384,7 +384,7 @@ pub fn can_i_deploy(
                     }
                 }
             }
-            Err(res) => Err(handle_error(res)),
+            Err(res) => Err(res),
         }
     })
 }
@@ -407,9 +407,7 @@ mod can_i_deploy_tests {
     }
 
     fn build_matches(args: Vec<&str>) -> clap::ArgMatches {
-        add_can_i_deploy_subcommand()
-            .args(crate::cli::add_ssl_arguments())
-            .get_matches_from(args)
+        add_can_i_deploy_subcommand().get_matches_from(args)
     }
 
     #[test]

@@ -90,37 +90,9 @@ pub fn record_release(args: &clap::ArgMatches) -> Result<String, PactBrokerError
                                             }
                                         Ok(message.to_string())
                                     }
-                                    Err(err) => {
-                                        Err(match err {
-                                            // TODO process output based on user selection
-                                            PactBrokerError::LinkError(error) => {
-                                                println!("❌ {}", utils::RED.apply_to(error.clone()));
-                                                PactBrokerError::LinkError(error)
-                                            }
-                                            PactBrokerError::ContentError(error) => {
-                                                println!("❌ {}", utils::RED.apply_to(error.clone()));
-                                                PactBrokerError::ContentError(error)
-                                            }
-                                            PactBrokerError::IoError(error) => {
-                                                println!("❌ {}", utils::RED.apply_to(error.clone()));
-                                                PactBrokerError::IoError(error)
-                                            }
-                                            PactBrokerError::NotFound(error) => {
-                                                println!("❌ {}", utils::RED.apply_to(error.clone()));
-                                                PactBrokerError::NotFound(error)
-                                            }
-                                            PactBrokerError::ValidationError(errors) => {
-                                                for error in &errors {
-                                                    println!("❌ {}", utils::RED.apply_to(error.clone()));
-                                                }
-                                                PactBrokerError::ValidationError(errors)
-                                            }
-                                            err => {
-                                                println!("❌ {}", utils::RED.apply_to(err.to_string()));
-                                                err
-                                            }
-                                        })
-                                    }
+            Err(err) => Err(match err {
+                err => err,
+            }),
                                 }
                                         }
                             None => {
@@ -137,31 +109,7 @@ pub fn record_release(args: &clap::ArgMatches) -> Result<String, PactBrokerError
                 }
             Err(err) => {
                 Err(match err {
-                    // TODO process output based on user selection
-                    PactBrokerError::LinkError(error) => {
-                        println!("❌ {}", utils::RED.apply_to(error.clone()));
-                        PactBrokerError::LinkError(error)
-                    }
-                    PactBrokerError::ContentError(error) => {
-                        println!("❌ {}", utils::RED.apply_to(error.clone()));
-                        PactBrokerError::ContentError(error)
-                    }
-                    PactBrokerError::IoError(error) => {
-                        println!("❌ {}", utils::RED.apply_to(error.clone()));
-                        PactBrokerError::IoError(error)
-                    }
-                    PactBrokerError::NotFound(error) => {
-                        println!("❌ {}", utils::RED.apply_to(error.clone()));
-                        PactBrokerError::NotFound(error)
-                    }
-                    PactBrokerError::ValidationError(errors) => {
-                        for error in &errors {
-                            println!("❌ {}", utils::RED.apply_to(error.clone()));
-                        }
-                        PactBrokerError::ValidationError(errors)
-                    }
                     err => {
-                        println!("❌ {}", utils::RED.apply_to(err.to_string()));
                         err
                     }
                 })
@@ -235,19 +183,17 @@ mod record_release_tests {
         let mock_server_url = pact_broker_service.url();
 
         // Arrange CLI args
-        let matches = add_record_release_subcommand()
-            .args(crate::cli::add_ssl_arguments())
-            .get_matches_from(vec![
-                "record-release",
-                "-b",
-                mock_server_url.as_str(),
-                "--pacticipant",
-                pacticipant_name,
-                "--version",
-                version_number,
-                "--environment",
-                environment_name,
-            ]);
+        let matches = add_record_release_subcommand().get_matches_from(vec![
+            "record-release",
+            "-b",
+            mock_server_url.as_str(),
+            "--pacticipant",
+            pacticipant_name,
+            "--version",
+            version_number,
+            "--environment",
+            environment_name,
+        ]);
 
         // Act
         let result = record_release(&matches);

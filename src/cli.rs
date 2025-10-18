@@ -8,6 +8,7 @@ pub mod pactflow_client;
 pub mod utils;
 pub fn build_cli() -> Command {
     let app = pact_broker_client::add_pact_broker_client_command()
+        .arg_required_else_help(true)
         .version(env!("CARGO_PKG_VERSION"))
         .about("A pact cli tool")
         .args(add_logging_arguments())
@@ -80,16 +81,6 @@ pub fn add_ssl_arguments() -> Vec<Arg> {
             .required(false)
             .value_name("SSL_TRUST_STORE")
             .env("SSL_TRUST_STORE"),
-    ]
-}
-
-pub fn add_verbose_arguments() -> Vec<Arg> {
-    vec![
-        Arg::new("verbose")
-            .short('v')
-            .long("verbose")
-            .num_args(0)
-            .help("Verbose output."),
     ]
 }
 

@@ -110,37 +110,7 @@ pub fn create_environment(args: &clap::ArgMatches) -> Result<String, PactBrokerE
                 }
                 Ok(format!("Successfully created environment"))
             }
-            Err(err) => {
-                Err(match err {
-                    // TODO process output based on user selection
-                    PactBrokerError::LinkError(error) => {
-                        println!("❌ {}", utils::RED.apply_to(error.clone()));
-                        PactBrokerError::LinkError(error)
-                    }
-                    PactBrokerError::ContentError(error) => {
-                        println!("❌ {}", utils::RED.apply_to(error.clone()));
-                        PactBrokerError::ContentError(error)
-                    }
-                    PactBrokerError::IoError(error) => {
-                        println!("❌ {}", utils::RED.apply_to(error.clone()));
-                        PactBrokerError::IoError(error)
-                    }
-                    PactBrokerError::NotFound(error) => {
-                        println!("❌ {}", utils::RED.apply_to(error.clone()));
-                        PactBrokerError::NotFound(error)
-                    }
-                    PactBrokerError::ValidationError(errors) => {
-                        for error in &errors {
-                            println!("❌ {}", utils::RED.apply_to(error.clone()));
-                        }
-                        PactBrokerError::ValidationError(errors)
-                    }
-                    err => {
-                        println!("❌ {}", utils::RED.apply_to(err.to_string()));
-                        err
-                    }
-                })
-            }
+            Err(err) => Err(err)
         }
     })
 }
@@ -222,21 +192,19 @@ mod create_environment_tests {
             .start_mock_server(None, Some(config));
         let mock_server_url = pact_broker_service.url();
         // arrange - set up the command line arguments
-        let matches = add_create_environment_subcommand()
-            .args(crate::cli::add_ssl_arguments())
-            .get_matches_from(vec![
-                "create-environment",
-                "-b",
-                mock_server_url.as_str(),
-                "--name",
-                name,
-                "--display-name",
-                display_name,
-                "--contact-name",
-                contact_name,
-                "--contact-email-address",
-                contact_email_address,
-            ]);
+        let matches = add_create_environment_subcommand().get_matches_from(vec![
+            "create-environment",
+            "-b",
+            mock_server_url.as_str(),
+            "--name",
+            name,
+            "--display-name",
+            display_name,
+            "--contact-name",
+            contact_name,
+            "--contact-email-address",
+            contact_email_address,
+        ]);
         // act
         let sut = create_environment(&matches);
 
