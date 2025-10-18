@@ -187,15 +187,13 @@ mod list_environments_tests {
         let mock_server_url = pact_broker_service.url();
 
         // arrange - set up the command line arguments
-        let matches = add_list_environments_subcommand()
-            .args(crate::cli::add_ssl_arguments())
-            .get_matches_from(vec![
-                "list-environments",
-                "-b",
-                mock_server_url.as_str(),
-                "--output",
-                "text",
-            ]);
+        let matches = add_list_environments_subcommand().get_matches_from(vec![
+            "list-environments",
+            "-b",
+            mock_server_url.as_str(),
+            "--output",
+            "text",
+        ]);
 
         // act
         let sut = list_environments(&matches);

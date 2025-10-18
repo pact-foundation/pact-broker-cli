@@ -222,21 +222,19 @@ mod create_environment_tests {
             .start_mock_server(None, Some(config));
         let mock_server_url = pact_broker_service.url();
         // arrange - set up the command line arguments
-        let matches = add_create_environment_subcommand()
-            .args(crate::cli::add_ssl_arguments())
-            .get_matches_from(vec![
-                "create-environment",
-                "-b",
-                mock_server_url.as_str(),
-                "--name",
-                name,
-                "--display-name",
-                display_name,
-                "--contact-name",
-                contact_name,
-                "--contact-email-address",
-                contact_email_address,
-            ]);
+        let matches = add_create_environment_subcommand().get_matches_from(vec![
+            "create-environment",
+            "-b",
+            mock_server_url.as_str(),
+            "--name",
+            name,
+            "--display-name",
+            display_name,
+            "--contact-name",
+            contact_name,
+            "--contact-email-address",
+            contact_email_address,
+        ]);
         // act
         let sut = create_environment(&matches);
 

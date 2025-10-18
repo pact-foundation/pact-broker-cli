@@ -407,9 +407,7 @@ mod can_i_deploy_tests {
     }
 
     fn build_matches(args: Vec<&str>) -> clap::ArgMatches {
-        add_can_i_deploy_subcommand()
-            .args(crate::cli::add_ssl_arguments())
-            .get_matches_from(args)
+        add_can_i_deploy_subcommand().get_matches_from(args)
     }
 
     #[test]

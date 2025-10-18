@@ -113,9 +113,7 @@ mod create_version_tag_tests {
         if *auto_create.unwrap_or(&false) {
             args.push("--auto-create-version");
         }
-        add_create_version_tag_subcommand()
-            .args(crate::cli::add_ssl_arguments())
-            .get_matches_from(args)
+        add_create_version_tag_subcommand().get_matches_from(args)
     }
 
     fn build_tag_response(status: u16) -> (u16, JsonPattern) {

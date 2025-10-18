@@ -13,7 +13,6 @@ pub fn describe_pacticipant(
     pacticipant_name: String,
     broker_details: &BrokerDetails,
     output_type: OutputType,
-    _verbose: bool,
 ) -> Result<String, PactBrokerError> {
     // setup client with broker url and credentials
     let broker_url = &broker_details.url;
@@ -225,7 +224,6 @@ mod describe_pacticipant_tests {
             pacticipant_name.to_string(),
             &broker_details,
             OutputType::Json,
-            false,
         );
 
         assert!(result.is_ok());
@@ -290,7 +288,6 @@ mod describe_pacticipant_tests {
             pacticipant_name.to_string(),
             &broker_details,
             OutputType::Json,
-            false,
         );
 
         assert!(result.is_err());

@@ -20,7 +20,6 @@ pub fn delete_branch(args: &clap::ArgMatches) -> Result<String, PactBrokerError>
         .unwrap_or(Some(&true))
         .copied()
         .unwrap_or(true);
-    let _verbose = args.get_flag("verbose");
 
     let res = tokio::runtime::Runtime::new().unwrap().block_on(async {
         let hal_client: HALClient =
@@ -122,17 +121,15 @@ mod delete_branch_tests {
             .start_mock_server(None, Some(config));
         let mock_server_url = pact_broker_service.url();
         // arrange - set up the command line arguments
-        let matches = add_delete_branch_subcommand()
-            .args(crate::cli::add_ssl_arguments())
-            .get_matches_from(vec![
-                "delete-branch",
-                "-b",
-                mock_server_url.as_str(),
-                "--branch",
-                branch,
-                "--pacticipant",
-                pacticipant,
-            ]);
+        let matches = add_delete_branch_subcommand().get_matches_from(vec![
+            "delete-branch",
+            "-b",
+            mock_server_url.as_str(),
+            "--branch",
+            branch,
+            "--pacticipant",
+            pacticipant,
+        ]);
         // act
         let sut = delete_branch(&matches);
 

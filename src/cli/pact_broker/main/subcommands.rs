@@ -116,13 +116,13 @@ See https://docs.rs/glob/0.3.0/glob/struct.Pattern.html")
    .action(clap::ArgAction::SetTrue)
    .help("If a pact already exists for this consumer version and provider, merge the contents. Useful when running Pact tests concurrently on different build nodes."))
 .args(crate::cli::add_output_arguments(["json", "text", "pretty"].to_vec(),"text"))
-.args(crate::cli::add_verbose_arguments())
+.args(crate::cli::add_ssl_arguments())
 }
 pub fn add_list_latest_pact_versions_subcommand() -> Command {
     Command::new("list-latest-pact-versions")
         .about("List the latest pact for each integration")
         .args(add_broker_auth_arguments())
-        .args(crate::cli::add_verbose_arguments())
+        .args(crate::cli::add_ssl_arguments())
         .args(crate::cli::add_output_arguments(
             ["json", "table"].to_vec(),
             "table",
@@ -155,7 +155,7 @@ pub fn add_create_environment_subcommand() -> Command {
         .args(crate::cli::add_output_arguments(["json", "text", "id"].to_vec(), "text"))
 
 .args(add_broker_auth_arguments())
-.args(crate::cli::add_verbose_arguments())
+.args(crate::cli::add_ssl_arguments())
 }
 pub fn add_update_environment_subcommand() -> Command {
     Command::new("update-environment")
@@ -187,7 +187,7 @@ pub fn add_update_environment_subcommand() -> Command {
         .help("The email address of the team/person responsible for this environment"))
         .args(crate::cli::add_output_arguments(["json", "text", "id"].to_vec(), "text"))
 .args(add_broker_auth_arguments())
-.args(crate::cli::add_verbose_arguments())
+.args(crate::cli::add_ssl_arguments())
 }
 pub fn add_describe_environment_subcommand() -> Command {
     Command::new("describe-environment")
@@ -204,7 +204,7 @@ pub fn add_describe_environment_subcommand() -> Command {
             "text",
         ))
         .args(add_broker_auth_arguments())
-        .args(crate::cli::add_verbose_arguments())
+        .args(crate::cli::add_ssl_arguments())
 }
 pub fn add_delete_environment_subcommand() -> Command {
     Command::new("delete-environment")
@@ -217,7 +217,7 @@ pub fn add_delete_environment_subcommand() -> Command {
                 .help("The UUID of the environment to delete"),
         )
         .args(add_broker_auth_arguments())
-        .args(crate::cli::add_verbose_arguments())
+        .args(crate::cli::add_ssl_arguments())
 }
 pub fn add_list_environments_subcommand() -> Command {
     Command::new("list-environments")
@@ -227,7 +227,7 @@ pub fn add_list_environments_subcommand() -> Command {
             "text",
         ))
         .args(add_broker_auth_arguments())
-        .args(crate::cli::add_verbose_arguments())
+        .args(crate::cli::add_ssl_arguments())
 }
 pub fn add_record_deployment_subcommand() -> Command {
     Command::new("record-deployment")
@@ -264,7 +264,7 @@ pub fn add_record_deployment_subcommand() -> Command {
     ))
 
 .args(add_broker_auth_arguments())
-.args(crate::cli::add_verbose_arguments())
+.args(crate::cli::add_ssl_arguments())
 }
 pub fn add_record_undeployment_subcommand() -> Command {
     Command::new("record-undeployment")
@@ -291,7 +291,8 @@ pub fn add_record_undeployment_subcommand() -> Command {
         .help("Optional. The application instance from which the application is being undeployed - a logical identifer required to differentiate deployments when there are multiple instances of the same application in an environment. This field was called 'target' in a beta release"))
 
     .args(add_broker_auth_arguments())
-    .args(crate::cli::add_verbose_arguments())
+    .args(crate::cli::add_ssl_arguments())
+
     .args(crate::cli::add_output_arguments(
         ["json", "text", "pretty"].to_vec(),
         "text",
@@ -328,7 +329,7 @@ pub fn add_record_release_subcommand() -> Command {
             "text",
         ))
         .args(add_broker_auth_arguments())
-        .args(crate::cli::add_verbose_arguments())
+        .args(crate::cli::add_ssl_arguments())
 }
 pub fn add_record_support_ended_subcommand() -> Command {
     Command::new("record-support-ended")
@@ -361,7 +362,7 @@ pub fn add_record_support_ended_subcommand() -> Command {
             "text",
         ))
         .args(add_broker_auth_arguments())
-        .args(crate::cli::add_verbose_arguments())
+        .args(crate::cli::add_ssl_arguments())
 }
 pub fn add_can_i_deploy_subcommand() -> Command {
     Command::new("can-i-deploy")
@@ -495,7 +496,7 @@ pub fn add_can_i_deploy_subcommand() -> Command {
         .help("When dry-run is enabled, always exit process with a success code. Can also be enabled by setting the environment variable PACT_BROKER_CAN_I_DEPLOY_DRY_RUN=true. This mode is useful when setting up your CI/CD pipeline for the first time, or in a 'break glass' situation where you need to knowingly deploy what Pact considers a breaking change. For the second scenario, it is recommended to use the environment variable and just set it for the build required to deploy that particular version, so you don't accidentally leave the dry run mode enabled."))
 
 .args(add_broker_auth_arguments())
-.args(crate::cli::add_verbose_arguments())
+.args(crate::cli::add_ssl_arguments())
 }
 pub fn add_can_i_merge_subcommand() -> Command {
     Command::new("can-i-merge")
@@ -531,7 +532,7 @@ pub fn add_can_i_merge_subcommand() -> Command {
         .action(clap::ArgAction::SetTrue)
         .help("When dry-run is enabled, always exit process with a success code. Can also be enabled by setting the environment variable PACT_BROKER_CAN_I_DEPLOY_DRY_RUN=true. This mode is useful when setting up your CI/CD pipeline for the first time, or in a 'break glass' situation where you need to knowingly deploy what Pact considers a breaking change. For the second scenario, it is recommended to use the environment variable and just set it for the build required to deploy that particular version, so you don't accidentally leave the dry run mode enabled."))
 
-.args(crate::cli::add_verbose_arguments())
+.args(crate::cli::add_ssl_arguments())
 }
 pub fn add_create_or_update_pacticipant_subcommand() -> Command {
     Command::new("create-or-update-pacticipant")
@@ -566,7 +567,7 @@ pub fn add_create_or_update_pacticipant_subcommand() -> Command {
             ["json", "text"].to_vec(),
             "text",
         ))
-        .args(crate::cli::add_verbose_arguments())
+        .args(crate::cli::add_ssl_arguments())
 }
 pub fn add_describe_pacticipant_subcommand() -> Command {
     Command::new("describe-pacticipant")
@@ -583,7 +584,7 @@ pub fn add_describe_pacticipant_subcommand() -> Command {
             ["json", "text", "table"].to_vec(),
             "text",
         ))
-        .args(crate::cli::add_verbose_arguments())
+        .args(crate::cli::add_ssl_arguments())
 }
 pub fn add_list_pacticipants_subcommand() -> Command {
     Command::new("list-pacticipants")
@@ -593,7 +594,7 @@ pub fn add_list_pacticipants_subcommand() -> Command {
             ["json", "table"].to_vec(),
             "table",
         ))
-        .args(crate::cli::add_verbose_arguments())
+        .args(crate::cli::add_ssl_arguments())
 }
 pub fn add_create_webhook_subcommand() -> Command {
     Command::new("create-webhook")
@@ -686,7 +687,7 @@ pub fn add_create_webhook_subcommand() -> Command {
         .help("UUID of the PactFlow team to which the webhook should be assigned (PactFlow only)"))
 
 .args(add_broker_auth_arguments())
-.args(crate::cli::add_verbose_arguments())
+.args(crate::cli::add_ssl_arguments())
 }
 pub fn add_create_or_update_webhook_subcommand() -> Command {
     Command::new("create-or-update-webhook")
@@ -783,7 +784,7 @@ pub fn add_create_or_update_webhook_subcommand() -> Command {
         .long("team-uuid")
         .value_name("UUID")
         .help("UUID of the PactFlow team to which the webhook should be assigned (PactFlow only)"))
-        .args(crate::cli::add_verbose_arguments())
+        .args(crate::cli::add_ssl_arguments())
 }
 pub fn add_test_webhook_subcommand() -> Command {
     Command::new("test-webhook")
@@ -797,7 +798,7 @@ pub fn add_test_webhook_subcommand() -> Command {
                 .help("Specify the uuid for the webhook"),
         )
         .args(add_broker_auth_arguments())
-        .args(crate::cli::add_verbose_arguments())
+        .args(crate::cli::add_ssl_arguments())
 }
 pub fn add_delete_branch_subcommand() -> Command {
     Command::new("delete-branch")
@@ -819,7 +820,7 @@ pub fn add_delete_branch_subcommand() -> Command {
         .num_args(1)
         .action(clap::ArgAction::SetTrue)
         .help("Raise an error if the branch that is to be deleted is not found"))
-    .args(crate::cli::add_verbose_arguments())
+    .args(crate::cli::add_ssl_arguments())
 }
 pub fn add_create_version_tag_subcommand() -> Command {
     Command::new("create-version-tag")
@@ -869,6 +870,7 @@ pub fn add_create_version_tag_subcommand() -> Command {
                 .action(clap::ArgAction::SetTrue)
                 .help("Tag pacticipant version with the name of the current git branch"),
         )
+        .args(crate::cli::add_ssl_arguments())
 }
 pub fn add_describe_version_subcommand() -> Command {
     Command::new("describe-version")
@@ -891,6 +893,7 @@ pub fn add_describe_version_subcommand() -> Command {
         .value_name("TAG")
         .num_args(0..=1)
         .help("Describe the latest pacticipant version. Optionally specify a TAG to describe the latest version with the specified tag"))
+        .args(crate::cli::add_ssl_arguments())
         .args(crate::cli::add_output_arguments(["json", "table"].to_vec(), "table"))
 }
 pub fn add_create_or_update_version_subcommand() -> Command {
@@ -931,6 +934,7 @@ pub fn add_create_or_update_version_subcommand() -> Command {
             ["json", "text"].to_vec(),
             "text",
         ))
+        .args(crate::cli::add_ssl_arguments())
 }
 pub fn add_generate_uuid_subcommand() -> Command {
     Command::new("generate-uuid")

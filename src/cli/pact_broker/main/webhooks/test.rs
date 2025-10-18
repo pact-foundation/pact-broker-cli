@@ -88,7 +88,6 @@ mod test_webhook_tests {
     fn build_matches(broker_url: &str, uuid: &str) -> clap::ArgMatches {
         let args = vec!["test-webhook", "-b", broker_url, "--uuid", uuid];
         crate::cli::pact_broker::main::subcommands::add_test_webhook_subcommand()
-            .args(crate::cli::add_ssl_arguments())
             .get_matches_from(args)
     }
 

@@ -1,4 +1,4 @@
-use crate::cli::{add_output_arguments, add_verbose_arguments};
+use crate::cli::add_output_arguments;
 use clap::{Arg, Command};
 
 pub fn add_publish_provider_contract_subcommand() -> Command {
@@ -92,5 +92,5 @@ pub fn add_publish_provider_contract_subcommand() -> Command {
         .action(clap::ArgAction::SetTrue)
         .help("Tag provider version with the name of the current git branch. Supports Buildkite, Circle CI, Travis CI, GitHub Actions, Jenkins, Hudson, AppVeyor, GitLab, CodeShip, Bitbucket and Azure DevOps."))
     .args(add_output_arguments(["json", "text"].to_vec(), "text"))
-    .args(add_verbose_arguments())
+    .args(crate::cli::add_ssl_arguments())
 }

@@ -122,7 +122,6 @@ mod describe_environment_tests {
             output,
         ];
         crate::cli::pact_broker::main::subcommands::add_describe_environment_subcommand()
-            .args(crate::cli::add_ssl_arguments())
             .get_matches_from(args)
     }
 
