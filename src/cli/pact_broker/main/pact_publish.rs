@@ -157,7 +157,7 @@ pub fn handle_matches(args: &ArgMatches) -> Result<Vec<VerificationResult>, i32>
         })
         .collect();
 
-    let display_result = display_results(&results, "console");
+    let display_result = display_results(&results, "json");
     if display_result.is_err() {
         return Err(3);
     } else if results.iter().any(|res| res.has_errors()) {
