@@ -1,41 +1,4 @@
-use std::str::FromStr;
-
 use console::Style;
-use tracing_core::LevelFilter;
-use tracing_subscriber::layer::SubscriberExt;
-use tracing_subscriber::util::SubscriberInitExt;
-
-pub fn setup_loggers(level: &str) {
-    let log_level = match level {
-        "none" => LevelFilter::OFF,
-        _ => LevelFilter::from_str(level).unwrap_or(LevelFilter::INFO),
-    };
-
-    tracing_subscriber::registry()
-        .with({
-            if log_level != LevelFilter::OFF {
-                Some(
-                    tracing_subscriber::fmt::layer()
-                        .compact()
-                        .with_thread_names(true)
-                        .with_level(true),
-                )
-            } else {
-                None
-            }
-        })
-        .with({
-            if log_level != LevelFilter::OFF {
-                Some(tracing_subscriber::filter::LevelFilter::from_level(
-                    log_level.into_level().unwrap(),
-                ))
-            } else {
-                None
-            }
-        })
-        .try_init()
-        .unwrap_or_else(|err| eprintln!("ERROR: Failed to initialise loggers - {err}"));
-}
 
 pub fn glob_value(v: String) -> Result<String, String> {
     match glob::Pattern::new(&v) {

@@ -35,10 +35,10 @@ pub fn delete_environment(args: &clap::ArgMatches) -> Result<String, PactBrokerE
                         println!("{}", message);
                         Ok(message)
                     }
-                    Err(err) => Err(err)
+                    Err(err) => Err(err),
                 }
             }
-            Err(err) => Err(err)
+            Err(err) => Err(err),
         }
     })
 }

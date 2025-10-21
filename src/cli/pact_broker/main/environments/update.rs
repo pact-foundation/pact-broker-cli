@@ -137,7 +137,7 @@ pub fn update_environment(args: &clap::ArgMatches) -> Result<String, PactBrokerE
                 }
                 Ok(message)
             }
-            Err(err) => Err(err)
+            Err(err) => Err(err),
         }
     })
 }

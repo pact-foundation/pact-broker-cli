@@ -110,7 +110,7 @@ pub fn create_environment(args: &clap::ArgMatches) -> Result<String, PactBrokerE
                 }
                 Ok(format!("Successfully created environment"))
             }
-            Err(err) => Err(err)
+            Err(err) => Err(err),
         }
     })
 }

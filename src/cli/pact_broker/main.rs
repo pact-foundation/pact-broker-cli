@@ -38,6 +38,16 @@ pub mod verification;
 pub mod versions;
 pub mod webhooks;
 use utils::with_retries;
+// for otel
+use http::Extensions;
+use opentelemetry::Context;
+use opentelemetry::global;
+use opentelemetry_http::HeaderInjector;
+use reqwest::Request;
+use reqwest::Response;
+use reqwest_middleware::{ClientBuilder, ClientWithMiddleware};
+use reqwest_middleware::{Middleware, Next};
+use reqwest_tracing::TracingMiddleware;
 
 use crate::cli::pact_broker::main::types::SslOptions;
 
@@ -211,12 +221,57 @@ impl Default for Link {
 /// HAL aware HTTP client
 #[derive(Clone)]
 pub struct HALClient {
-    client: reqwest::Client,
+    client: ClientWithMiddleware,
     url: String,
     path_info: Option<Value>,
     auth: Option<HttpAuth>,
     ssl_options: SslOptions,
     retries: u8,
+}
+
+struct OtelPropagatorMiddleware;
+
+#[async_trait::async_trait]
+impl Middleware for OtelPropagatorMiddleware {
+    async fn handle(
+        &self,
+        mut req: Request,
+        extensions: &mut Extensions,
+        next: Next<'_>,
+    ) -> reqwest_middleware::Result<Response> {
+        let cx = Context::current();
+        let mut headers = reqwest::header::HeaderMap::new();
+        global::get_text_map_propagator(|propagator| {
+            propagator.inject_context(&cx, &mut HeaderInjector(&mut headers))
+        });
+        headers.append(
+            "baggage",
+            reqwest::header::HeaderValue::from_static("is_synthetic=true"),
+        );
+
+        for (key, value) in headers.iter() {
+            req.headers_mut().append(key, value.clone());
+        }
+        let res = next.run(req, extensions).await;
+        res
+    }
+}
+
+pub trait WithCurrentSpan {
+    fn with_current_span<F, R>(&self, f: F) -> R
+    where
+        F: FnOnce() -> R;
+}
+
+impl<T> WithCurrentSpan for T {
+    fn with_current_span<F, R>(&self, f: F) -> R
+    where
+        F: FnOnce() -> R,
+    {
+        let span = tracing::Span::current();
+        let _enter = span.enter();
+        f()
+    }
 }
 
 impl HALClient {
@@ -701,7 +756,7 @@ fn handle_validation_errors(body: Value) -> PactBrokerError {
 
 impl HALClient {
     pub fn setup(url: &str, auth: Option<HttpAuth>, ssl_options: SslOptions) -> HALClient {
-        let mut builder = reqwest::ClientBuilder::new().user_agent(format!(
+        let mut builder = reqwest::Client::builder().user_agent(format!(
             "{}/{}",
             env!("CARGO_PKG_NAME"),
             env!("CARGO_PKG_VERSION")
@@ -732,8 +787,14 @@ impl HALClient {
             debug!("Disabling root trust store for SSL");
         }
 
+        let built_client = builder.build().unwrap();
+        let client = ClientBuilder::new(built_client)
+            .with(TracingMiddleware::default())
+            .with(OtelPropagatorMiddleware)
+            .build();
+
         HALClient {
-            client: builder.build().unwrap(),
+            client,
             url: url.to_string(),
             path_info: None,
             auth,

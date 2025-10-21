@@ -7,7 +7,7 @@ use comfy_table::{Table, presets::UTF8_FULL};
 use futures::StreamExt;
 use maplit::hashmap;
 use pact_models::http_utils::HttpAuth;
-use reqwest::RequestBuilder;
+use reqwest_middleware::RequestBuilder;
 use serde_json::Value;
 use tokio::time::sleep;
 use tracing::{trace, warn};
@@ -20,7 +20,7 @@ use super::{HALClient, Link, PactBrokerError};
 pub(crate) async fn with_retries(
     retries: u8,
     request: RequestBuilder,
-) -> Result<reqwest::Response, reqwest::Error> {
+) -> Result<reqwest::Response, reqwest_middleware::Error> {
     match &request.try_clone() {
         None => {
             warn!("with_retries: Could not retry the request as it is not cloneable");
@@ -29,7 +29,7 @@ pub(crate) async fn with_retries(
         Some(rb) => futures::stream::iter((1..=retries).step_by(1))
             .fold(
                 (
-                    None::<Result<reqwest::Response, reqwest::Error>>,
+                    None::<Result<reqwest::Response, reqwest_middleware::Error>>,
                     rb.try_clone(),
                 ),
                 |(response, request), attempt| async move {

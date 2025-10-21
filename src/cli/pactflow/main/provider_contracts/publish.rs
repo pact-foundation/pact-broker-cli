@@ -355,9 +355,7 @@ pub fn publish(args: &ArgMatches) -> Result<Value, PactBrokerError> {
             }
             Ok(json!({}))
         }
-        Err(err) => {
-            Err(err)
-        }
+        Err(err) => Err(err),
     }
 }
 

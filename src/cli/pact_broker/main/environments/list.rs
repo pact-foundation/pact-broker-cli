@@ -79,7 +79,7 @@ pub fn list_environments(args: &clap::ArgMatches) -> Result<String, PactBrokerEr
 
                 Ok("".to_string())
             }
-            Err(err) => Err(err)
+            Err(err) => Err(err),
         }
     })
 }
