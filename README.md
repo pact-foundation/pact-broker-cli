@@ -233,6 +233,32 @@ Options:
           [default: true]
           [possible values: true, false]
 
+      --enable-otel
+          Enable OpenTelemetry tracing
+
+      --enable-otel-logs
+          Enable OpenTelemetry logging
+
+      --enable-otel-traces
+          Enable OpenTelemetry traces
+
+      --otel-exporter <otel-exporter>
+          The OpenTelemetry exporter(s) to use, comma separated (stdout, otlp)
+          
+          [env: OTEL_TRACES_EXPORTER=]
+
+      --otel-exporter-endpoint <otel-exporter-endpoint>
+          The endpoint to use for the OTLP exporter (required if --otel-exporter=otlp)
+          
+          [env: OTEL_EXPORTER_OTLP_ENDPOINT=]
+
+      --otel-exporter-protocol <otel-exporter-protocol>
+          The protocol to use for the OTLP exporter (http/protobuf, http)
+          
+          [env: OTEL_EXPORTER_OTLP_PROTOCOL=]
+          [default: http]
+          [possible values: http, http/protobuf]
+
       --log-level <LEVEL>
           Set the log level (none, off, error, warn, info, debug, trace)
           
@@ -271,6 +297,18 @@ Options:
           Use the system's root trust store for SSL verification [env: SSL_TRUST_STORE=] [default: true] [possible values: true, false]
   -o, --output <OUTPUT>
           Value must be one of ["json", "table"] [default: table] [possible values: json, table]
+      --enable-otel
+          Enable OpenTelemetry tracing
+      --enable-otel-logs
+          Enable OpenTelemetry logging
+      --enable-otel-traces
+          Enable OpenTelemetry traces
+      --otel-exporter <otel-exporter>
+          The OpenTelemetry exporter(s) to use, comma separated (stdout, otlp) [env: OTEL_TRACES_EXPORTER=]
+      --otel-exporter-endpoint <otel-exporter-endpoint>
+          The endpoint to use for the OTLP exporter (required if --otel-exporter=otlp) [env: OTEL_EXPORTER_OTLP_ENDPOINT=]
+      --otel-exporter-protocol <otel-exporter-protocol>
+          The protocol to use for the OTLP exporter (http/protobuf, http) [env: OTEL_EXPORTER_OTLP_PROTOCOL=] [default: http] [possible values: http, http/protobuf]
       --log-level <LEVEL>
           Set the log level (none, off, error, warn, info, debug, trace) [default: off] [possible values: off, none, error, warn, info, debug, trace]
   -h, --help
@@ -317,6 +355,18 @@ Options:
           Skip SSL certificate verification [env: SSL_SKIP_VERIFICATION=]
       --ssl-trust-store <SSL_TRUST_STORE>
           Use the system's root trust store for SSL verification [env: SSL_TRUST_STORE=] [default: true] [possible values: true, false]
+      --enable-otel
+          Enable OpenTelemetry tracing
+      --enable-otel-logs
+          Enable OpenTelemetry logging
+      --enable-otel-traces
+          Enable OpenTelemetry traces
+      --otel-exporter <otel-exporter>
+          The OpenTelemetry exporter(s) to use, comma separated (stdout, otlp) [env: OTEL_TRACES_EXPORTER=]
+      --otel-exporter-endpoint <otel-exporter-endpoint>
+          The endpoint to use for the OTLP exporter (required if --otel-exporter=otlp) [env: OTEL_EXPORTER_OTLP_ENDPOINT=]
+      --otel-exporter-protocol <otel-exporter-protocol>
+          The protocol to use for the OTLP exporter (http/protobuf, http) [env: OTEL_EXPORTER_OTLP_PROTOCOL=] [default: http] [possible values: http, http/protobuf]
       --log-level <LEVEL>
           Set the log level (none, off, error, warn, info, debug, trace) [default: off] [possible values: off, none, error, warn, info, debug, trace]
   -h, --help
@@ -363,6 +413,18 @@ Options:
           Skip SSL certificate verification [env: SSL_SKIP_VERIFICATION=]
       --ssl-trust-store <SSL_TRUST_STORE>
           Use the system's root trust store for SSL verification [env: SSL_TRUST_STORE=] [default: true] [possible values: true, false]
+      --enable-otel
+          Enable OpenTelemetry tracing
+      --enable-otel-logs
+          Enable OpenTelemetry logging
+      --enable-otel-traces
+          Enable OpenTelemetry traces
+      --otel-exporter <otel-exporter>
+          The OpenTelemetry exporter(s) to use, comma separated (stdout, otlp) [env: OTEL_TRACES_EXPORTER=]
+      --otel-exporter-endpoint <otel-exporter-endpoint>
+          The endpoint to use for the OTLP exporter (required if --otel-exporter=otlp) [env: OTEL_EXPORTER_OTLP_ENDPOINT=]
+      --otel-exporter-protocol <otel-exporter-protocol>
+          The protocol to use for the OTLP exporter (http/protobuf, http) [env: OTEL_EXPORTER_OTLP_PROTOCOL=] [default: http] [possible values: http, http/protobuf]
       --log-level <LEVEL>
           Set the log level (none, off, error, warn, info, debug, trace) [default: off] [possible values: off, none, error, warn, info, debug, trace]
   -h, --help
@@ -399,6 +461,18 @@ Options:
           Skip SSL certificate verification [env: SSL_SKIP_VERIFICATION=]
       --ssl-trust-store <SSL_TRUST_STORE>
           Use the system's root trust store for SSL verification [env: SSL_TRUST_STORE=] [default: true] [possible values: true, false]
+      --enable-otel
+          Enable OpenTelemetry tracing
+      --enable-otel-logs
+          Enable OpenTelemetry logging
+      --enable-otel-traces
+          Enable OpenTelemetry traces
+      --otel-exporter <otel-exporter>
+          The OpenTelemetry exporter(s) to use, comma separated (stdout, otlp) [env: OTEL_TRACES_EXPORTER=]
+      --otel-exporter-endpoint <otel-exporter-endpoint>
+          The endpoint to use for the OTLP exporter (required if --otel-exporter=otlp) [env: OTEL_EXPORTER_OTLP_ENDPOINT=]
+      --otel-exporter-protocol <otel-exporter-protocol>
+          The protocol to use for the OTLP exporter (http/protobuf, http) [env: OTEL_EXPORTER_OTLP_PROTOCOL=] [default: http] [possible values: http, http/protobuf]
       --log-level <LEVEL>
           Set the log level (none, off, error, warn, info, debug, trace) [default: off] [possible values: off, none, error, warn, info, debug, trace]
   -h, --help
@@ -433,6 +507,18 @@ Options:
           Skip SSL certificate verification [env: SSL_SKIP_VERIFICATION=]
       --ssl-trust-store <SSL_TRUST_STORE>
           Use the system's root trust store for SSL verification [env: SSL_TRUST_STORE=] [default: true] [possible values: true, false]
+      --enable-otel
+          Enable OpenTelemetry tracing
+      --enable-otel-logs
+          Enable OpenTelemetry logging
+      --enable-otel-traces
+          Enable OpenTelemetry traces
+      --otel-exporter <otel-exporter>
+          The OpenTelemetry exporter(s) to use, comma separated (stdout, otlp) [env: OTEL_TRACES_EXPORTER=]
+      --otel-exporter-endpoint <otel-exporter-endpoint>
+          The endpoint to use for the OTLP exporter (required if --otel-exporter=otlp) [env: OTEL_EXPORTER_OTLP_ENDPOINT=]
+      --otel-exporter-protocol <otel-exporter-protocol>
+          The protocol to use for the OTLP exporter (http/protobuf, http) [env: OTEL_EXPORTER_OTLP_PROTOCOL=] [default: http] [possible values: http, http/protobuf]
       --log-level <LEVEL>
           Set the log level (none, off, error, warn, info, debug, trace) [default: off] [possible values: off, none, error, warn, info, debug, trace]
   -h, --help
@@ -467,6 +553,18 @@ Options:
           Skip SSL certificate verification [env: SSL_SKIP_VERIFICATION=]
       --ssl-trust-store <SSL_TRUST_STORE>
           Use the system's root trust store for SSL verification [env: SSL_TRUST_STORE=] [default: true] [possible values: true, false]
+      --enable-otel
+          Enable OpenTelemetry tracing
+      --enable-otel-logs
+          Enable OpenTelemetry logging
+      --enable-otel-traces
+          Enable OpenTelemetry traces
+      --otel-exporter <otel-exporter>
+          The OpenTelemetry exporter(s) to use, comma separated (stdout, otlp) [env: OTEL_TRACES_EXPORTER=]
+      --otel-exporter-endpoint <otel-exporter-endpoint>
+          The endpoint to use for the OTLP exporter (required if --otel-exporter=otlp) [env: OTEL_EXPORTER_OTLP_ENDPOINT=]
+      --otel-exporter-protocol <otel-exporter-protocol>
+          The protocol to use for the OTLP exporter (http/protobuf, http) [env: OTEL_EXPORTER_OTLP_PROTOCOL=] [default: http] [possible values: http, http/protobuf]
       --log-level <LEVEL>
           Set the log level (none, off, error, warn, info, debug, trace) [default: off] [possible values: off, none, error, warn, info, debug, trace]
   -h, --help
@@ -511,6 +609,18 @@ Options:
           Skip SSL certificate verification [env: SSL_SKIP_VERIFICATION=]
       --ssl-trust-store <SSL_TRUST_STORE>
           Use the system's root trust store for SSL verification [env: SSL_TRUST_STORE=] [default: true] [possible values: true, false]
+      --enable-otel
+          Enable OpenTelemetry tracing
+      --enable-otel-logs
+          Enable OpenTelemetry logging
+      --enable-otel-traces
+          Enable OpenTelemetry traces
+      --otel-exporter <otel-exporter>
+          The OpenTelemetry exporter(s) to use, comma separated (stdout, otlp) [env: OTEL_TRACES_EXPORTER=]
+      --otel-exporter-endpoint <otel-exporter-endpoint>
+          The endpoint to use for the OTLP exporter (required if --otel-exporter=otlp) [env: OTEL_EXPORTER_OTLP_ENDPOINT=]
+      --otel-exporter-protocol <otel-exporter-protocol>
+          The protocol to use for the OTLP exporter (http/protobuf, http) [env: OTEL_EXPORTER_OTLP_PROTOCOL=] [default: http] [possible values: http, http/protobuf]
       --log-level <LEVEL>
           Set the log level (none, off, error, warn, info, debug, trace) [default: off] [possible values: off, none, error, warn, info, debug, trace]
   -h, --help
@@ -583,6 +693,32 @@ Options:
           [default: text]
           [possible values: json, text, pretty]
 
+      --enable-otel
+          Enable OpenTelemetry tracing
+
+      --enable-otel-logs
+          Enable OpenTelemetry logging
+
+      --enable-otel-traces
+          Enable OpenTelemetry traces
+
+      --otel-exporter <otel-exporter>
+          The OpenTelemetry exporter(s) to use, comma separated (stdout, otlp)
+          
+          [env: OTEL_TRACES_EXPORTER=]
+
+      --otel-exporter-endpoint <otel-exporter-endpoint>
+          The endpoint to use for the OTLP exporter (required if --otel-exporter=otlp)
+          
+          [env: OTEL_EXPORTER_OTLP_ENDPOINT=]
+
+      --otel-exporter-protocol <otel-exporter-protocol>
+          The protocol to use for the OTLP exporter (http/protobuf, http)
+          
+          [env: OTEL_EXPORTER_OTLP_PROTOCOL=]
+          [default: http]
+          [possible values: http, http/protobuf]
+
       --log-level <LEVEL>
           Set the log level (none, off, error, warn, info, debug, trace)
           
@@ -632,6 +768,18 @@ Options:
           Skip SSL certificate verification [env: SSL_SKIP_VERIFICATION=]
       --ssl-trust-store <SSL_TRUST_STORE>
           Use the system's root trust store for SSL verification [env: SSL_TRUST_STORE=] [default: true] [possible values: true, false]
+      --enable-otel
+          Enable OpenTelemetry tracing
+      --enable-otel-logs
+          Enable OpenTelemetry logging
+      --enable-otel-traces
+          Enable OpenTelemetry traces
+      --otel-exporter <otel-exporter>
+          The OpenTelemetry exporter(s) to use, comma separated (stdout, otlp) [env: OTEL_TRACES_EXPORTER=]
+      --otel-exporter-endpoint <otel-exporter-endpoint>
+          The endpoint to use for the OTLP exporter (required if --otel-exporter=otlp) [env: OTEL_EXPORTER_OTLP_ENDPOINT=]
+      --otel-exporter-protocol <otel-exporter-protocol>
+          The protocol to use for the OTLP exporter (http/protobuf, http) [env: OTEL_EXPORTER_OTLP_PROTOCOL=] [default: http] [possible values: http, http/protobuf]
       --log-level <LEVEL>
           Set the log level (none, off, error, warn, info, debug, trace) [default: off] [possible values: off, none, error, warn, info, debug, trace]
   -h, --help
@@ -672,6 +820,18 @@ Options:
           Skip SSL certificate verification [env: SSL_SKIP_VERIFICATION=]
       --ssl-trust-store <SSL_TRUST_STORE>
           Use the system's root trust store for SSL verification [env: SSL_TRUST_STORE=] [default: true] [possible values: true, false]
+      --enable-otel
+          Enable OpenTelemetry tracing
+      --enable-otel-logs
+          Enable OpenTelemetry logging
+      --enable-otel-traces
+          Enable OpenTelemetry traces
+      --otel-exporter <otel-exporter>
+          The OpenTelemetry exporter(s) to use, comma separated (stdout, otlp) [env: OTEL_TRACES_EXPORTER=]
+      --otel-exporter-endpoint <otel-exporter-endpoint>
+          The endpoint to use for the OTLP exporter (required if --otel-exporter=otlp) [env: OTEL_EXPORTER_OTLP_ENDPOINT=]
+      --otel-exporter-protocol <otel-exporter-protocol>
+          The protocol to use for the OTLP exporter (http/protobuf, http) [env: OTEL_EXPORTER_OTLP_PROTOCOL=] [default: http] [possible values: http, http/protobuf]
       --log-level <LEVEL>
           Set the log level (none, off, error, warn, info, debug, trace) [default: off] [possible values: off, none, error, warn, info, debug, trace]
   -h, --help
@@ -819,6 +979,32 @@ Options:
           [default: true]
           [possible values: true, false]
 
+      --enable-otel
+          Enable OpenTelemetry tracing
+
+      --enable-otel-logs
+          Enable OpenTelemetry logging
+
+      --enable-otel-traces
+          Enable OpenTelemetry traces
+
+      --otel-exporter <otel-exporter>
+          The OpenTelemetry exporter(s) to use, comma separated (stdout, otlp)
+          
+          [env: OTEL_TRACES_EXPORTER=]
+
+      --otel-exporter-endpoint <otel-exporter-endpoint>
+          The endpoint to use for the OTLP exporter (required if --otel-exporter=otlp)
+          
+          [env: OTEL_EXPORTER_OTLP_ENDPOINT=]
+
+      --otel-exporter-protocol <otel-exporter-protocol>
+          The protocol to use for the OTLP exporter (http/protobuf, http)
+          
+          [env: OTEL_EXPORTER_OTLP_PROTOCOL=]
+          [default: http]
+          [possible values: http, http/protobuf]
+
       --log-level <LEVEL>
           Set the log level (none, off, error, warn, info, debug, trace)
           
@@ -905,6 +1091,18 @@ Options:
           Skip SSL certificate verification [env: SSL_SKIP_VERIFICATION=]
       --ssl-trust-store <SSL_TRUST_STORE>
           Use the system's root trust store for SSL verification [env: SSL_TRUST_STORE=] [default: true] [possible values: true, false]
+      --enable-otel
+          Enable OpenTelemetry tracing
+      --enable-otel-logs
+          Enable OpenTelemetry logging
+      --enable-otel-traces
+          Enable OpenTelemetry traces
+      --otel-exporter <otel-exporter>
+          The OpenTelemetry exporter(s) to use, comma separated (stdout, otlp) [env: OTEL_TRACES_EXPORTER=]
+      --otel-exporter-endpoint <otel-exporter-endpoint>
+          The endpoint to use for the OTLP exporter (required if --otel-exporter=otlp) [env: OTEL_EXPORTER_OTLP_ENDPOINT=]
+      --otel-exporter-protocol <otel-exporter-protocol>
+          The protocol to use for the OTLP exporter (http/protobuf, http) [env: OTEL_EXPORTER_OTLP_PROTOCOL=] [default: http] [possible values: http, http/protobuf]
       --log-level <LEVEL>
           Set the log level (none, off, error, warn, info, debug, trace) [default: off] [possible values: off, none, error, warn, info, debug, trace]
   -h, --help
@@ -950,6 +1148,18 @@ Options:
           Skip SSL certificate verification [env: SSL_SKIP_VERIFICATION=]
       --ssl-trust-store <SSL_TRUST_STORE>
           Use the system's root trust store for SSL verification [env: SSL_TRUST_STORE=] [default: true] [possible values: true, false]
+      --enable-otel
+          Enable OpenTelemetry tracing
+      --enable-otel-logs
+          Enable OpenTelemetry logging
+      --enable-otel-traces
+          Enable OpenTelemetry traces
+      --otel-exporter <otel-exporter>
+          The OpenTelemetry exporter(s) to use, comma separated (stdout, otlp) [env: OTEL_TRACES_EXPORTER=]
+      --otel-exporter-endpoint <otel-exporter-endpoint>
+          The endpoint to use for the OTLP exporter (required if --otel-exporter=otlp) [env: OTEL_EXPORTER_OTLP_ENDPOINT=]
+      --otel-exporter-protocol <otel-exporter-protocol>
+          The protocol to use for the OTLP exporter (http/protobuf, http) [env: OTEL_EXPORTER_OTLP_PROTOCOL=] [default: http] [possible values: http, http/protobuf]
       --log-level <LEVEL>
           Set the log level (none, off, error, warn, info, debug, trace) [default: off] [possible values: off, none, error, warn, info, debug, trace]
   -h, --help
@@ -986,6 +1196,18 @@ Options:
           Skip SSL certificate verification [env: SSL_SKIP_VERIFICATION=]
       --ssl-trust-store <SSL_TRUST_STORE>
           Use the system's root trust store for SSL verification [env: SSL_TRUST_STORE=] [default: true] [possible values: true, false]
+      --enable-otel
+          Enable OpenTelemetry tracing
+      --enable-otel-logs
+          Enable OpenTelemetry logging
+      --enable-otel-traces
+          Enable OpenTelemetry traces
+      --otel-exporter <otel-exporter>
+          The OpenTelemetry exporter(s) to use, comma separated (stdout, otlp) [env: OTEL_TRACES_EXPORTER=]
+      --otel-exporter-endpoint <otel-exporter-endpoint>
+          The endpoint to use for the OTLP exporter (required if --otel-exporter=otlp) [env: OTEL_EXPORTER_OTLP_ENDPOINT=]
+      --otel-exporter-protocol <otel-exporter-protocol>
+          The protocol to use for the OTLP exporter (http/protobuf, http) [env: OTEL_EXPORTER_OTLP_PROTOCOL=] [default: http] [possible values: http, http/protobuf]
       --log-level <LEVEL>
           Set the log level (none, off, error, warn, info, debug, trace) [default: off] [possible values: off, none, error, warn, info, debug, trace]
   -h, --help
@@ -1020,6 +1242,18 @@ Options:
           Skip SSL certificate verification [env: SSL_SKIP_VERIFICATION=]
       --ssl-trust-store <SSL_TRUST_STORE>
           Use the system's root trust store for SSL verification [env: SSL_TRUST_STORE=] [default: true] [possible values: true, false]
+      --enable-otel
+          Enable OpenTelemetry tracing
+      --enable-otel-logs
+          Enable OpenTelemetry logging
+      --enable-otel-traces
+          Enable OpenTelemetry traces
+      --otel-exporter <otel-exporter>
+          The OpenTelemetry exporter(s) to use, comma separated (stdout, otlp) [env: OTEL_TRACES_EXPORTER=]
+      --otel-exporter-endpoint <otel-exporter-endpoint>
+          The endpoint to use for the OTLP exporter (required if --otel-exporter=otlp) [env: OTEL_EXPORTER_OTLP_ENDPOINT=]
+      --otel-exporter-protocol <otel-exporter-protocol>
+          The protocol to use for the OTLP exporter (http/protobuf, http) [env: OTEL_EXPORTER_OTLP_PROTOCOL=] [default: http] [possible values: http, http/protobuf]
       --log-level <LEVEL>
           Set the log level (none, off, error, warn, info, debug, trace) [default: off] [possible values: off, none, error, warn, info, debug, trace]
   -h, --help
@@ -1089,6 +1323,18 @@ Options:
           Skip SSL certificate verification [env: SSL_SKIP_VERIFICATION=]
       --ssl-trust-store <SSL_TRUST_STORE>
           Use the system's root trust store for SSL verification [env: SSL_TRUST_STORE=] [default: true] [possible values: true, false]
+      --enable-otel
+          Enable OpenTelemetry tracing
+      --enable-otel-logs
+          Enable OpenTelemetry logging
+      --enable-otel-traces
+          Enable OpenTelemetry traces
+      --otel-exporter <otel-exporter>
+          The OpenTelemetry exporter(s) to use, comma separated (stdout, otlp) [env: OTEL_TRACES_EXPORTER=]
+      --otel-exporter-endpoint <otel-exporter-endpoint>
+          The endpoint to use for the OTLP exporter (required if --otel-exporter=otlp) [env: OTEL_EXPORTER_OTLP_ENDPOINT=]
+      --otel-exporter-protocol <otel-exporter-protocol>
+          The protocol to use for the OTLP exporter (http/protobuf, http) [env: OTEL_EXPORTER_OTLP_PROTOCOL=] [default: http] [possible values: http, http/protobuf]
       --log-level <LEVEL>
           Set the log level (none, off, error, warn, info, debug, trace) [default: off] [possible values: off, none, error, warn, info, debug, trace]
   -h, --help
@@ -1163,6 +1409,18 @@ Options:
           Skip SSL certificate verification [env: SSL_SKIP_VERIFICATION=]
       --ssl-trust-store <SSL_TRUST_STORE>
           Use the system's root trust store for SSL verification [env: SSL_TRUST_STORE=] [default: true] [possible values: true, false]
+      --enable-otel
+          Enable OpenTelemetry tracing
+      --enable-otel-logs
+          Enable OpenTelemetry logging
+      --enable-otel-traces
+          Enable OpenTelemetry traces
+      --otel-exporter <otel-exporter>
+          The OpenTelemetry exporter(s) to use, comma separated (stdout, otlp) [env: OTEL_TRACES_EXPORTER=]
+      --otel-exporter-endpoint <otel-exporter-endpoint>
+          The endpoint to use for the OTLP exporter (required if --otel-exporter=otlp) [env: OTEL_EXPORTER_OTLP_ENDPOINT=]
+      --otel-exporter-protocol <otel-exporter-protocol>
+          The protocol to use for the OTLP exporter (http/protobuf, http) [env: OTEL_EXPORTER_OTLP_PROTOCOL=] [default: http] [possible values: http, http/protobuf]
       --log-level <LEVEL>
           Set the log level (none, off, error, warn, info, debug, trace) [default: off] [possible values: off, none, error, warn, info, debug, trace]
   -h, --help
@@ -1203,6 +1461,18 @@ Options:
           Skip SSL certificate verification [env: SSL_SKIP_VERIFICATION=]
       --ssl-trust-store <SSL_TRUST_STORE>
           Use the system's root trust store for SSL verification [env: SSL_TRUST_STORE=] [default: true] [possible values: true, false]
+      --enable-otel
+          Enable OpenTelemetry tracing
+      --enable-otel-logs
+          Enable OpenTelemetry logging
+      --enable-otel-traces
+          Enable OpenTelemetry traces
+      --otel-exporter <otel-exporter>
+          The OpenTelemetry exporter(s) to use, comma separated (stdout, otlp) [env: OTEL_TRACES_EXPORTER=]
+      --otel-exporter-endpoint <otel-exporter-endpoint>
+          The endpoint to use for the OTLP exporter (required if --otel-exporter=otlp) [env: OTEL_EXPORTER_OTLP_ENDPOINT=]
+      --otel-exporter-protocol <otel-exporter-protocol>
+          The protocol to use for the OTLP exporter (http/protobuf, http) [env: OTEL_EXPORTER_OTLP_PROTOCOL=] [default: http] [possible values: http, http/protobuf]
       --log-level <LEVEL>
           Set the log level (none, off, error, warn, info, debug, trace) [default: off] [possible values: off, none, error, warn, info, debug, trace]
   -h, --help
@@ -1243,6 +1513,18 @@ Options:
           Skip SSL certificate verification [env: SSL_SKIP_VERIFICATION=]
       --ssl-trust-store <SSL_TRUST_STORE>
           Use the system's root trust store for SSL verification [env: SSL_TRUST_STORE=] [default: true] [possible values: true, false]
+      --enable-otel
+          Enable OpenTelemetry tracing
+      --enable-otel-logs
+          Enable OpenTelemetry logging
+      --enable-otel-traces
+          Enable OpenTelemetry traces
+      --otel-exporter <otel-exporter>
+          The OpenTelemetry exporter(s) to use, comma separated (stdout, otlp) [env: OTEL_TRACES_EXPORTER=]
+      --otel-exporter-endpoint <otel-exporter-endpoint>
+          The endpoint to use for the OTLP exporter (required if --otel-exporter=otlp) [env: OTEL_EXPORTER_OTLP_ENDPOINT=]
+      --otel-exporter-protocol <otel-exporter-protocol>
+          The protocol to use for the OTLP exporter (http/protobuf, http) [env: OTEL_EXPORTER_OTLP_PROTOCOL=] [default: http] [possible values: http, http/protobuf]
       --log-level <LEVEL>
           Set the log level (none, off, error, warn, info, debug, trace) [default: off] [possible values: off, none, error, warn, info, debug, trace]
   -h, --help
@@ -1287,6 +1569,18 @@ Options:
           Skip SSL certificate verification [env: SSL_SKIP_VERIFICATION=]
       --ssl-trust-store <SSL_TRUST_STORE>
           Use the system's root trust store for SSL verification [env: SSL_TRUST_STORE=] [default: true] [possible values: true, false]
+      --enable-otel
+          Enable OpenTelemetry tracing
+      --enable-otel-logs
+          Enable OpenTelemetry logging
+      --enable-otel-traces
+          Enable OpenTelemetry traces
+      --otel-exporter <otel-exporter>
+          The OpenTelemetry exporter(s) to use, comma separated (stdout, otlp) [env: OTEL_TRACES_EXPORTER=]
+      --otel-exporter-endpoint <otel-exporter-endpoint>
+          The endpoint to use for the OTLP exporter (required if --otel-exporter=otlp) [env: OTEL_EXPORTER_OTLP_ENDPOINT=]
+      --otel-exporter-protocol <otel-exporter-protocol>
+          The protocol to use for the OTLP exporter (http/protobuf, http) [env: OTEL_EXPORTER_OTLP_PROTOCOL=] [default: http] [possible values: http, http/protobuf]
       --log-level <LEVEL>
           Set the log level (none, off, error, warn, info, debug, trace) [default: off] [possible values: off, none, error, warn, info, debug, trace]
   -h, --help
@@ -1329,6 +1623,18 @@ Options:
           Use the system's root trust store for SSL verification [env: SSL_TRUST_STORE=] [default: true] [possible values: true, false]
   -o, --output <OUTPUT>
           Value must be one of ["json", "table"] [default: table] [possible values: json, table]
+      --enable-otel
+          Enable OpenTelemetry tracing
+      --enable-otel-logs
+          Enable OpenTelemetry logging
+      --enable-otel-traces
+          Enable OpenTelemetry traces
+      --otel-exporter <otel-exporter>
+          The OpenTelemetry exporter(s) to use, comma separated (stdout, otlp) [env: OTEL_TRACES_EXPORTER=]
+      --otel-exporter-endpoint <otel-exporter-endpoint>
+          The endpoint to use for the OTLP exporter (required if --otel-exporter=otlp) [env: OTEL_EXPORTER_OTLP_ENDPOINT=]
+      --otel-exporter-protocol <otel-exporter-protocol>
+          The protocol to use for the OTLP exporter (http/protobuf, http) [env: OTEL_EXPORTER_OTLP_PROTOCOL=] [default: http] [possible values: http, http/protobuf]
       --log-level <LEVEL>
           Set the log level (none, off, error, warn, info, debug, trace) [default: off] [possible values: off, none, error, warn, info, debug, trace]
   -h, --help
@@ -1371,6 +1677,18 @@ Options:
           Skip SSL certificate verification [env: SSL_SKIP_VERIFICATION=]
       --ssl-trust-store <SSL_TRUST_STORE>
           Use the system's root trust store for SSL verification [env: SSL_TRUST_STORE=] [default: true] [possible values: true, false]
+      --enable-otel
+          Enable OpenTelemetry tracing
+      --enable-otel-logs
+          Enable OpenTelemetry logging
+      --enable-otel-traces
+          Enable OpenTelemetry traces
+      --otel-exporter <otel-exporter>
+          The OpenTelemetry exporter(s) to use, comma separated (stdout, otlp) [env: OTEL_TRACES_EXPORTER=]
+      --otel-exporter-endpoint <otel-exporter-endpoint>
+          The endpoint to use for the OTLP exporter (required if --otel-exporter=otlp) [env: OTEL_EXPORTER_OTLP_ENDPOINT=]
+      --otel-exporter-protocol <otel-exporter-protocol>
+          The protocol to use for the OTLP exporter (http/protobuf, http) [env: OTEL_EXPORTER_OTLP_PROTOCOL=] [default: http] [possible values: http, http/protobuf]
       --log-level <LEVEL>
           Set the log level (none, off, error, warn, info, debug, trace) [default: off] [possible values: off, none, error, warn, info, debug, trace]
   -h, --help
@@ -1391,8 +1709,22 @@ Generate a UUID for use when calling create-or-update-webhook
 Usage: pact-broker-cli generate-uuid [OPTIONS]
 
 Options:
-      --log-level <LEVEL>  Set the log level (none, off, error, warn, info, debug, trace) [default: off] [possible values: off, none, error, warn, info, debug, trace]
-  -h, --help               Print help
+      --enable-otel
+          Enable OpenTelemetry tracing
+      --enable-otel-logs
+          Enable OpenTelemetry logging
+      --enable-otel-traces
+          Enable OpenTelemetry traces
+      --otel-exporter <otel-exporter>
+          The OpenTelemetry exporter(s) to use, comma separated (stdout, otlp) [env: OTEL_TRACES_EXPORTER=]
+      --otel-exporter-endpoint <otel-exporter-endpoint>
+          The endpoint to use for the OTLP exporter (required if --otel-exporter=otlp) [env: OTEL_EXPORTER_OTLP_ENDPOINT=]
+      --otel-exporter-protocol <otel-exporter-protocol>
+          The protocol to use for the OTLP exporter (http/protobuf, http) [env: OTEL_EXPORTER_OTLP_PROTOCOL=] [default: http] [possible values: http, http/protobuf]
+      --log-level <LEVEL>
+          Set the log level (none, off, error, warn, info, debug, trace) [default: off] [possible values: off, none, error, warn, info, debug, trace]
+  -h, --help
+          Print help
 
 ```
 
@@ -1462,6 +1794,18 @@ Options:
           Skip SSL certificate verification [env: SSL_SKIP_VERIFICATION=]
       --ssl-trust-store <SSL_TRUST_STORE>
           Use the system's root trust store for SSL verification [env: SSL_TRUST_STORE=] [default: true] [possible values: true, false]
+      --enable-otel
+          Enable OpenTelemetry tracing
+      --enable-otel-logs
+          Enable OpenTelemetry logging
+      --enable-otel-traces
+          Enable OpenTelemetry traces
+      --otel-exporter <otel-exporter>
+          The OpenTelemetry exporter(s) to use, comma separated (stdout, otlp) [env: OTEL_TRACES_EXPORTER=]
+      --otel-exporter-endpoint <otel-exporter-endpoint>
+          The endpoint to use for the OTLP exporter (required if --otel-exporter=otlp) [env: OTEL_EXPORTER_OTLP_ENDPOINT=]
+      --otel-exporter-protocol <otel-exporter-protocol>
+          The protocol to use for the OTLP exporter (http/protobuf, http) [env: OTEL_EXPORTER_OTLP_PROTOCOL=] [default: http] [possible values: http, http/protobuf]
       --log-level <LEVEL>
           Set the log level (none, off, error, warn, info, debug, trace) [default: off] [possible values: off, none, error, warn, info, debug, trace]
   -h, --help
@@ -1493,3 +1837,46 @@ The available ssl options are available for all commands
           [default: true]
           [possible values: true, false]
 ```
+
+## Open Telemetry
+
+The `pact-broker-cli` cli supports native opentelemetry for traces and application logs.
+
+It is opt-in via `--enable-otel`, you must set
+    - `--enable-otel-traces` for traces
+    - `--enable-otel-logs` for logs
+        - `--log-level` must be set
+    - `--enable-otlp-exporter` must be set
+
+By default, `--otel-exporter-endpoint` will route to `http://localhost:4318`.
+
+```sh
+Options:
+      --enable-otel
+          Enable OpenTelemetry tracing
+      --enable-otel-logs
+          Enable OpenTelemetry logging
+      --enable-otel-traces
+          Enable OpenTelemetry traces
+      --otel-exporter <otel-exporter>
+          The OpenTelemetry exporter(s) to use, comma separated (stdout, otlp) [env: OTEL_TRACES_EXPORTER=]
+      --otel-exporter-endpoint <otel-exporter-endpoint>
+          The endpoint to use for the OTLP exporter (required if --otel-exporter=otlp) [env: OTEL_EXPORTER_OTLP_ENDPOINT=]
+      --otel-exporter-protocol <otel-exporter-protocol>
+          The protocol to use for the OTLP exporter (http/protobuf, grpc) [env: OTEL_EXPORTER_OTLP_PROTOCOL=] [default: http] [possible values: http, http/protobuf, grpc]
+      --log-level <LEVEL>
+          Set the log level (none, off, error, warn, info, debug, trace) [default: off] [possible values: off, none, error, warn, info, debug, trace]
+```
+
+Standard otel environemnt variables are followed
+
+```sh
+export OTEL_EXPORTER_OTLP_ENDPOINT="http://localhost:4318"
+export OTEL_TRACES_EXPORTER="otlp"
+export OTEL_EXPORTER_OTLP_PROTOCOL="http/protobuf"
+```
+
+Currently instrumented crates are
+
+* pact-broker-cli
+* pact-cli

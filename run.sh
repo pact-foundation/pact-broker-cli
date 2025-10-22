@@ -10,7 +10,16 @@ ${BIN} create-environment --name name_foo1
 ${BIN} create-environment --name name_foo2 --display-name display_name_foo
 ${BIN} create-environment --name name_foo3 --display-name display_name_foo --contact-name contact_name_foo
 ${BIN} create-environment --name name_foo4 --display-name display_name_foo --contact-name contact_name_foo --contact-email-address contact.email.address@foo.bar
+# remove --enable-otel arg from BIN to test otel functionality
+IS_OTEL_ENABLED=$(echo $BIN | grep -- '--enable-otel' || true)
+echo "IS_OTEL_ENABLED=$IS_OTEL_ENABLED"
+if [ -n "$IS_OTEL_ENABLED" ]; then
+    BIN=${BIN//--enable-otel/}
+fi
 export ENV_UUID=$(${BIN} create-environment --name name_foo5 --output=id)
+if [ -n "$IS_OTEL_ENABLED" ]; then
+    BIN="$BIN --enable-otel"
+fi
 ${BIN} describe-environment --uuid $ENV_UUID
 ${BIN} update-environment --uuid $ENV_UUID --name name_foo6
 ${BIN} update-environment --uuid $ENV_UUID --name name_foo7 --display-name display_name_foo6
@@ -31,7 +40,13 @@ ${BIN} create-or-update-pacticipant --name foo --main-branch main --repository-u
 ${BIN} describe-pacticipant --name foo
 ${BIN} list-pacticipants
 ${BIN} create-webhook https://localhost --request POST --contract-published
+if [ -n "$IS_OTEL_ENABLED" ]; then
+    BIN=${BIN//--enable-otel/}
+fi
 export WEBHOOK_UUID=$(${BIN} create-webhook https://localhost --request POST --contract-published | jq .uuid -r)
+if [ -n "$IS_OTEL_ENABLED" ]; then
+    BIN="$BIN --enable-otel"
+fi
 ${BIN} create-or-update-webhook https://foo.bar --request POST --uuid $WEBHOOK_UUID --provider-verification-succeeded
 ${BIN} test-webhook --uuid $WEBHOOK_UUID
 ${BIN} create-or-update-version --version foo --pacticipant foo --branch bar --tag baz

@@ -70,7 +70,7 @@ pub fn describe_environment(args: &clap::ArgMatches) -> Result<String, PactBroke
 
                 Ok("".to_string())
             }
-            Err(err) => Err(err)
+            Err(err) => Err(err),
         }
     })
 }

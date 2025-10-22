@@ -1,6 +1,6 @@
-use clap::builder::ArgPredicate;
 use clap::{Arg, Command};
 
+pub mod otel;
 pub mod pact_broker;
 pub mod pact_broker_client;
 pub mod pactflow;
@@ -11,12 +11,67 @@ pub fn build_cli() -> Command {
         .arg_required_else_help(true)
         .version(env!("CARGO_PKG_VERSION"))
         .about("A pact cli tool")
+        .args(add_otel_options_args())
         .args(add_logging_arguments())
         .subcommand(
             pactflow_client::add_pactflow_client_command().version(env!("CARGO_PKG_VERSION")),
         )
         .subcommand(add_completions_subcommand());
     app
+}
+
+fn add_otel_options_args() -> Vec<Arg> {
+    vec![
+        Arg::new("enable-otel")
+            .long("enable-otel")
+            .help("Enable OpenTelemetry tracing")
+            .global(true)
+            // .hide(true)
+            .action(clap::ArgAction::SetTrue),
+        Arg::new("enable-otel-logs")
+            .long("enable-otel-logs")
+            .help("Enable OpenTelemetry logging")
+            .global(true)
+            // .hide(true)
+            .action(clap::ArgAction::SetTrue),
+        Arg::new("enable-otel-traces")
+            .long("enable-otel-traces")
+            .help("Enable OpenTelemetry traces")
+            .global(true)
+            // .hide(true)
+            .action(clap::ArgAction::SetTrue),
+        Arg::new("otel-exporter")
+            .long("otel-exporter")
+            .help("The OpenTelemetry exporter(s) to use, comma separated (stdout, otlp)")
+            .num_args(1)
+            .global(true)
+            // .hide(true)
+            .env("OTEL_TRACES_EXPORTER")
+            .value_delimiter(',')
+            .value_parser(clap::builder::NonEmptyStringValueParser::new()),
+        Arg::new("otel-exporter-endpoint")
+            .long("otel-exporter-endpoint")
+            .help("The endpoint to use for the OTLP exporter (required if --otel-exporter=otlp)")
+            .num_args(1)
+            .global(true)
+            // .hide(true)
+            .requires_if("otlp", "otel-exporter")
+            .env("OTEL_EXPORTER_OTLP_ENDPOINT")
+            .value_parser(clap::builder::NonEmptyStringValueParser::new()),
+        Arg::new("otel-exporter-protocol")
+            .long("otel-exporter-protocol")
+            .help("The protocol to use for the OTLP exporter (http/protobuf, http)")
+            .num_args(1)
+            .global(true)
+            // .hide(true)
+            .default_value("http")
+            .requires_if("otlp", "otel-exporter")
+            .env("OTEL_EXPORTER_OTLP_PROTOCOL")
+            .value_parser(clap::builder::PossibleValuesParser::new(&[
+                "http",
+                "http/protobuf",
+            ])),
+    ]
 }
 
 pub fn add_logging_arguments() -> Vec<Arg> {

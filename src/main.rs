@@ -3,10 +3,13 @@ pub mod cli;
 use clap::ArgMatches;
 use clap::error::ErrorKind;
 use clap_complete::{Shell, generate_to};
+use tracing::span;
 
 use std::process::ExitCode;
 use std::str::FromStr;
 
+use crate::cli::otel::OtelConfig;
+use crate::cli::otel::init_logging;
 pub fn handle_matches(
     matches: &Result<ArgMatches, clap::Error>,
     raw_args: Option<Vec<String>>,
@@ -19,11 +22,54 @@ pub fn handle_matches(
     match matches {
         Ok(results) => match results.subcommand() {
             _ => {
-                let log_level = results
-                    .get_one::<String>("log-level")
-                    .map(|s| s.to_string())
-                    .unwrap_or_else(|| "off".to_string());
-                cli::utils::setup_loggers(&log_level);
+                let (
+                    enable_otel,
+                    enable_otel_logs,
+                    enable_otel_traces,
+                    otel_exporter,
+                    otel_exporter_endpoint,
+                    otel_exporter_protocol,
+                    log_level,
+                ) = match &matches {
+                    Ok(m) => (
+                        m.get_flag("enable-otel"),
+                        m.get_flag("enable-otel-logs"),
+                        m.get_flag("enable-otel-traces"),
+                        m.get_one::<String>("otel-exporter").map(|s| {
+                            s.split(',')
+                                .map(|v| v.trim().to_string())
+                                .collect::<Vec<String>>()
+                        }),
+                        m.get_one::<String>("otel-exporter-endpoint"),
+                        m.get_one::<String>("otel-exporter-protocol"),
+                        m.get_one::<String>("log-level")
+                            .and_then(|lvl| lvl.parse::<tracing::Level>().ok()),
+                    ),
+                    Err(_) => (false, false, false, None, None, None, None),
+                };
+                let otel_config = Some(OtelConfig {
+                    enable_otel: Some(enable_otel),
+                    enable_logs: Some(enable_otel_logs),
+                    enable_traces: Some(enable_otel_traces),
+                    exporter: otel_exporter.map(|v| v.clone()),
+                    endpoint: otel_exporter_endpoint.cloned(),
+                    protocol: otel_exporter_protocol.cloned(),
+                    log_level,
+                });
+                let tracer_provider = init_logging(otel_config.unwrap());
+                let _tracer_provider_dropper;
+                if tracer_provider.is_some() {
+                    let tracer_provider = tracer_provider.unwrap().clone();
+                    _tracer_provider_dropper =
+                        crate::cli::otel::TracerProviderDropper(tracer_provider);
+                }
+
+                let span = if tracing::Span::current().is_none() {
+                    span!(tracing::Level::INFO, "pact-broker-cli")
+                } else {
+                    tracing::Span::current()
+                };
+                let _enter = span.enter();
 
                 match results.subcommand() {
                     Some(("pactflow", args)) => match cli::pactflow_client::run(args, raw_args) {
