@@ -20,6 +20,7 @@ use crate::cli::pact_broker::main::HALClient;
 use crate::cli::pact_broker::main::utils::get_ssl_options;
 use crate::cli::pact_broker::main::utils::{get_auth, get_broker_relation, get_broker_url};
 use crate::cli::utils::{self, git_info};
+use std::collections::HashMap;
 
 use super::verification::{VerificationResult, display_results, verify_json};
 
@@ -246,8 +247,74 @@ pub fn publish_pacts(args: &ArgMatches) -> Result<Value, i32> {
             let output: Result<Option<&String>, clap::parser::MatchesError> =
                 args.try_get_one::<String>("output");
             // publish the pacts
+            // Group pacts by (consumer, provider) pair and merge their interactions
+            let mut merged_pacts: HashMap<(String, String), Value> = HashMap::new();
             for (source, pact_json) in files.iter() {
+                tracing::debug!("Processing pact file: {}", source);
+
+                // Load pact and extract consumer/provider names
                 let pact_res = pact::load_pact_from_json(source, pact_json);
+                if let Ok(pact) = &pact_res {
+                    let consumer_name = pact.consumer().name.clone();
+                    let provider_name = pact.provider().name.clone();
+                    let key = (consumer_name.clone(), provider_name.clone());
+
+                    tracing::debug!(
+                        "Loaded pact for consumer: '{}' and provider: '{}'",
+                        consumer_name,
+                        provider_name
+                    );
+
+                    // If already present, merge interactions
+                    if let Some(existing_json) = merged_pacts.get_mut(&key) {
+                        tracing::debug!(
+                            "Merging interactions for consumer: '{}' and provider: '{}'",
+                            consumer_name,
+                            provider_name
+                        );
+                        // Merge interactions arrays
+                        if let (Some(existing_interactions), Some(new_interactions)) = (
+                            existing_json.get_mut("interactions"),
+                            pact_json.get("interactions"),
+                        ) {
+                            if let (Some(existing_arr), Some(new_arr)) = (
+                                existing_interactions.as_array_mut(),
+                                new_interactions.as_array(),
+                            ) {
+                                tracing::debug!(
+                                    "Existing interactions: {}, New interactions: {}",
+                                    existing_arr.len(),
+                                    new_arr.len()
+                                );
+                                existing_arr.extend(new_arr.iter().cloned());
+                                tracing::debug!(
+                                    "Total interactions after merge: {}",
+                                    existing_arr.len()
+                                );
+                            }
+                        }
+                    } else {
+                        tracing::debug!(
+                            "Inserting new pact for consumer: '{}' and provider: '{}'",
+                            consumer_name,
+                            provider_name
+                        );
+                        // Insert new pact
+                        merged_pacts.insert(key, pact_json.clone());
+                    }
+                } else {
+                    println!("❌ Failed to load pact from JSON: {:?}", pact_res);
+                    error!("Failed to load pact from JSON: {:?}", pact_res);
+                    return Err(1);
+                }
+            }
+
+            // Publish merged pacts
+            for ((consumer_name, provider_name), pact_json) in merged_pacts.iter() {
+                let pact_res = pact::load_pact_from_json(
+                    &format!("{}-{}", consumer_name, provider_name),
+                    pact_json,
+                );
                 match pact_res {
                     Ok(pact) => {
                         let consumer_name = pact.consumer().name.clone();
