@@ -17,7 +17,7 @@ use serde::{Deserialize, Serialize};
 use serde_json::{Value, json};
 
 use crate::cli::pact_broker::main::HALClient;
-use crate::cli::pact_broker::main::utils::get_ssl_options;
+use crate::cli::pact_broker::main::utils::{get_ssl_options, handle_error};
 use crate::cli::pact_broker::main::utils::{get_auth, get_broker_relation, get_broker_url};
 use crate::cli::utils::{self, git_info};
 use std::collections::HashMap;
@@ -174,7 +174,9 @@ pub fn handle_matches(args: &ArgMatches) -> Result<Vec<VerificationResult>, i32>
 pub fn publish_pacts(args: &ArgMatches) -> Result<Value, i32> {
     let files: Result<Vec<(String, Value)>, anyhow::Error> = load_files(args);
     if files.is_err() {
-        println!("{}", files.err().unwrap());
+        let error = files.err().unwrap();
+        println!("{}", error);
+        
         return Err(1);
     }
     let files = files.map_err(|_| 1)?;
@@ -509,6 +511,7 @@ pub fn publish_pacts(args: &ArgMatches) -> Result<Value, i32> {
             Ok(json!({}))
         }
         Err(err) => {
+            handle_error(err);
             return Err(1);
         }
     }
@@ -521,48 +524,117 @@ pub fn load_files(args: &ArgMatches) -> anyhow::Result<Vec<(String, Value)>> {
         for input in inputs {
             let path = std::path::Path::new(input);
 
+            tracing::info!("Processing input: '{}'", input);
+
             match (path.exists(), path.is_file(), path.is_dir()) {
                 (true, true, _) => {
+                    tracing::debug!("Loading pact file: '{}'", input);
                     collected.push((input.to_string(), load_file(input)));
                 }
-                (true, false, true) => match load_files_from_dir(input) {
-                    Ok(files) => {
-                        for (name, pact) in files {
-                            collected.push((name, Ok(pact)));
+                (true, false, true) => {
+                    tracing::debug!("Loading pact files from directory: '{}'", input);
+                    match load_files_from_dir(input) {
+                        Ok(files) => {
+                            for (name, pact) in files {
+                                tracing::debug!("Loaded pact file from dir: '{}'", name);
+                                collected.push((name, Ok(pact)));
+                            }
+                        }
+                        Err(e) => {
+                            tracing::error!("Failed to load pact files from directory '{}': {}", input, e);
+                            collected.push((input.to_string(), Err(e)));
                         }
                     }
-                    Err(e) => collected.push((input.to_string(), Err(e))),
-                },
+                }
+                (false, _, _) => {
+                    tracing::error!("File or directory does not exist: '{}'", input);
+                    error!("❌ File or directory does not exist: '{}'", input);
+                    return Err(anyhow!("❌ File or directory does not exist: '{}'", input));
+                }
                 _ => {
                     // Treat as glob pattern
+                    tracing::debug!("Treating input as glob pattern: '{}'", input);
                     match glob(input) {
                         Ok(paths) => {
+                            let mut found = false;
                             for entry in paths {
                                 match entry {
                                     Ok(pathbuf) => {
                                         if let Some(fname) = pathbuf.to_str() {
+                                            tracing::debug!("Loading pact file from glob match: '{}'", fname);
                                             collected.push((fname.to_string(), load_file(fname)));
+                                            found = true;
                                         }
                                     }
-                                    Err(e) => collected.push((input.to_string(), Err(anyhow!(e)))),
+                                    Err(e) => {
+                                        tracing::error!("Error processing glob entry for '{}': {}", input, e);
+                                        collected.push((input.to_string(), Err(anyhow!(e))));
+                                    }
                                 }
                             }
+                            if !found {
+                                tracing::error!("No files matched glob pattern: '{}'", input);
+                                error!("No files matched glob pattern: '{}'", input);
+                                return Err(anyhow!("❌ No files matched glob pattern: '{}'", input));
+                            }
                         }
-                        Err(e) => collected.push((input.to_string(), Err(anyhow!(e)))),
+                        Err(e) => {
+                            tracing::error!("Invalid glob pattern: '{}': {}", input, e);
+                            error!("❌ Invalid glob pattern: '{}'", input);
+                            return Err(anyhow!(e));
+                        }
                     }
                 }
             }
         }
     }
 
+    if collected.is_empty() {
+        tracing::error!("No pact files found to load");
+        error!("No pact files found to load");
+        return Err(anyhow!("No pact files found to load"));
+    }
+
     let failures: Vec<_> = collected.iter().filter(|(_, res)| res.is_err()).collect();
     if !failures.is_empty() {
-        error!("Failed to load the following pact files:");
-        for (src, err) in failures {
-            error!("    '{}' - {}", src, err.as_ref().unwrap_err());
+        let errors: Vec<(String, String, String)> = failures
+                .iter()
+                .filter_map(|(src, err)| {
+                    let error_msg = err.as_ref().err().map(|e| e.to_string());
+                    let source_type = if std::path::Path::new(src).is_file() {
+                        "file"
+                    } else if std::path::Path::new(src).is_dir() {
+                        "directory"
+                    } else if src.contains('*') || src.contains('?') || src.contains('[') {
+                        "glob"
+                    } else {
+                        "unknown"
+                    };
+                    error_msg.map(|msg| (src.clone(), source_type.to_string(), msg))
+                })
+                .collect();
+
+            error!("Failed to load the following pact files:");
+            for (source, source_type, err_msg) in &errors {
+                tracing::error!("    '{}' [{}] - {}", source, source_type, err_msg);
+            }
+
+            let pretty_errors = errors.iter()
+                .map(|(source, source_type, err_msg)| {
+                    format!(
+                        "\n  Source: {}\n  Type: {}\n  Error: {}\n",
+                        source, source_type, err_msg
+                    )
+                })
+                .collect::<String>();
+
+            return Err(anyhow!(format!(
+                "Failed to load one or more pact files:{}",
+                pretty_errors
+            )));
         }
-        Err(anyhow!("One or more pact files could not be loaded"))
-    } else {
+    else {
+        tracing::info!("Successfully loaded all pact files.");
         Ok(collected
             .into_iter()
             .map(|(src, res)| (src, res.unwrap()))
@@ -616,11 +688,21 @@ pub fn load_files_from_dir(dir: &str) -> anyhow::Result<Vec<(String, Value)>> {
     }
 
     if sources.iter().any(|(_, res)| res.is_err()) {
+        let errors: Vec<(String, String)> = sources
+            .iter()
+            .filter_map(|(source, result)| {
+                result.as_ref().err().map(|e| (source.clone(), e.to_string()))
+            })
+            .collect();
+
         error!("Failed to load the following pact files:");
-        for (source, result) in sources.iter().filter(|(_, res)| res.is_err()) {
-            error!("    '{}' - {}", source, result.as_ref().unwrap_err());
+        for (source, err_msg) in &errors {
+            tracing::error!("    '{}' - {}", source, err_msg);
         }
-        Err(anyhow!("Failed to load one or more pact files"))
+        Err(anyhow!(format!(
+            "Failed to load one or more pact files: {:?}",
+            errors.iter().map(|(source, err_msg)| format!("{}: {}", source, err_msg)).collect::<Vec<_>>()
+        )))
     } else {
         Ok(sources
             .iter()

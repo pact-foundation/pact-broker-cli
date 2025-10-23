@@ -76,6 +76,7 @@ pub fn run(args: &ArgMatches, raw_args: Vec<String>) -> Result<serde_json::Value
             let pacts = pact_publish::handle_matches(args);
             match pacts {
                 Ok(_) => {
+                    // todo: update to return a PactBrokerError rather than an i32 exit code
                     let res = pact_publish::publish_pacts(args);
                     match res {
                         Ok(res) => Ok(serde_json::to_value(res).unwrap()),
