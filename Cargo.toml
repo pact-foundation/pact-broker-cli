@@ -1,6 +1,6 @@
 [package]
 name = "pact-broker-cli"
-version = "0.3.0"
+version = "0.4.0"
 authors = ["Yousaf Nabi <you@saf.dev>"]
 edition = "2024"
 description = "A Rust and CLI client for the Pact Broker. Publish and retrieve pacts and verification results."
