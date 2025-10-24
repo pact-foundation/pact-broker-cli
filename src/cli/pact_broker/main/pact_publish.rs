@@ -16,13 +16,28 @@ use pact_models::{http_utils, pact};
 use serde::{Deserialize, Serialize};
 use serde_json::{Value, json};
 
-use crate::cli::pact_broker::main::HALClient;
+use crate::cli::pact_broker::main::{HALClient, process_notices, Notice};
 use crate::cli::pact_broker::main::utils::{get_ssl_options, handle_error};
 use crate::cli::pact_broker::main::utils::{get_auth, get_broker_relation, get_broker_url};
-use crate::cli::utils::{self, git_info};
+use crate::cli::utils::{git_info};
 use std::collections::HashMap;
 
 use super::verification::{VerificationResult, display_results, verify_json};
+
+/// Error type for pact merging conflicts
+#[derive(Debug)]
+pub struct PactMergeError {
+    /// The error message describing the merge conflict
+    pub message: String,
+}
+
+impl std::fmt::Display for PactMergeError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "PactBroker::Client::PactMergeError - {}", self.message)
+    }
+}
+
+impl std::error::Error for PactMergeError {}
 
 #[derive(Default, Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -131,12 +146,67 @@ struct Log {
     pub message: String,
 }
 
-#[derive(Default, Debug, Clone, PartialEq, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
-struct Notice {
-    pub text: String,
-    #[serde(rename = "type")]
-    pub type_field: String,
+/// Check if two interactions have the same description and provider state
+fn same_description_and_state(original: &Value, additional: &Value) -> bool {
+    let same_description = original.get("description") == additional.get("description");
+    
+    let same_state = match (original.get("providerState"), additional.get("providerState")) {
+        (Some(orig_state), Some(add_state)) => orig_state == add_state,
+        (None, None) => true,
+        _ => {
+            // Check providerStates array as well
+            match (original.get("providerStates"), additional.get("providerStates")) {
+                (Some(orig_states), Some(add_states)) => orig_states == add_states,
+                (None, None) => true,
+                _ => false,
+            }
+        }
+    };
+    
+    same_description && same_state
+}
+
+fn almost_duplicate_message(original: &Value, new_interaction: &Value) -> String {
+    let description = new_interaction.get("description")
+        .and_then(|d| d.as_str())
+        .unwrap_or("unknown");
+    
+    let provider_state = new_interaction.get("providerState")
+        .or_else(|| new_interaction.get("providerStates"))
+        .map(|s| serde_json::to_string(s).unwrap_or_else(|_| "unknown".to_string()))
+        .unwrap_or_else(|| "null".to_string());
+    
+    let original_json = serde_json::to_string_pretty(original)
+        .unwrap_or_else(|_| "<invalid json>".to_string());
+    let new_json = serde_json::to_string_pretty(new_interaction)
+        .unwrap_or_else(|_| "<invalid json>".to_string());
+    
+    format!(
+        "Two interactions have been found with same description ({:?}) and provider state ({}) but a different request or response. Please use a different description or provider state, or hard-code any random data.\n\n{}\n\n{}",
+        description, provider_state, original_json, new_json
+    )
+}
+
+fn merge_interactions_or_messages(
+    existing_interactions: &mut Vec<Value>,
+    additional_interactions: &[Value],
+) -> Result<(), PactMergeError> {
+    for new_interaction in additional_interactions {
+        if let Some(existing_index) = existing_interactions.iter().position(|existing| {
+            same_description_and_state(existing, new_interaction)
+        }) {
+            if existing_interactions[existing_index] == *new_interaction {
+                existing_interactions[existing_index] = new_interaction.clone();
+            } else {
+                return Err(PactMergeError {
+                    message: almost_duplicate_message(&existing_interactions[existing_index], new_interaction),
+                });
+            }
+        } else {
+            existing_interactions.push(new_interaction.clone());
+        }
+    }
+    Ok(())
 }
 
 pub fn handle_matches(args: &ArgMatches) -> Result<Vec<VerificationResult>, i32> {
@@ -170,6 +240,7 @@ pub fn handle_matches(args: &ArgMatches) -> Result<Vec<VerificationResult>, i32>
         return Ok(results);
     }
 }
+
 
 pub fn publish_pacts(args: &ArgMatches) -> Result<Value, i32> {
     let files: Result<Vec<(String, Value)>, anyhow::Error> = load_files(args);
@@ -274,7 +345,7 @@ pub fn publish_pacts(args: &ArgMatches) -> Result<Value, i32> {
                             consumer_name,
                             provider_name
                         );
-                        // Merge interactions arrays
+                        // Merge interactions arrays with duplicate detection
                         if let (Some(existing_interactions), Some(new_interactions)) = (
                             existing_json.get_mut("interactions"),
                             pact_json.get("interactions"),
@@ -288,11 +359,20 @@ pub fn publish_pacts(args: &ArgMatches) -> Result<Value, i32> {
                                     existing_arr.len(),
                                     new_arr.len()
                                 );
-                                existing_arr.extend(new_arr.iter().cloned());
-                                tracing::debug!(
-                                    "Total interactions after merge: {}",
-                                    existing_arr.len()
-                                );
+                                
+                                match merge_interactions_or_messages(existing_arr, new_arr) {
+                                    Ok(()) => {
+                                        tracing::debug!(
+                                            "Total interactions after merge: {}",
+                                            existing_arr.len()
+                                        );
+                                    }
+                                    Err(merge_error) => {
+                                        println!("❌ {}", merge_error);
+                                        error!("Pact merge error: {}", merge_error);
+                                        return Err(1);
+                                    }
+                                }
                             }
                         }
                     } else {
@@ -393,90 +473,12 @@ pub fn publish_pacts(args: &ArgMatches) -> Result<Value, i32> {
                                             Ok(parsed_res) => {
                                                 print!("✅ ");
                                                 if let Some(notices) = parsed_res.notices {
-                                                    notices.iter().for_each(|notice| match notice
-                                                        .type_field
-                                                        .as_str()
-                                                    {
-                                                        "success" => {
-                                                            let notice_text =
-                                                                notice.text.to_string();
-                                                            let formatted_text = notice_text
-                                                                .split_whitespace()
-                                                                .map(|word| {
-                                                                    if word.starts_with("https")
-                                                                        || word.starts_with("http")
-                                                                    {
-                                                                        format!(
-                                                                            "{}",
-                                                                            utils::CYAN
-                                                                                .apply_to(word)
-                                                                        )
-                                                                    } else {
-                                                                        format!(
-                                                                            "{}",
-                                                                            utils::GREEN
-                                                                                .apply_to(word)
-                                                                        )
-                                                                    }
-                                                                })
-                                                                .collect::<Vec<String>>()
-                                                                .join(" ");
-                                                            println!("{}", formatted_text)
-                                                        }
-                                                        "warning" | "prompt" => {
-                                                            let notice_text =
-                                                                notice.text.to_string();
-                                                            let formatted_text = notice_text
-                                                                .split_whitespace()
-                                                                .map(|word| {
-                                                                    if word.starts_with("https")
-                                                                        || word.starts_with("http")
-                                                                    {
-                                                                        format!(
-                                                                            "{}",
-                                                                            utils::CYAN
-                                                                                .apply_to(word)
-                                                                        )
-                                                                    } else {
-                                                                        format!(
-                                                                            "{}",
-                                                                            utils::YELLOW
-                                                                                .apply_to(word)
-                                                                        )
-                                                                    }
-                                                                })
-                                                                .collect::<Vec<String>>()
-                                                                .join(" ");
-                                                            println!("{}", formatted_text)
-                                                        }
-                                                        "error" | "danger" => {
-                                                            let notice_text =
-                                                                notice.text.to_string();
-                                                            let formatted_text = notice_text
-                                                                .split_whitespace()
-                                                                .map(|word| {
-                                                                    if word.starts_with("https")
-                                                                        || word.starts_with("http")
-                                                                    {
-                                                                        format!(
-                                                                            "{}",
-                                                                            utils::CYAN
-                                                                                .apply_to(word)
-                                                                        )
-                                                                    } else {
-                                                                        format!(
-                                                                            "{}",
-                                                                            utils::RED
-                                                                                .apply_to(word)
-                                                                        )
-                                                                    }
-                                                                })
-                                                                .collect::<Vec<String>>()
-                                                                .join(" ");
-                                                            println!("{}", formatted_text)
-                                                        }
-                                                        _ => println!("{}", notice.text),
-                                                    });
+                                                    process_notices(&notices);
+                                                } else {
+                                                    println!(
+                                                        "Pact published successfully for consumer: {} against provider: {}",
+                                                        consumer_name, provider_name
+                                                    );
                                                 }
                                             }
                                             Err(err) => {
@@ -497,8 +499,22 @@ pub fn publish_pacts(args: &ArgMatches) -> Result<Value, i32> {
                                 }
                             },
                             Err(err) => {
-                                println!("❌ {}", err.to_string());
-                                Err(1)?
+                                match &err {
+                                    crate::cli::pact_broker::main::PactBrokerError::ValidationErrorWithNotices(messages, notices) => {
+                                        println!("❌ Pact publication failed:");
+                                        for message in messages {
+                                            println!("   {}", message);
+                                        }
+                                        if !notices.is_empty() {
+                                            println!("\nDetails:");
+                                            process_notices(notices);
+                                        }
+                                    },
+                                    _ => {
+                                        println!("❌ {}", err.to_string());
+                                    }
+                                }
+                                return Err(1);
                             }
                         }
                     }
@@ -868,5 +884,204 @@ mod publish_contracts_tests {
         let value = result.unwrap();
 
         assert!(value.is_object());
+    }
+
+    #[test]
+    fn test_error_handling_with_notices() {
+        // Test the handle_validation_errors function with a response containing notices
+        use crate::cli::pact_broker::main::handle_validation_errors;
+        use serde_json::json;
+
+        let error_response = json!({
+            "errors": ["Consumer version not found"],
+            "notices": [
+                {
+                    "text": "Please create the consumer version first",
+                    "type": "error"
+                },
+                {
+                    "text": "Visit https://docs.pact.io for more information",
+                    "type": "info"
+                }
+            ]
+        });
+
+        let result = handle_validation_errors(error_response);
+        
+        match result {
+            crate::cli::pact_broker::main::PactBrokerError::ValidationErrorWithNotices(messages, notices) => {
+                assert_eq!(messages.len(), 1);
+                assert_eq!(messages[0], "Consumer version not found");
+                assert_eq!(notices.len(), 2);
+                assert_eq!(notices[0].text, "Please create the consumer version first");
+                assert_eq!(notices[0].type_field, "error");
+                assert_eq!(notices[1].text, "Visit https://docs.pact.io for more information");
+                assert_eq!(notices[1].type_field, "info");
+            }
+            _ => panic!("Expected ValidationErrorWithNotices variant")
+        }
+    }
+
+    #[test]
+    fn test_error_handling_without_notices() {
+        // Test the handle_validation_errors function with a response without notices
+        use crate::cli::pact_broker::main::handle_validation_errors;
+        use serde_json::json;
+
+        let error_response = json!({
+            "errors": ["Invalid pact file format"]
+        });
+
+        let result = handle_validation_errors(error_response);
+        
+        match result {
+            crate::cli::pact_broker::main::PactBrokerError::ValidationError(messages) => {
+                assert_eq!(messages.len(), 1);
+                assert_eq!(messages[0], "Invalid pact file format");
+            }
+            _ => panic!("Expected ValidationError variant")
+        }
+    }
+
+    #[test]
+    fn test_error_handling_notices_only() {
+        // Test the handle_validation_errors function with notices but no explicit errors
+        use crate::cli::pact_broker::main::handle_validation_errors;
+        use serde_json::json;
+
+        let error_response = json!({
+            "notices": [
+                {
+                    "text": "Pact could not be published because version already exists",
+                    "type": "error"
+                },
+                {
+                    "text": "Use --overwrite flag to replace existing pact",
+                    "type": "warning"
+                }
+            ]
+        });
+
+        let result = handle_validation_errors(error_response);
+        
+        match result {
+            crate::cli::pact_broker::main::PactBrokerError::ValidationErrorWithNotices(messages, notices) => {
+                assert_eq!(messages.len(), 2);
+                assert_eq!(messages[0], "Pact could not be published because version already exists");
+                assert_eq!(messages[1], "Use --overwrite flag to replace existing pact");
+                assert_eq!(notices.len(), 2);
+                assert_eq!(notices[0].text, "Pact could not be published because version already exists");
+                assert_eq!(notices[0].type_field, "error");
+                assert_eq!(notices[1].text, "Use --overwrite flag to replace existing pact");
+                assert_eq!(notices[1].type_field, "warning");
+            }
+            _ => panic!("Expected ValidationErrorWithNotices variant")
+        }
+    }
+
+    #[test]
+    fn test_duplicate_interaction_detection() {
+        use serde_json::json;
+        use crate::cli::pact_broker::main::pact_publish::merge_interactions_or_messages;
+
+        // Create two interactions with same description and state but different content
+        let interaction1 = json!({
+            "description": "test interaction",
+            "providerState": "test state",
+            "request": {
+                "method": "POST",
+                "path": "/",
+                "body": {"complete": {"certificateUri": "http://..."}}
+            },
+            "response": {
+                "status": 200,
+                "body": {"_id": "1234", "desc": "Response 1"}
+            }
+        });
+
+        let interaction2 = json!({
+            "description": "test interaction", 
+            "providerState": "test state",
+            "request": {
+                "method": "GET",
+                "path": "/",
+                "headers": {"TEST-X": "X, Y"}
+            },
+            "response": {
+                "status": 200,
+                "body": {"_id": "5678", "desc": "Response 2"}
+            }
+        });
+
+        let mut existing_interactions = vec![interaction1];
+        let additional_interactions = vec![interaction2];
+
+        // This should fail with a PactMergeError
+        let result = merge_interactions_or_messages(&mut existing_interactions, &additional_interactions);
+        
+        assert!(result.is_err());
+        let error = result.unwrap_err();
+        assert!(error.message.contains("Two interactions have been found with same description"));
+        assert!(error.message.contains("test interaction"));
+        assert!(error.message.contains("test state"));
+    }
+
+    #[test]
+    fn test_identical_interactions_allowed() {
+        use serde_json::json;
+        use crate::cli::pact_broker::main::pact_publish::merge_interactions_or_messages;
+
+        // Create two identical interactions
+        let interaction = json!({
+            "description": "test interaction",
+            "providerState": "test state",
+            "request": {
+                "method": "GET",
+                "path": "/"
+            },
+            "response": {
+                "status": 200,
+                "body": {"message": "success"}
+            }
+        });
+
+        let mut existing_interactions = vec![interaction.clone()];
+        let additional_interactions = vec![interaction];
+
+        // This should succeed - identical interactions are allowed
+        let result = merge_interactions_or_messages(&mut existing_interactions, &additional_interactions);
+        
+        assert!(result.is_ok());
+        assert_eq!(existing_interactions.len(), 1); // Still only one interaction
+    }
+
+    #[test]
+    fn test_different_interactions_allowed() {
+        use serde_json::json;
+        use crate::cli::pact_broker::main::pact_publish::merge_interactions_or_messages;
+
+        // Create two different interactions (different descriptions)
+        let interaction1 = json!({
+            "description": "test interaction 1",
+            "providerState": "test state",
+            "request": {"method": "GET", "path": "/"},
+            "response": {"status": 200}
+        });
+
+        let interaction2 = json!({
+            "description": "test interaction 2",
+            "providerState": "test state", 
+            "request": {"method": "POST", "path": "/"},
+            "response": {"status": 201}
+        });
+
+        let mut existing_interactions = vec![interaction1];
+        let additional_interactions = vec![interaction2];
+
+        // This should succeed - different descriptions are allowed
+        let result = merge_interactions_or_messages(&mut existing_interactions, &additional_interactions);
+        
+        assert!(result.is_ok());
+        assert_eq!(existing_interactions.len(), 2); // Now we have both interactions
     }
 }

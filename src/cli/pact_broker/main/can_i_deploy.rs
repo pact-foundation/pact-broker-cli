@@ -4,8 +4,7 @@ use tracing::debug;
 
 use crate::cli::{
     pact_broker::main::{
-        HALClient, PactBrokerError,
-        utils::{get_auth, get_broker_url, get_ssl_options},
+        HALClient, PactBrokerError, process_notices, Notice, utils::{get_auth, get_broker_url, get_ssl_options}
     },
     utils,
 };
@@ -18,14 +17,6 @@ struct Summary {
     // failed: u32,
     // unknown: u32,
 }
-
-#[derive(Debug, serde::Deserialize)]
-struct Notice {
-    #[serde(rename = "type")]
-    notice_type: String,
-    text: String,
-}
-
 #[derive(Debug, serde::Deserialize)]
 struct Version {
     number: String,
@@ -319,28 +310,8 @@ pub fn can_i_deploy(
                                 }
                                 println!("{table}");
                             }
-
-                            if let Some(notices) = &data.notices {
-                                if !notices.is_empty() {
-                                    for notice in notices {
-                                        if notice.notice_type == "warning" {
-                                            println!(
-                                                "⚠️ {}",
-                                                utils::YELLOW.apply_to(notice.text.clone())
-                                            );
-                                        } else if notice.notice_type == "error" {
-                                            println!(
-                                                "❌ {}",
-                                                utils::RED.apply_to(notice.text.clone())
-                                            );
-                                        } else {
-                                            println!(
-                                                "📌 {}",
-                                                utils::GREEN.apply_to(notice.text.clone())
-                                            );
-                                        }
-                                    }
-                                }
+                            if let Some(notices) = data.notices {
+                                process_notices(&notices);
                             }
                             if data
                                 .summary
@@ -384,7 +355,24 @@ pub fn can_i_deploy(
                     }
                 }
             }
-            Err(res) => Err(res),
+            Err(err) => {
+                match &err {
+                    crate::cli::pact_broker::main::PactBrokerError::ValidationErrorWithNotices(messages, notices) => {
+                        println!("❌ Can-i-deploy command failed:");
+                        for message in messages {
+                            println!("   {}", message);
+                        }
+                        if !notices.is_empty() {
+                            println!("\nDetails:");
+                            process_notices(notices);
+                        }
+                    },
+                    _ => {
+                        println!("❌ {}", err.to_string());
+                    }
+                }
+                return Err(err)
+            }
         }
     })
 }

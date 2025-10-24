@@ -7,8 +7,7 @@ use serde_json::{Value, json};
 
 use crate::cli::{
     pact_broker::main::{
-        HALClient, PactBrokerError,
-        utils::{get_auth, get_broker_relation, get_broker_url, get_ssl_options, handle_error},
+        HALClient, PactBrokerError, process_notices, utils::{get_auth, get_broker_relation, get_broker_url, get_ssl_options}, Notice
     },
     utils::{self, git_info},
 };
@@ -85,13 +84,6 @@ struct PfProviderContract {
     title: String,
 }
 
-#[derive(Default, Debug, Clone, PartialEq, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
-struct Notice {
-    text: String,
-    #[serde(rename = "type")]
-    type_field: String,
-}
 
 pub fn publish(args: &ArgMatches) -> Result<Value, PactBrokerError> {
     // Load contract file
@@ -315,20 +307,7 @@ pub fn publish(args: &ArgMatches) -> Result<Value, PactBrokerError> {
                             match parsed_res {
                                 Ok(parsed_res) => {
                                     print!("✅ ");
-                                    parsed_res.notices.iter().for_each(|notice| {
-                                        match notice.type_field.as_str() {
-                                            "success" => {
-                                                println!("{}", utils::GREEN.apply_to(&notice.text))
-                                            }
-                                            "warning" | "prompt" => {
-                                                println!("{}", utils::YELLOW.apply_to(&notice.text))
-                                            }
-                                            "error" | "danger" => {
-                                                println!("{}", utils::RED.apply_to(&notice.text))
-                                            }
-                                            _ => println!("{}", notice.text),
-                                        }
-                                    });
+                                    process_notices(&parsed_res.notices);
                                 }
                                 Err(err) => {
                                     println!(
@@ -350,7 +329,22 @@ pub fn publish(args: &ArgMatches) -> Result<Value, PactBrokerError> {
                     }
                 },
                 Err(err) => {
-                    return Err(err);
+                    match &err {
+                        crate::cli::pact_broker::main::PactBrokerError::ValidationErrorWithNotices(messages, notices) => {
+                            println!("❌ Provider contract publication failed:");
+                            for message in messages {
+                                println!("   {}", message);
+                            }
+                            if !notices.is_empty() {
+                                println!("\nDetails:");
+                                process_notices(notices);
+                            }
+                        },
+                        _ => {
+                            println!("❌ {}", err.to_string());
+                        }
+                    }
+                    return Err(err)
                 }
             }
             Ok(json!({}))
