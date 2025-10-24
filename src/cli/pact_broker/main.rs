@@ -48,8 +48,40 @@ use reqwest::Response;
 use reqwest_middleware::{ClientBuilder, ClientWithMiddleware};
 use reqwest_middleware::{Middleware, Next};
 use reqwest_tracing::TracingMiddleware;
+use crate::cli::utils::{CYAN, GREEN, RED, YELLOW};
 
 use crate::cli::pact_broker::main::types::SslOptions;
+
+pub fn process_notices(notices: &[Notice]) {
+    for notice in notices {
+        let notice_text = notice.text.to_string();
+        let formatted_text = notice_text
+            .split_whitespace()
+            .map(|word| {
+                if word.starts_with("https") || word.starts_with("http") {
+                    format!("{}", CYAN.apply_to(word))
+                } else {
+                    match notice.type_field.as_str() {
+                        "success" => format!("{}", GREEN.apply_to(word)),
+                        "warning" | "prompt" => format!("{}", YELLOW.apply_to(word)),
+                        "error" | "danger" => format!("{}", RED.apply_to(word)),
+                        _ => word.to_string(),
+                    }
+                }
+            })
+            .collect::<Vec<String>>()
+            .join(" ");
+        println!("{}", formatted_text);
+    }
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[serde(rename_all = "camelCase")]
+pub struct Notice {
+    pub text: String,
+    #[serde(rename = "type")]
+    pub type_field: String,
+}
 
 fn is_true(object: &serde_json::Map<String, Value>, field: &str) -> bool {
     match object.get(field) {
@@ -120,6 +152,9 @@ pub enum PactBrokerError {
     /// Validation error
     #[error("failed validation - {0:?}")]
     ValidationError(Vec<String>),
+    /// Validation error with notices
+    #[error("failed validation - {0:?}")]
+    ValidationErrorWithNotices(Vec<String>, Vec<Notice>),
 }
 
 impl PartialEq<String> for PactBrokerError {
@@ -132,6 +167,9 @@ impl PartialEq<String> for PactBrokerError {
             PactBrokerError::NotFound(s) => buffer.push_str(s),
             PactBrokerError::UrlError(s) => buffer.push_str(s),
             PactBrokerError::ValidationError(errors) => {
+                buffer.push_str(errors.iter().join(", ").as_str())
+            },
+            PactBrokerError::ValidationErrorWithNotices(errors, _) => {
                 buffer.push_str(errors.iter().join(", ").as_str())
             }
         };
@@ -148,6 +186,7 @@ impl<'a> PartialEq<&'a str> for PactBrokerError {
             PactBrokerError::NotFound(s) => s.clone(),
             PactBrokerError::UrlError(s) => s.clone(),
             PactBrokerError::ValidationError(errors) => errors.iter().join(", "),
+            PactBrokerError::ValidationErrorWithNotices(errors, _) => errors.iter().join(", "),
         };
         message.as_str() == *other
     }
@@ -522,7 +561,8 @@ impl HALClient {
                 "Request to pact broker path '{}' failed: {}. URL: '{}'",
                 path, status_code, self.url
             )))
-        } else if status_code.as_u16() == 400 {
+        } else {
+            // Handle any error status code (400, 422, 409, etc.)
             let body = response.bytes().await.map_err(|_| {
                 PactBrokerError::IoError(format!(
                     "Failed to download response body for path '{}'. URL: '{}'",
@@ -531,27 +571,38 @@ impl HALClient {
             })?;
 
             if is_json_content_type {
-                let errors = serde_json::from_slice(&body)
-            .map_err(|err| PactBrokerError::ContentError(
-              format!("Did not get a valid HAL response body from pact broker path '{}' - {}. URL: '{}'",
-                      path, err, self.url)
-            ))?;
-                Err(handle_validation_errors(errors))
+                match serde_json::from_slice::<Value>(&body) {
+                    Ok(json_body) => {
+                        if json_body.get("errors").is_some() || json_body.get("notices").is_some() {
+                            Err(handle_validation_errors(json_body))
+                        } else {
+                            Err(PactBrokerError::IoError(format!(
+                                "Request to pact broker path '{}' failed: {}. Response: {}. URL: '{}'",
+                                path, status_code, json_body, self.url
+                            )))
+                        }
+                    }
+                    Err(_) => {
+                        let body_text = from_utf8(&body)
+                            .map(|b| b.to_string())
+                            .unwrap_or_else(|err| format!("could not read body: {}", err));
+                        error!("Request to pact broker path '{}' failed: {}", path, body_text);
+                        Err(PactBrokerError::IoError(format!(
+                            "Request to pact broker path '{}' failed: {}. URL: '{}'",
+                            path, status_code, self.url
+                        )))
+                    }
+                }
             } else {
-                let body = from_utf8(&body)
+                let body_text = from_utf8(&body)
                     .map(|b| b.to_string())
                     .unwrap_or_else(|err| format!("could not read body: {}", err));
-                error!("Request to pact broker path '{}' failed: {}", path, body);
+                error!("Request to pact broker path '{}' failed: {}", path, body_text);
                 Err(PactBrokerError::IoError(format!(
                     "Request to pact broker path '{}' failed: {}. URL: '{}'",
                     path, status_code, self.url
                 )))
             }
-        } else {
-            Err(PactBrokerError::IoError(format!(
-                "Request to pact broker path '{}' failed: {}. URL: '{}'",
-                path, status_code, self.url
-            )))
         }
     }
 
@@ -723,28 +774,44 @@ impl HALClient {
 fn handle_validation_errors(body: Value) -> PactBrokerError {
     match &body {
         Value::Object(attrs) => {
+            // Extract notices if present
+            let notices: Vec<Notice> = attrs.get("notices")
+                .and_then(|n| n.as_array())
+                .map(|notices_array| {
+                    notices_array.iter()
+                        .filter_map(|notice| serde_json::from_value::<Notice>(notice.clone()).ok())
+                        .collect()
+                })
+                .unwrap_or_default();
+
             if let Some(errors) = attrs.get("errors") {
-                match errors {
-                    Value::Array(values) => PactBrokerError::ValidationError(
-                        values.iter().map(|v| json_to_string(v)).collect(),
-                    ),
-                    Value::Object(errors) => PactBrokerError::ValidationError(
-                        errors
-                            .iter()
-                            .map(|(field, errors)| match errors {
-                                Value::String(error) => format!("{}: {}", field, error),
-                                Value::Array(errors) => format!(
-                                    "{}: {}",
-                                    field,
-                                    errors.iter().map(|err| json_to_string(err)).join(", ")
-                                ),
-                                _ => format!("{}: {}", field, errors),
-                            })
-                            .collect(),
-                    ),
-                    Value::String(s) => PactBrokerError::ValidationError(vec![s.clone()]),
-                    _ => PactBrokerError::ValidationError(vec![errors.to_string()]),
+                let error_messages = match errors {
+                    Value::Array(values) => values.iter().map(|v| json_to_string(v)).collect(),
+                    Value::Object(errors) => errors
+                        .iter()
+                        .map(|(field, errors)| match errors {
+                            Value::String(error) => format!("{}: {}", field, error),
+                            Value::Array(errors) => format!(
+                                "{}: {}",
+                                field,
+                                errors.iter().map(|err| json_to_string(err)).join(", ")
+                            ),
+                            _ => format!("{}: {}", field, errors),
+                        })
+                        .collect(),
+                    Value::String(s) => vec![s.clone()],
+                    _ => vec![errors.to_string()],
+                };
+                
+                if !notices.is_empty() {
+                    PactBrokerError::ValidationErrorWithNotices(error_messages, notices)
+                } else {
+                    PactBrokerError::ValidationError(error_messages)
                 }
+            } else if !notices.is_empty() {
+                // Even if there are no explicit errors, notices might contain error information
+                let notice_messages = notices.iter().map(|n| n.text.clone()).collect();
+                PactBrokerError::ValidationErrorWithNotices(notice_messages, notices)
             } else {
                 PactBrokerError::ValidationError(vec![body.to_string()])
             }

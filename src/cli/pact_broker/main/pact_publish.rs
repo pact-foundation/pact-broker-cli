@@ -16,10 +16,10 @@ use pact_models::{http_utils, pact};
 use serde::{Deserialize, Serialize};
 use serde_json::{Value, json};
 
-use crate::cli::pact_broker::main::HALClient;
+use crate::cli::pact_broker::main::{HALClient, process_notices, Notice};
 use crate::cli::pact_broker::main::utils::{get_ssl_options, handle_error};
 use crate::cli::pact_broker::main::utils::{get_auth, get_broker_relation, get_broker_url};
-use crate::cli::utils::{self, git_info};
+use crate::cli::utils::{git_info};
 use std::collections::HashMap;
 
 use super::verification::{VerificationResult, display_results, verify_json};
@@ -131,13 +131,6 @@ struct Log {
     pub message: String,
 }
 
-#[derive(Default, Debug, Clone, PartialEq, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
-struct Notice {
-    pub text: String,
-    #[serde(rename = "type")]
-    pub type_field: String,
-}
 
 pub fn handle_matches(args: &ArgMatches) -> Result<Vec<VerificationResult>, i32> {
     if args.get_flag("validate") == false {
@@ -170,6 +163,7 @@ pub fn handle_matches(args: &ArgMatches) -> Result<Vec<VerificationResult>, i32>
         return Ok(results);
     }
 }
+
 
 pub fn publish_pacts(args: &ArgMatches) -> Result<Value, i32> {
     let files: Result<Vec<(String, Value)>, anyhow::Error> = load_files(args);
@@ -393,90 +387,12 @@ pub fn publish_pacts(args: &ArgMatches) -> Result<Value, i32> {
                                             Ok(parsed_res) => {
                                                 print!("✅ ");
                                                 if let Some(notices) = parsed_res.notices {
-                                                    notices.iter().for_each(|notice| match notice
-                                                        .type_field
-                                                        .as_str()
-                                                    {
-                                                        "success" => {
-                                                            let notice_text =
-                                                                notice.text.to_string();
-                                                            let formatted_text = notice_text
-                                                                .split_whitespace()
-                                                                .map(|word| {
-                                                                    if word.starts_with("https")
-                                                                        || word.starts_with("http")
-                                                                    {
-                                                                        format!(
-                                                                            "{}",
-                                                                            utils::CYAN
-                                                                                .apply_to(word)
-                                                                        )
-                                                                    } else {
-                                                                        format!(
-                                                                            "{}",
-                                                                            utils::GREEN
-                                                                                .apply_to(word)
-                                                                        )
-                                                                    }
-                                                                })
-                                                                .collect::<Vec<String>>()
-                                                                .join(" ");
-                                                            println!("{}", formatted_text)
-                                                        }
-                                                        "warning" | "prompt" => {
-                                                            let notice_text =
-                                                                notice.text.to_string();
-                                                            let formatted_text = notice_text
-                                                                .split_whitespace()
-                                                                .map(|word| {
-                                                                    if word.starts_with("https")
-                                                                        || word.starts_with("http")
-                                                                    {
-                                                                        format!(
-                                                                            "{}",
-                                                                            utils::CYAN
-                                                                                .apply_to(word)
-                                                                        )
-                                                                    } else {
-                                                                        format!(
-                                                                            "{}",
-                                                                            utils::YELLOW
-                                                                                .apply_to(word)
-                                                                        )
-                                                                    }
-                                                                })
-                                                                .collect::<Vec<String>>()
-                                                                .join(" ");
-                                                            println!("{}", formatted_text)
-                                                        }
-                                                        "error" | "danger" => {
-                                                            let notice_text =
-                                                                notice.text.to_string();
-                                                            let formatted_text = notice_text
-                                                                .split_whitespace()
-                                                                .map(|word| {
-                                                                    if word.starts_with("https")
-                                                                        || word.starts_with("http")
-                                                                    {
-                                                                        format!(
-                                                                            "{}",
-                                                                            utils::CYAN
-                                                                                .apply_to(word)
-                                                                        )
-                                                                    } else {
-                                                                        format!(
-                                                                            "{}",
-                                                                            utils::RED
-                                                                                .apply_to(word)
-                                                                        )
-                                                                    }
-                                                                })
-                                                                .collect::<Vec<String>>()
-                                                                .join(" ");
-                                                            println!("{}", formatted_text)
-                                                        }
-                                                        _ => println!("{}", notice.text),
-                                                    });
+                                                    process_notices(&notices);
+                                                } else {
+                                                    println!(
+                                                        "Pact published successfully for consumer: {} against provider: {}",
+                                                        consumer_name, provider_name
+                                                    );
                                                 }
                                             }
                                             Err(err) => {
@@ -497,8 +413,22 @@ pub fn publish_pacts(args: &ArgMatches) -> Result<Value, i32> {
                                 }
                             },
                             Err(err) => {
-                                println!("❌ {}", err.to_string());
-                                Err(1)?
+                                match &err {
+                                    crate::cli::pact_broker::main::PactBrokerError::ValidationErrorWithNotices(messages, notices) => {
+                                        println!("❌ Pact publication failed:");
+                                        for message in messages {
+                                            println!("   {}", message);
+                                        }
+                                        if !notices.is_empty() {
+                                            println!("\nDetails:");
+                                            process_notices(notices);
+                                        }
+                                    },
+                                    _ => {
+                                        println!("❌ {}", err.to_string());
+                                    }
+                                }
+                                return Err(1);
                             }
                         }
                     }
@@ -868,5 +798,98 @@ mod publish_contracts_tests {
         let value = result.unwrap();
 
         assert!(value.is_object());
+    }
+
+    #[test]
+    fn test_error_handling_with_notices() {
+        // Test the handle_validation_errors function with a response containing notices
+        use crate::cli::pact_broker::main::handle_validation_errors;
+        use serde_json::json;
+
+        let error_response = json!({
+            "errors": ["Consumer version not found"],
+            "notices": [
+                {
+                    "text": "Please create the consumer version first",
+                    "type": "error"
+                },
+                {
+                    "text": "Visit https://docs.pact.io for more information",
+                    "type": "info"
+                }
+            ]
+        });
+
+        let result = handle_validation_errors(error_response);
+        
+        match result {
+            crate::cli::pact_broker::main::PactBrokerError::ValidationErrorWithNotices(messages, notices) => {
+                assert_eq!(messages.len(), 1);
+                assert_eq!(messages[0], "Consumer version not found");
+                assert_eq!(notices.len(), 2);
+                assert_eq!(notices[0].text, "Please create the consumer version first");
+                assert_eq!(notices[0].type_field, "error");
+                assert_eq!(notices[1].text, "Visit https://docs.pact.io for more information");
+                assert_eq!(notices[1].type_field, "info");
+            }
+            _ => panic!("Expected ValidationErrorWithNotices variant")
+        }
+    }
+
+    #[test]
+    fn test_error_handling_without_notices() {
+        // Test the handle_validation_errors function with a response without notices
+        use crate::cli::pact_broker::main::handle_validation_errors;
+        use serde_json::json;
+
+        let error_response = json!({
+            "errors": ["Invalid pact file format"]
+        });
+
+        let result = handle_validation_errors(error_response);
+        
+        match result {
+            crate::cli::pact_broker::main::PactBrokerError::ValidationError(messages) => {
+                assert_eq!(messages.len(), 1);
+                assert_eq!(messages[0], "Invalid pact file format");
+            }
+            _ => panic!("Expected ValidationError variant")
+        }
+    }
+
+    #[test]
+    fn test_error_handling_notices_only() {
+        // Test the handle_validation_errors function with notices but no explicit errors
+        use crate::cli::pact_broker::main::handle_validation_errors;
+        use serde_json::json;
+
+        let error_response = json!({
+            "notices": [
+                {
+                    "text": "Pact could not be published because version already exists",
+                    "type": "error"
+                },
+                {
+                    "text": "Use --overwrite flag to replace existing pact",
+                    "type": "warning"
+                }
+            ]
+        });
+
+        let result = handle_validation_errors(error_response);
+        
+        match result {
+            crate::cli::pact_broker::main::PactBrokerError::ValidationErrorWithNotices(messages, notices) => {
+                assert_eq!(messages.len(), 2);
+                assert_eq!(messages[0], "Pact could not be published because version already exists");
+                assert_eq!(messages[1], "Use --overwrite flag to replace existing pact");
+                assert_eq!(notices.len(), 2);
+                assert_eq!(notices[0].text, "Pact could not be published because version already exists");
+                assert_eq!(notices[0].type_field, "error");
+                assert_eq!(notices[1].text, "Use --overwrite flag to replace existing pact");
+                assert_eq!(notices[1].type_field, "warning");
+            }
+            _ => panic!("Expected ValidationErrorWithNotices variant")
+        }
     }
 }
