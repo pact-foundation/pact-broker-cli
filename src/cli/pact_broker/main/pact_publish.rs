@@ -24,6 +24,21 @@ use std::collections::HashMap;
 
 use super::verification::{VerificationResult, display_results, verify_json};
 
+/// Error type for pact merging conflicts
+#[derive(Debug)]
+pub struct PactMergeError {
+    /// The error message describing the merge conflict
+    pub message: String,
+}
+
+impl std::fmt::Display for PactMergeError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "PactBroker::Client::PactMergeError - {}", self.message)
+    }
+}
+
+impl std::error::Error for PactMergeError {}
+
 #[derive(Default, Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 struct Root {
@@ -131,6 +146,68 @@ struct Log {
     pub message: String,
 }
 
+/// Check if two interactions have the same description and provider state
+fn same_description_and_state(original: &Value, additional: &Value) -> bool {
+    let same_description = original.get("description") == additional.get("description");
+    
+    let same_state = match (original.get("providerState"), additional.get("providerState")) {
+        (Some(orig_state), Some(add_state)) => orig_state == add_state,
+        (None, None) => true,
+        _ => {
+            // Check providerStates array as well
+            match (original.get("providerStates"), additional.get("providerStates")) {
+                (Some(orig_states), Some(add_states)) => orig_states == add_states,
+                (None, None) => true,
+                _ => false,
+            }
+        }
+    };
+    
+    same_description && same_state
+}
+
+fn almost_duplicate_message(original: &Value, new_interaction: &Value) -> String {
+    let description = new_interaction.get("description")
+        .and_then(|d| d.as_str())
+        .unwrap_or("unknown");
+    
+    let provider_state = new_interaction.get("providerState")
+        .or_else(|| new_interaction.get("providerStates"))
+        .map(|s| serde_json::to_string(s).unwrap_or_else(|_| "unknown".to_string()))
+        .unwrap_or_else(|| "null".to_string());
+    
+    let original_json = serde_json::to_string_pretty(original)
+        .unwrap_or_else(|_| "<invalid json>".to_string());
+    let new_json = serde_json::to_string_pretty(new_interaction)
+        .unwrap_or_else(|_| "<invalid json>".to_string());
+    
+    format!(
+        "Two interactions have been found with same description ({:?}) and provider state ({}) but a different request or response. Please use a different description or provider state, or hard-code any random data.\n\n{}\n\n{}",
+        description, provider_state, original_json, new_json
+    )
+}
+
+fn merge_interactions_or_messages(
+    existing_interactions: &mut Vec<Value>,
+    additional_interactions: &[Value],
+) -> Result<(), PactMergeError> {
+    for new_interaction in additional_interactions {
+        if let Some(existing_index) = existing_interactions.iter().position(|existing| {
+            same_description_and_state(existing, new_interaction)
+        }) {
+            if existing_interactions[existing_index] == *new_interaction {
+                existing_interactions[existing_index] = new_interaction.clone();
+            } else {
+                return Err(PactMergeError {
+                    message: almost_duplicate_message(&existing_interactions[existing_index], new_interaction),
+                });
+            }
+        } else {
+            existing_interactions.push(new_interaction.clone());
+        }
+    }
+    Ok(())
+}
 
 pub fn handle_matches(args: &ArgMatches) -> Result<Vec<VerificationResult>, i32> {
     if args.get_flag("validate") == false {
@@ -268,7 +345,7 @@ pub fn publish_pacts(args: &ArgMatches) -> Result<Value, i32> {
                             consumer_name,
                             provider_name
                         );
-                        // Merge interactions arrays
+                        // Merge interactions arrays with duplicate detection
                         if let (Some(existing_interactions), Some(new_interactions)) = (
                             existing_json.get_mut("interactions"),
                             pact_json.get("interactions"),
@@ -282,11 +359,20 @@ pub fn publish_pacts(args: &ArgMatches) -> Result<Value, i32> {
                                     existing_arr.len(),
                                     new_arr.len()
                                 );
-                                existing_arr.extend(new_arr.iter().cloned());
-                                tracing::debug!(
-                                    "Total interactions after merge: {}",
-                                    existing_arr.len()
-                                );
+                                
+                                match merge_interactions_or_messages(existing_arr, new_arr) {
+                                    Ok(()) => {
+                                        tracing::debug!(
+                                            "Total interactions after merge: {}",
+                                            existing_arr.len()
+                                        );
+                                    }
+                                    Err(merge_error) => {
+                                        println!("❌ {}", merge_error);
+                                        error!("Pact merge error: {}", merge_error);
+                                        return Err(1);
+                                    }
+                                }
                             }
                         }
                     } else {
@@ -891,5 +977,111 @@ mod publish_contracts_tests {
             }
             _ => panic!("Expected ValidationErrorWithNotices variant")
         }
+    }
+
+    #[test]
+    fn test_duplicate_interaction_detection() {
+        use serde_json::json;
+        use crate::cli::pact_broker::main::pact_publish::merge_interactions_or_messages;
+
+        // Create two interactions with same description and state but different content
+        let interaction1 = json!({
+            "description": "test interaction",
+            "providerState": "test state",
+            "request": {
+                "method": "POST",
+                "path": "/",
+                "body": {"complete": {"certificateUri": "http://..."}}
+            },
+            "response": {
+                "status": 200,
+                "body": {"_id": "1234", "desc": "Response 1"}
+            }
+        });
+
+        let interaction2 = json!({
+            "description": "test interaction", 
+            "providerState": "test state",
+            "request": {
+                "method": "GET",
+                "path": "/",
+                "headers": {"TEST-X": "X, Y"}
+            },
+            "response": {
+                "status": 200,
+                "body": {"_id": "5678", "desc": "Response 2"}
+            }
+        });
+
+        let mut existing_interactions = vec![interaction1];
+        let additional_interactions = vec![interaction2];
+
+        // This should fail with a PactMergeError
+        let result = merge_interactions_or_messages(&mut existing_interactions, &additional_interactions);
+        
+        assert!(result.is_err());
+        let error = result.unwrap_err();
+        assert!(error.message.contains("Two interactions have been found with same description"));
+        assert!(error.message.contains("test interaction"));
+        assert!(error.message.contains("test state"));
+    }
+
+    #[test]
+    fn test_identical_interactions_allowed() {
+        use serde_json::json;
+        use crate::cli::pact_broker::main::pact_publish::merge_interactions_or_messages;
+
+        // Create two identical interactions
+        let interaction = json!({
+            "description": "test interaction",
+            "providerState": "test state",
+            "request": {
+                "method": "GET",
+                "path": "/"
+            },
+            "response": {
+                "status": 200,
+                "body": {"message": "success"}
+            }
+        });
+
+        let mut existing_interactions = vec![interaction.clone()];
+        let additional_interactions = vec![interaction];
+
+        // This should succeed - identical interactions are allowed
+        let result = merge_interactions_or_messages(&mut existing_interactions, &additional_interactions);
+        
+        assert!(result.is_ok());
+        assert_eq!(existing_interactions.len(), 1); // Still only one interaction
+    }
+
+    #[test]
+    fn test_different_interactions_allowed() {
+        use serde_json::json;
+        use crate::cli::pact_broker::main::pact_publish::merge_interactions_or_messages;
+
+        // Create two different interactions (different descriptions)
+        let interaction1 = json!({
+            "description": "test interaction 1",
+            "providerState": "test state",
+            "request": {"method": "GET", "path": "/"},
+            "response": {"status": 200}
+        });
+
+        let interaction2 = json!({
+            "description": "test interaction 2",
+            "providerState": "test state", 
+            "request": {"method": "POST", "path": "/"},
+            "response": {"status": 201}
+        });
+
+        let mut existing_interactions = vec![interaction1];
+        let additional_interactions = vec![interaction2];
+
+        // This should succeed - different descriptions are allowed
+        let result = merge_interactions_or_messages(&mut existing_interactions, &additional_interactions);
+        
+        assert!(result.is_ok());
+        assert_eq!(existing_interactions.len(), 2); // Now we have both interactions
     }
 }
