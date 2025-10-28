@@ -2,9 +2,7 @@ use maplit::hashmap;
 
 use crate::cli::pact_broker::main::{
     HALClient, Link, PactBrokerError,
-    utils::{
-        get_auth, get_broker_relation, get_broker_url, get_ssl_options,
-    },
+    utils::{get_auth, get_broker_relation, get_broker_url, get_ssl_options},
 };
 
 pub fn delete_version_tag(args: &clap::ArgMatches) -> Result<String, PactBrokerError> {
@@ -19,7 +17,7 @@ pub fn delete_version_tag(args: &clap::ArgMatches) -> Result<String, PactBrokerE
     let res = tokio::runtime::Runtime::new().unwrap().block_on(async {
         let hal_client: HALClient =
             HALClient::with_url(&broker_url, Some(auth.clone()), ssl_options.clone());
-        
+
         // First, get the pacticipant to access its version-tag relation
         let pb_pacticipant_href_path = get_broker_relation(
             hal_client.clone(),
@@ -130,7 +128,7 @@ mod delete_version_tag_tests {
                         "_links": {
                             "pb:pacticipant": {
                                 "href": term!("http:\\/\\/.*\\{pacticipant\\}","http://localhost/pacticipants/{pacticipant}"),
-                                "title": "Get pacticipant",
+                                "title": like!("Fetch pacticipant by name"),
                                 "templated": true
                             }
                         }
@@ -150,8 +148,8 @@ mod delete_version_tag_tests {
                     .json_body(json_pattern!({
                         "_links": {
                             "pb:version-tag": {
-                                "href": term!("http:\\/\\/.*\\{pacticipant\\}.*\\{version\\}.*\\{tag\\}","http://localhost/pacticipants/{pacticipant}/versions/{version}/tags/{tag}"),
-                                "title": "Get, create or delete tag",
+                                "href": term!("http:\\/\\/.*\\{pacticipants\\}.*\\{versions\\}.*\\{tags\\}.*","http://localhost/pacticipants/{pacticipant}/versions/{version}/tags/{tag}"),
+                                "title": like!("Get, create or delete tag"),
                                 "templated": true
                             }
                         }
@@ -159,7 +157,7 @@ mod delete_version_tag_tests {
                 i
             })
             .interaction("a request to delete a tag", "", |mut i| {
-                i.given(format!("tag '{}' exists for version '{}' of pacticipant '{}'", tag, version, pacticipant));
+                i.given(format!("'{}' exists in the pact-broker with version {}, tagged with '{}'", pacticipant, version, tag));
                 i.request
                     .delete()
                     .path(format!("/pacticipants/{}/versions/{}/tags/{}", pacticipant, version, tag));
@@ -211,7 +209,7 @@ mod delete_version_tag_tests {
                         "_links": {
                             "pb:pacticipant": {
                                 "href": term!("http:\\/\\/.*\\{pacticipant\\}","http://localhost/pacticipants/{pacticipant}"),
-                                "title": "Get pacticipant",
+                                "title": like!("Fetch pacticipant by name"),
                                 "templated": true
                             }
                         }
@@ -231,8 +229,8 @@ mod delete_version_tag_tests {
                     .json_body(json_pattern!({
                         "_links": {
                             "pb:version-tag": {
-                                "href": term!("http:\\/\\/.*\\{pacticipant\\}.*\\{version\\}.*\\{tag\\}","http://localhost/pacticipants/{pacticipant}/versions/{version}/tags/{tag}"),
-                                "title": "Get, create or delete tag",
+                                "href": term!("http:\\/\\/.*\\/pacticipants\\/.*\\/versions\\/\\{version\\}\\/tags\\/\\{tag\\}","http://localhost/pacticipants/{pacticipant}/versions/{version}/tags/{tag}"),
+                                "title": like!("Get, create or delete tag"),
                                 "templated": true
                             }
                         }

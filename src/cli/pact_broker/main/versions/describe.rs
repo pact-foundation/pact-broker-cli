@@ -2,15 +2,15 @@ use comfy_table::{Table, presets::UTF8_FULL};
 use maplit::hashmap;
 use serde_json::Value;
 
+use crate::cli::pact_broker::main::HttpAuth;
 use crate::cli::pact_broker::main::{
     HALClient, PactBrokerError,
     types::{OutputType, SslOptions},
     utils::{
-        follow_templated_broker_relation, get_auth, get_broker_relation, get_broker_url,
-        get_ssl_options, follow_broker_relation,
+        follow_broker_relation, follow_templated_broker_relation, get_auth, get_broker_relation,
+        get_broker_url, get_ssl_options,
     },
 };
-use crate::cli::pact_broker::main::HttpAuth;
 
 pub fn describe_version(args: &clap::ArgMatches) -> Result<String, PactBrokerError> {
     let broker_url = get_broker_url(args).trim_end_matches('/').to_string();
@@ -31,8 +31,14 @@ pub fn describe_version(args: &clap::ArgMatches) -> Result<String, PactBrokerErr
     // If environment is specified, use environment-based queries
     if let Some(env_name) = environment {
         return describe_version_by_environment(
-            &broker_url, &auth, &ssl_options, pacticipant_name, env_name,
-            deployed_only, released_only, output_type
+            &broker_url,
+            &auth,
+            &ssl_options,
+            pacticipant_name,
+            env_name,
+            deployed_only,
+            released_only,
+            output_type,
         );
     }
 
@@ -150,35 +156,39 @@ fn describe_version_by_environment(
 
         // Query endpoints based on flags
         let mut all_versions = Vec::new();
-        
+
         if deployed_only || (!deployed_only && !released_only) {
             // Get currently deployed versions
             let deployed_path = format!(
                 "/environments/{}/deployed-versions/currently-deployed",
                 environment_uuid
             );
-            
+
             if let Ok(deployed_response) = hal_client
                 .clone()
                 .fetch(&format!("{}{}", broker_url, deployed_path))
-                .await {
-                let deployed_versions = filter_versions_by_pacticipant(&deployed_response, pacticipant_name);
+                .await
+            {
+                let deployed_versions =
+                    filter_versions_by_pacticipant(&deployed_response, pacticipant_name);
                 all_versions.extend(deployed_versions);
             }
         }
-        
+
         if released_only || (!deployed_only && !released_only) {
             // Get currently supported released versions
             let released_path = format!(
                 "/environments/{}/released-versions/currently-supported",
                 environment_uuid
             );
-            
+
             if let Ok(released_response) = hal_client
                 .clone()
                 .fetch(&format!("{}{}", broker_url, released_path))
-                .await {
-                let released_versions = filter_versions_by_pacticipant(&released_response, pacticipant_name);
+                .await
+            {
+                let released_versions =
+                    filter_versions_by_pacticipant(&released_response, pacticipant_name);
                 all_versions.extend(released_versions);
             }
         }
@@ -250,9 +260,12 @@ fn format_environment_versions_output(
         }
         OutputType::Table => {
             let mut table = Table::new();
-            table
-                .load_preset(UTF8_FULL)
-                .set_header(vec!["VERSION", "STATUS", "ENVIRONMENT", "APPLICATION INSTANCE"]);
+            table.load_preset(UTF8_FULL).set_header(vec![
+                "VERSION",
+                "STATUS",
+                "ENVIRONMENT",
+                "APPLICATION INSTANCE",
+            ]);
 
             for version in &versions {
                 let version_number = version
@@ -262,9 +275,17 @@ fn format_environment_versions_output(
                     .and_then(|n| n.as_str())
                     .unwrap_or("-");
 
-                let status = if version.get("currentlyDeployed").and_then(|v| v.as_bool()).unwrap_or(false) {
+                let status = if version
+                    .get("currentlyDeployed")
+                    .and_then(|v| v.as_bool())
+                    .unwrap_or(false)
+                {
                     "Deployed"
-                } else if version.get("currentlyReleased").and_then(|v| v.as_bool()).unwrap_or(false) {
+                } else if version
+                    .get("currentlyReleased")
+                    .and_then(|v| v.as_bool())
+                    .unwrap_or(false)
+                {
                     "Released"
                 } else {
                     "Unknown"
@@ -275,7 +296,12 @@ fn format_environment_versions_output(
                     .and_then(|ai| ai.as_str())
                     .unwrap_or("-");
 
-                table.add_row(vec![version_number, status, environment_name, application_instance]);
+                table.add_row(vec![
+                    version_number,
+                    status,
+                    environment_name,
+                    application_instance,
+                ]);
             }
 
             let table_str = table.to_string();

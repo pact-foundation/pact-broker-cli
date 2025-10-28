@@ -119,10 +119,6 @@ mod describe_environment_tests {
                         "displayName": like!("existing display name"),
                         "production": like!(true),
                         "createdAt": like!("2024-06-01T12:00:00Z"),
-                        "contacts": each_like!({
-                            "name": like!("Contact Name"),
-                            "email": like!("contact@example.com")
-                        }, min = 1)
                     }));
                 i
             })
@@ -159,10 +155,6 @@ mod describe_environment_tests {
                         "displayName": like!("existing display name"),
                         "production": like!(true),
                         "createdAt": like!("2024-06-01T12:00:00Z"),
-                        "contacts": each_like!({
-                            "name": like!("Contact Name"),
-                            "email": like!("contact@example.com")
-                        }, min =1)
                     }));
                 i
             })

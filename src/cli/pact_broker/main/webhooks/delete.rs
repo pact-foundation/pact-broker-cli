@@ -32,14 +32,16 @@ pub fn delete_webhook(args: &clap::ArgMatches) -> Result<String, PactBrokerError
 
         // First, get the webhook to check if it exists
         let template_values = hashmap! { "uuid".to_string() => webhook_uuid.to_string() };
-        
+
         // Try to fetch the webhook first
         match follow_templated_broker_relation(
             hal_client.clone(),
             "pb:webhook".to_string(),
             pb_webhook_href_path.clone(),
             template_values.clone(),
-        ).await {
+        )
+        .await
+        {
             Ok(_webhook_data) => {
                 // Webhook exists, now delete it
                 let link = crate::cli::pact_broker::main::Link {
@@ -48,9 +50,9 @@ pub fn delete_webhook(args: &clap::ArgMatches) -> Result<String, PactBrokerError
                     templated: true,
                     title: None,
                 };
-                
+
                 hal_client.delete_url(&link, &template_values).await
-            },
+            }
             Err(err) => Err(err),
         }
     });
@@ -124,10 +126,10 @@ mod delete_webhook_tests {
 
     #[test]
     fn delete_webhook_successfully() {
-        let uuid = "d2181b32-8b03-4daf-8cc0-d9168b2f6fac";
-        
+        let uuid = "696c5f93-1b7f-44bc-8d03-59440fcaa9a0";
+
         let webhook_get_interaction = |mut i: InteractionBuilder| {
-            i.given(format!("a webhook with uuid {} exists", uuid));
+            i.given(format!("a webhook with the uuid {} exists", uuid));
             i.request
                 .get()
                 .path(format!("/webhooks/{}", uuid))
@@ -136,12 +138,12 @@ mod delete_webhook_tests {
             i.response
                 .status(200)
                 .header("Content-Type", "application/hal+json;charset=utf-8")
-                .json_body(json!({
+                .json_body(json_pattern!({
                     "uuid": uuid,
-                    "description": "an example webhook",
+                    "description": like!("an example webhook"),
                     "_links": {
                         "self": {
-                            "href": format!("http://localhost/webhooks/{}", uuid)
+                            "href": term!("http:\\/\\/.*\\/webhooks\\/.*", "http://localhost/webhooks/{uuid}")
                         }
                     }
                 }));
@@ -149,7 +151,7 @@ mod delete_webhook_tests {
         };
 
         let webhook_delete_interaction = |mut i: InteractionBuilder| {
-            i.given(format!("a webhook with uuid {} exists", uuid));
+            i.given(format!("a webhook with the uuid {} exists", uuid));
             i.request
                 .delete()
                 .path(format!("/webhooks/{}", uuid))
@@ -191,7 +193,7 @@ mod delete_webhook_tests {
     #[test]
     fn delete_webhook_not_found() {
         let uuid = "non-existent-uuid";
-        
+
         let webhook_get_interaction = |mut i: InteractionBuilder| {
             i.given(format!("a webhook with uuid {} does not exist", uuid));
             i.request

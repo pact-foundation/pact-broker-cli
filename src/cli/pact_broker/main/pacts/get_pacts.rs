@@ -296,50 +296,46 @@ mod get_pacts_tests {
             ..MockServerConfig::default()
         };
 
+        let pacts = json!([
+                {
+                "href": "http://example.org/pacts/provider/Pricing%20Service/consumer/Condor/version/1.3.0",
+                "title": "Pact between Condor (1.3.0) and Pricing Service",
+                "name": "Condor"
+                }
+            ]);
+
+        let expected_transformed_response = json!({
+            "pacts": pacts,
+        });
+
         let body = json!({
             "_links": {
-                "self": {
-                    "href": "http://example.org/pacts/provider/Provider/branch/"
-                }
+            "self": {
+                "href": "http://localhost/pacts/provider/Pricing%20Service/branch",
+                "title": "All pact versions for the provider Pricing Service"
             },
-            "pacts": [
-                {
-                    "_links": {
-                        "self": {
-                            "href": "http://example.org/pacts/provider/Provider/consumer/Consumer/version/1.0.0"
-                        }
-                    },
-                    "_embedded": {
-                        "consumer": {
-                            "name": "Consumer",
-                            "_embedded": {
-                                "version": {
-                                    "number": "1.0.0",
-                                    "branch": "main"
-                                }
-                            }
-                        },
-                        "provider": {
-                            "name": "Provider"
-                        }
-                    },
-                    "createdAt": "2024-01-01T00:00:00Z"
-                }
-            ]
+            "pb:provider": {
+                "href": "http://example.org/pacticipants/Pricing%20Service",
+                "name": "Pricing Service"
+            },
+            "pb:pacts": pacts,
+            }
         });
+      let consumer = "Condor";
+    let provider = "Pricing Service";
 
         let pact_broker_service = PactBuilder::new("pact-broker-cli", "Pact Broker")
             .interaction("a request to get pacts for provider on main branch", "", |mut i| {
-                i.given("pacts exist for the provider");
+                i.given(format!("a pact between {} and the {} exists with branch {}",consumer,provider,"main"));
                 i.request
                     .get()
-                    .path("/pacts/provider/TestProvider/branch")
+                    .path("/pacts/provider/Pricing%20Service/branch")
                     .header("Accept", "application/hal+json")
                     .header("Accept", "application/json");
                 i.response
                     .status(200)
                     .header("Content-Type", "application/hal+json;charset=utf-8")
-                    .json_body(body.clone());
+                    .json_body(body);
                 i
             })
             .start_mock_server(None, Some(config));
@@ -353,13 +349,13 @@ mod get_pacts_tests {
         };
 
         // act
-        let result = get_pacts(&broker_details, "TestProvider", None, None, false, OutputType::Json, false, "./pacts");
+        let result = get_pacts(&broker_details, "Pricing Service", None, None, false, OutputType::Json, false, "./pacts");
 
         // assert
         assert!(result.is_ok(), "Expected success but got error: {:?}", result.err());
         let output = result.unwrap();
         let output_json: serde_json::Value = serde_json::from_str(&output).unwrap();
-        assert_eq!(output_json, body);
+        assert_eq!(output_json, expected_transformed_response);
     }
 
     #[test] 
@@ -370,50 +366,78 @@ mod get_pacts_tests {
             ..MockServerConfig::default()
         };
 
-        let body = json!({
-            "_links": {
-                "self": {
-                    "href": "http://example.org/pacts/provider/Provider/consumer/Consumer/branch/feature"
+        let pacts = json_pattern!([
+            {
+            "createdAt": like!("2025-10-28T20:27:24+00:00"),
+            "_embedded": {
+                "consumerVersion": {
+                "number": "1.3.0",
+                "_links": {
+                    "self": {
+                    "title": "Version",
+                    "name": "1.3.0",
+                    "href": "http://example.org/pacticipants/Condor/versions/1.3.0"
+                    }
+                }
                 }
             },
-            "pacts": [
+            "_links": {
+                "self": {
+                "href": "http://example.org/pacts/provider/Pricing%20Service/consumer/Condor/version/1.3.0",
+                "title": "Pact between Condor (1.3.0) and Pricing Service"
+                }
+            }
+            }
+        ]);
+
+
+        let body = json_pattern!({
+            "_embedded": {
+                "pacts": pacts
+            },
+            "_links": {
+            "self": {
+                "href": "http://localhost/pacts/provider/Pricing%20Service/consumer/Condor/branch/feature",
+                "title": "All versions of the pact between Condor and Pricing Service"
+            },
+            "consumer": {
+                "href": "http://example.org/pacticipants/Condor",
+                "title": "Consumer",
+                "name": "Condor"
+            },
+            "provider": {
+                "href": "http://example.org/pacticipants/Pricing%20Service",
+                "title": "Provider",
+                "name": "Pricing Service"
+            },
+            "pact-versions": [
                 {
-                    "_links": {
-                        "self": {
-                            "href": "http://example.org/pacts/provider/Provider/consumer/Consumer/version/1.1.0"
-                        }
-                    },
-                    "_embedded": {
-                        "consumer": {
-                            "name": "Consumer",
-                            "_embedded": {
-                                "version": {
-                                    "number": "1.1.0",
-                                    "branch": "feature"
-                                }
-                            }
-                        },
-                        "provider": {
-                            "name": "Provider"
-                        }
-                    },
-                    "createdAt": "2024-01-02T00:00:00Z"
+                "href": "http://example.org/pacts/provider/Pricing%20Service/consumer/Condor/version/1.3.0",
+                "title": "Pact",
+                "name": "Version 1.3.0 - 28/10/2025"
                 }
             ]
+            }
         });
+        let expected_body: serde_json::Value = serde_json::from_str(&body.to_example().to_string()).unwrap();
+
+
+        let consumer = "Condor";
+        let provider = "Pricing Service";
+        let branch = "feature";
 
         let pact_broker_service = PactBuilder::new("pact-broker-cli", "Pact Broker")
             .interaction("a request to get pacts for provider and consumer on specific branch", "", |mut i| {
-                i.given("pacts exist for the provider and consumer on the branch");
+                i.given(format!("a pact between {} and the {} exists with branch {}",consumer,provider,branch));
                 i.request
                     .get()
-                    .path("/pacts/provider/TestProvider/consumer/TestConsumer/branch/feature")
+                    .path("/pacts/provider/Pricing%20Service/consumer/Condor/branch/feature")
                     .header("Accept", "application/hal+json")
                     .header("Accept", "application/json");
                 i.response
                     .status(200)
                     .header("Content-Type", "application/hal+json;charset=utf-8")
-                    .json_body(body.clone());
+                    .json_body(body);
                 i
             })
             .start_mock_server(None, Some(config));
@@ -427,13 +451,13 @@ mod get_pacts_tests {
         };
 
         // act
-        let result = get_pacts(&broker_details, "TestProvider", Some("TestConsumer"), Some("feature"), false, OutputType::Json, false, "./pacts");
+        let result = get_pacts(&broker_details, "Pricing Service", Some("Condor"), Some("feature"), false, OutputType::Json, false, "./pacts");
 
         // assert
         assert!(result.is_ok(), "Expected success but got error: {:?}", result.err());
         let output = result.unwrap();
         let output_json: serde_json::Value = serde_json::from_str(&output).unwrap();
-        assert_eq!(output_json, body);
+        assert_eq!(output_json, expected_body);
     }
 
     #[test]
@@ -444,42 +468,38 @@ mod get_pacts_tests {
             ..MockServerConfig::default()
         };
 
+        let pacts = json!([
+                {
+                "href": "http://example.org/pacts/provider/Pricing%20Service/consumer/Condor/version/1.3.0",
+                "title": "Pact between Condor (1.3.0) and Pricing Service",
+                "name": "Condor"
+                }
+            ]);
+
+        let expected_transformed_response = json!({
+            "pacts": pacts,
+        });
+
         let body = json!({
             "_links": {
-                "self": {
-                    "href": "http://example.org/pacts/provider/Provider/branch/main/latest"
-                }
+            "self": {
+                "href": "http://localhost/pacts/provider/Pricing%20Service/branch/main/latest",
+                "title": "Latest pact versions for the provider Pricing Service with consumer version branch 'main'"
             },
-            "pact": {
-                "_links": {
-                    "self": {
-                        "href": "http://example.org/pacts/provider/Provider/consumer/Consumer/version/1.0.0"
-                    }
-                },
-                "_embedded": {
-                    "consumer": {
-                        "name": "Consumer",
-                        "_embedded": {
-                            "version": {
-                                "number": "1.0.0",
-                                "branch": "main"
-                            }
-                        }
-                    },
-                    "provider": {
-                        "name": "Provider"
-                    }
-                },
-                "createdAt": "2024-01-01T00:00:00Z"
+            "pb:provider": {
+                "href": "http://example.org/pacticipants/Pricing%20Service",
+                "name": "Pricing Service"
+            },
+            "pb:pacts": pacts,
             }
         });
 
         let pact_broker_service = PactBuilder::new("pact-broker-cli", "Pact Broker")
             .interaction("a request to get latest pacts for provider on branch", "", |mut i| {
-                i.given("pacts exist for the provider on the branch");
+                i.given("a pact between Condor and the Pricing Service exists with branch main");
                 i.request
                     .get()
-                    .path("/pacts/provider/TestProvider/branch/main/latest")
+                    .path("/pacts/provider/Pricing%20Service/branch/main/latest")
                     .header("Accept", "application/hal+json")
                     .header("Accept", "application/json");
                 i.response
@@ -499,12 +519,12 @@ mod get_pacts_tests {
         };
 
         // act
-        let result = get_pacts(&broker_details, "TestProvider", None, Some("main"), true, OutputType::Json, false, "./pacts");
+        let result = get_pacts(&broker_details, "Pricing Service", None, Some("main"), true, OutputType::Json, false, "./pacts");
 
         // assert
         assert!(result.is_ok(), "Expected success but got error: {:?}", result.err());
         let output = result.unwrap();
         let output_json: serde_json::Value = serde_json::from_str(&output).unwrap();
-        assert_eq!(output_json, body);
+        assert_eq!(output_json, expected_transformed_response);
     }
 }

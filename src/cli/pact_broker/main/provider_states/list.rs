@@ -123,7 +123,6 @@ fn format_table_output(
     branch: Option<&str>,
     environment: Option<&str>,
 ) -> String {
-    
     let mut output = String::new();
 
     // Add header information
@@ -151,9 +150,7 @@ fn format_table_output(
     for state in &provider_states.provider_states {
         let consumers_str = state.consumers.join(", ");
         let params_str = match &state.params {
-            Some(params) => {
-                serde_json::to_string(params).unwrap_or_else(|_| "{}".to_string())
-            }
+            Some(params) => serde_json::to_string(params).unwrap_or_else(|_| "{}".to_string()),
             None => "".to_string(),
         };
 
@@ -194,8 +191,8 @@ pub fn handle_list_provider_states_command(args: &ArgMatches) -> Result<String, 
 #[cfg(test)]
 mod tests {
     use super::*;
+    use comfy_table::{Table, presets::UTF8_FULL};
     use serde_json::json;
-use comfy_table::{Table, presets::UTF8_FULL};
     #[test]
     fn test_build_provider_states_path() {
         // Test main branch path
