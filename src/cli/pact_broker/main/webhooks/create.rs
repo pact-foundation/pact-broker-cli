@@ -4,13 +4,14 @@ use crate::cli::pact_broker::main::{
     HALClient, PactBrokerError,
     utils::{
         follow_templated_broker_relation, get_auth, get_broker_relation, get_broker_url,
-        get_ssl_options,
+        get_custom_headers, get_ssl_options,
     },
 };
 
 pub fn create_webhook(args: &clap::ArgMatches) -> Result<String, PactBrokerError> {
     let broker_url = get_broker_url(args).trim_end_matches('/').to_string();
     let auth = get_auth(args);
+    let custom_headers = get_custom_headers(args);
     let ssl_options = get_ssl_options(args);
 
     let url = args.try_get_one::<String>("url");
@@ -48,7 +49,7 @@ pub fn create_webhook(args: &clap::ArgMatches) -> Result<String, PactBrokerError
 
     let res = tokio::runtime::Runtime::new().unwrap().block_on(async {
         let hal_client: HALClient =
-            HALClient::with_url(&broker_url, Some(auth.clone()), ssl_options.clone());
+            HALClient::with_url(&broker_url, Some(auth.clone()), ssl_options.clone(), custom_headers.clone());
       let pb_webhook_href_path = get_broker_relation(
             hal_client.clone(),
             "pb:webhook".to_string(),

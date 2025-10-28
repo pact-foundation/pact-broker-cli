@@ -17,12 +17,17 @@ pub fn describe_pacticipant(
     // setup client with broker url and credentials
     let broker_url = &broker_details.url;
     let auth = &broker_details.auth;
+    let custom_headers = &broker_details.custom_headers;
     let ssl_options = &broker_details.ssl_options;
 
     let res = tokio::runtime::Runtime::new().unwrap().block_on(async {
         // query pact broker index and get hal relation link
-        let hal_client: HALClient =
-            HALClient::with_url(&broker_url, auth.clone(), ssl_options.clone());
+        let hal_client: HALClient = HALClient::with_url(
+            &broker_url,
+            auth.clone(),
+            ssl_options.clone(),
+            custom_headers.clone(),
+        );
         let pb_pacticipant_href_path = get_broker_relation(
             hal_client.clone(),
             "pb:pacticipant".to_string(),
@@ -218,6 +223,7 @@ mod describe_pacticipant_tests {
             url: mock_server_url.to_string(),
             auth: None,
             ssl_options: Default::default(),
+            custom_headers: None,
         };
 
         let result = describe_pacticipant(
@@ -282,6 +288,7 @@ mod describe_pacticipant_tests {
             url: mock_server_url.to_string(),
             auth: None,
             ssl_options: Default::default(),
+            custom_headers: None,
         };
 
         let result = describe_pacticipant(

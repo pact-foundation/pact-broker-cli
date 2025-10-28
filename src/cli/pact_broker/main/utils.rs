@@ -14,7 +14,7 @@ use tracing::{trace, warn};
 
 use crate::{cli::pact_broker::main::types::SslOptions, dbg_as_curl};
 
-use super::{HALClient, Link, PactBrokerError};
+use super::{CustomHeaders, HALClient, Link, PactBrokerError};
 
 /// Retries a request on failure
 pub(crate) async fn with_retries(
@@ -181,6 +181,219 @@ pub(crate) fn get_auth(args: &clap::ArgMatches) -> HttpAuth {
     }
 
     auth
+}
+
+// Parse custom headers from CLI arguments in curl format ("Header-Name: Value")
+pub(crate) fn get_custom_headers(args: &clap::ArgMatches) -> Option<CustomHeaders> {
+    let custom_headers = args.get_many::<String>("custom-header");
+
+    if let Some(header_strings) = custom_headers {
+        let mut headers = std::collections::HashMap::new();
+
+        for header_str in header_strings {
+            if let Some(colon_pos) = header_str.find(':') {
+                let name = header_str[..colon_pos].trim().to_string();
+                let value = header_str[colon_pos + 1..].trim().to_string();
+
+                if !name.is_empty() && !value.is_empty() {
+                    headers.insert(name, value);
+                }
+            }
+        }
+
+        if !headers.is_empty() {
+            return Some(CustomHeaders { headers });
+        }
+    }
+
+    None
+}
+
+#[cfg(test)]
+mod custom_headers_tests {
+    use super::*;
+    use clap::ArgMatches;
+
+    fn create_test_args(headers: Vec<&str>) -> ArgMatches {
+        use clap::{Arg, Command};
+
+        let app = Command::new("test").arg(
+            Arg::new("custom-header")
+                .long("custom-header")
+                // .short('H')
+                .action(clap::ArgAction::Append)
+                .value_name("HEADER")
+                .help("Custom header in curl format"),
+        );
+
+        let mut args = vec!["test"];
+        for header in headers {
+            args.push("--custom-header");
+            args.push(header);
+        }
+
+        app.try_get_matches_from(args).unwrap()
+    }
+
+    #[test]
+    fn test_get_custom_headers_none() {
+        let args = create_test_args(vec![]);
+        let result = get_custom_headers(&args);
+        assert!(result.is_none());
+    }
+
+    #[test]
+    fn test_get_custom_headers_single_header() {
+        let args = create_test_args(vec!["Authorization: Bearer token123"]);
+        let result = get_custom_headers(&args);
+
+        assert!(result.is_some());
+        let custom_headers = result.unwrap();
+        assert_eq!(custom_headers.headers.len(), 1);
+        assert_eq!(
+            custom_headers.headers.get("Authorization"),
+            Some(&"Bearer token123".to_string())
+        );
+    }
+
+    #[test]
+    fn test_get_custom_headers_multiple_headers() {
+        let args = create_test_args(vec![
+            "Authorization: Bearer token123",
+            "X-API-Key: secret456",
+            "Content-Type: application/json",
+        ]);
+        let result = get_custom_headers(&args);
+
+        assert!(result.is_some());
+        let custom_headers = result.unwrap();
+        assert_eq!(custom_headers.headers.len(), 3);
+        assert_eq!(
+            custom_headers.headers.get("Authorization"),
+            Some(&"Bearer token123".to_string())
+        );
+        assert_eq!(
+            custom_headers.headers.get("X-API-Key"),
+            Some(&"secret456".to_string())
+        );
+        assert_eq!(
+            custom_headers.headers.get("Content-Type"),
+            Some(&"application/json".to_string())
+        );
+    }
+
+    #[test]
+    fn test_get_custom_headers_with_spaces() {
+        let args = create_test_args(vec!["  X-Custom-Header  :  value with spaces  "]);
+        let result = get_custom_headers(&args);
+
+        assert!(result.is_some());
+        let custom_headers = result.unwrap();
+        assert_eq!(custom_headers.headers.len(), 1);
+        assert_eq!(
+            custom_headers.headers.get("X-Custom-Header"),
+            Some(&"value with spaces".to_string())
+        );
+    }
+
+    #[test]
+    fn test_get_custom_headers_cloudflare_access() {
+        let args = create_test_args(vec![
+            "CF-Access-Client-Id: client-id-123",
+            "CF-Access-Client-Secret: secret-456",
+        ]);
+        let result = get_custom_headers(&args);
+
+        assert!(result.is_some());
+        let custom_headers = result.unwrap();
+        assert_eq!(custom_headers.headers.len(), 2);
+        assert_eq!(
+            custom_headers.headers.get("CF-Access-Client-Id"),
+            Some(&"client-id-123".to_string())
+        );
+        assert_eq!(
+            custom_headers.headers.get("CF-Access-Client-Secret"),
+            Some(&"secret-456".to_string())
+        );
+    }
+
+    #[test]
+    fn test_get_custom_headers_invalid_format_no_colon() {
+        let args = create_test_args(vec!["InvalidHeader"]);
+        let result = get_custom_headers(&args);
+        assert!(result.is_none());
+    }
+
+    #[test]
+    fn test_get_custom_headers_invalid_format_empty_name() {
+        let args = create_test_args(vec![": value"]);
+        let result = get_custom_headers(&args);
+        assert!(result.is_none());
+    }
+
+    #[test]
+    fn test_get_custom_headers_invalid_format_empty_value() {
+        let args = create_test_args(vec!["Header:"]);
+        let result = get_custom_headers(&args);
+        assert!(result.is_none());
+    }
+
+    #[test]
+    fn test_get_custom_headers_mixed_valid_invalid() {
+        let args = create_test_args(vec![
+            "Valid-Header: valid-value",
+            "InvalidHeader",
+            ": empty-name",
+            "Empty-Value:",
+            "Another-Valid: another-value",
+        ]);
+        let result = get_custom_headers(&args);
+
+        assert!(result.is_some());
+        let custom_headers = result.unwrap();
+        assert_eq!(custom_headers.headers.len(), 2);
+        assert_eq!(
+            custom_headers.headers.get("Valid-Header"),
+            Some(&"valid-value".to_string())
+        );
+        assert_eq!(
+            custom_headers.headers.get("Another-Valid"),
+            Some(&"another-value".to_string())
+        );
+    }
+
+    #[test]
+    fn test_get_custom_headers_duplicate_keys() {
+        let args = create_test_args(vec!["X-Test: first-value", "X-Test: second-value"]);
+        let result = get_custom_headers(&args);
+
+        assert!(result.is_some());
+        let custom_headers = result.unwrap();
+        assert_eq!(custom_headers.headers.len(), 1);
+        // Last value should win
+        assert_eq!(
+            custom_headers.headers.get("X-Test"),
+            Some(&"second-value".to_string())
+        );
+    }
+
+    #[test]
+    fn test_get_custom_headers_special_characters() {
+        let args = create_test_args(vec!["X-Special: value@#$%^&*()", "X-Unicode: café"]);
+        let result = get_custom_headers(&args);
+
+        assert!(result.is_some());
+        let custom_headers = result.unwrap();
+        assert_eq!(custom_headers.headers.len(), 2);
+        assert_eq!(
+            custom_headers.headers.get("X-Special"),
+            Some(&"value@#$%^&*()".to_string())
+        );
+        assert_eq!(
+            custom_headers.headers.get("X-Unicode"),
+            Some(&"café".to_string())
+        );
+    }
 }
 
 pub async fn get_broker_relation(

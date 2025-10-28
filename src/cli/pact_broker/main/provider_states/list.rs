@@ -45,6 +45,7 @@ pub fn list_provider_states(
             &broker_details.url,
             broker_details.auth.clone(),
             broker_details.ssl_options.clone(),
+            broker_details.custom_headers.clone(),
         );
 
         // Build the path based on provided parameters

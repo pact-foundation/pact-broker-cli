@@ -8,13 +8,14 @@ use crate::cli::pact_broker::main::{
     types::{OutputType, SslOptions},
     utils::{
         follow_broker_relation, follow_templated_broker_relation, get_auth, get_broker_relation,
-        get_broker_url, get_ssl_options,
+        get_broker_url, get_custom_headers, get_ssl_options,
     },
 };
 
 pub fn describe_version(args: &clap::ArgMatches) -> Result<String, PactBrokerError> {
     let broker_url = get_broker_url(args).trim_end_matches('/').to_string();
     let auth = get_auth(args);
+    let custom_headers = get_custom_headers(args);
     let ssl_options = get_ssl_options(args);
 
     let version: Option<&String> = args.try_get_one::<String>("version").unwrap();
@@ -33,6 +34,7 @@ pub fn describe_version(args: &clap::ArgMatches) -> Result<String, PactBrokerErr
         return describe_version_by_environment(
             &broker_url,
             &auth,
+            &custom_headers,
             &ssl_options,
             pacticipant_name,
             env_name,
@@ -49,8 +51,12 @@ pub fn describe_version(args: &clap::ArgMatches) -> Result<String, PactBrokerErr
     };
 
     let res = tokio::runtime::Runtime::new().unwrap().block_on(async {
-        let hal_client: HALClient =
-            HALClient::with_url(&broker_url, Some(auth.clone()), ssl_options.clone());
+        let hal_client: HALClient = HALClient::with_url(
+            &broker_url,
+            Some(auth.clone()),
+            ssl_options.clone(),
+            custom_headers.clone(),
+        );
         let pb_version_href_path =
             get_broker_relation(hal_client.clone(), pb_relation_href, broker_url.to_string()).await;
 
@@ -122,6 +128,7 @@ pub fn describe_version(args: &clap::ArgMatches) -> Result<String, PactBrokerErr
 fn describe_version_by_environment(
     broker_url: &str,
     auth: &HttpAuth,
+    custom_headers: &Option<crate::cli::pact_broker::main::CustomHeaders>,
     ssl_options: &SslOptions,
     pacticipant_name: &str,
     environment_name: &str,
@@ -130,8 +137,12 @@ fn describe_version_by_environment(
     output_type: OutputType,
 ) -> Result<String, PactBrokerError> {
     tokio::runtime::Runtime::new().unwrap().block_on(async {
-        let hal_client: HALClient =
-            HALClient::with_url(broker_url, Some(auth.clone()), ssl_options.clone());
+        let hal_client: HALClient = HALClient::with_url(
+            broker_url,
+            Some(auth.clone()),
+            ssl_options.clone(),
+            custom_headers.clone(),
+        );
 
         // First, get the environment UUID
         let environments_href = get_broker_relation(

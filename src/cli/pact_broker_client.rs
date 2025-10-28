@@ -31,7 +31,7 @@ use crate::cli::pact_broker::main::tags::create_version_tag;
 use crate::cli::pact_broker::main::tags::delete_tag::delete_version_tag;
 use crate::cli::pact_broker::main::types::{BrokerDetails, OutputType};
 use crate::cli::pact_broker::main::utils::{
-    get_auth, get_broker_url, get_ssl_options, handle_error,
+    get_auth, get_broker_url, get_custom_headers, get_ssl_options, handle_error,
 };
 use crate::cli::pact_broker::main::versions::create::create_or_update_version;
 use crate::cli::pact_broker::main::versions::describe::describe_version;
@@ -98,12 +98,14 @@ pub fn run(args: &ArgMatches, raw_args: Vec<String>) -> Result<serde_json::Value
             // setup client with broker url and credentials
             let broker_url = get_broker_url(args).trim_end_matches('/').to_string();
             let auth = get_auth(args);
+            let custom_headers = get_custom_headers(args);
             let ssl_options = get_ssl_options(args);
 
             let broker_details = BrokerDetails {
                 url: broker_url.clone(),
                 auth: Some(auth),
                 ssl_options: ssl_options.clone(),
+                custom_headers: custom_headers.clone(),
             };
             let default_output: String = "text".to_string();
             let output_arg: &String = args.get_one::<String>("output").unwrap_or(&default_output);
@@ -127,11 +129,13 @@ pub fn run(args: &ArgMatches, raw_args: Vec<String>) -> Result<serde_json::Value
             let broker_url = get_broker_url(args).trim_end_matches('/').to_string();
             let auth = get_auth(args);
             let ssl_options = get_ssl_options(args);
+            let custom_headers = get_custom_headers(args);
 
             let broker_details = BrokerDetails {
                 url: broker_url.clone(),
                 auth: Some(auth),
                 ssl_options: ssl_options.clone(),
+                custom_headers: custom_headers.clone(),
             };
 
             let default_output: String = "text".to_string();
@@ -278,12 +282,14 @@ pub fn run(args: &ArgMatches, raw_args: Vec<String>) -> Result<serde_json::Value
         Some(("describe-pacticipant", args)) => {
             let broker_url = get_broker_url(args).trim_end_matches('/').to_string();
             let auth = get_auth(args);
+            let custom_headers = get_custom_headers(args);
             let ssl_options = get_ssl_options(args);
 
             let broker_details = BrokerDetails {
                 url: broker_url.clone(),
                 auth: Some(auth),
                 ssl_options: ssl_options.clone(),
+                custom_headers: custom_headers.clone(),
             };
             let default_output: String = "table".to_string();
             let output_arg: &String = args.get_one::<String>("output").unwrap_or(&default_output);
@@ -306,12 +312,14 @@ pub fn run(args: &ArgMatches, raw_args: Vec<String>) -> Result<serde_json::Value
         Some(("list-pacticipants", args)) => {
             let broker_url = get_broker_url(args).trim_end_matches('/').to_string();
             let auth = get_auth(args);
+            let custom_headers = get_custom_headers(args);
             let ssl_options = get_ssl_options(args);
 
             let broker_details = BrokerDetails {
                 url: broker_url.clone(),
                 auth: Some(auth),
                 ssl_options: ssl_options.clone(),
+                custom_headers: custom_headers.clone(),
             };
             let default_output: String = "table".to_string();
             let output_arg: &String = args.get_one::<String>("output").unwrap_or(&default_output);

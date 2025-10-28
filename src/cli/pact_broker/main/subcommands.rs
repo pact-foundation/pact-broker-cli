@@ -32,6 +32,13 @@ pub fn add_broker_auth_arguments() -> Vec<Arg> {
             .help("Pact Broker bearer token")
             .value_name("PACT_BROKER_TOKEN")
             .env("PACT_BROKER_TOKEN"),
+        Arg::new("custom-header")
+            // .short('H')
+            .long("custom-header")
+            .num_args(1)
+            .action(clap::ArgAction::Append)
+            .help("Custom header(s) to send with requests (format: 'Header-Name: Value', can be used multiple times)")
+            .value_name("HEADER"),
     ]
 }
 pub fn add_publish_pacts_subcommand() -> Command {

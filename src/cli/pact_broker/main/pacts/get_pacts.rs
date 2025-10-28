@@ -25,6 +25,7 @@ pub fn get_pacts(
             &broker_details.url,
             broker_details.auth.clone(),
             broker_details.ssl_options.clone(),
+            broker_details.custom_headers.clone(),
         );
 
         // Build the appropriate HAL relation and template parameters
@@ -407,6 +408,7 @@ mod get_pacts_tests {
             url: mock_server_url.to_string(),
             auth: None,
             ssl_options: SslOptions::default(),
+            custom_headers: None,
         };
 
         // act
@@ -528,6 +530,7 @@ mod get_pacts_tests {
             url: mock_server_url.to_string(),
             auth: None,
             ssl_options: SslOptions::default(),
+            custom_headers: None,
         };
 
         // act
@@ -615,6 +618,7 @@ mod get_pacts_tests {
             url: mock_server_url.to_string(),
             auth: None,
             ssl_options: SslOptions::default(),
+            custom_headers: None,
         };
 
         // act

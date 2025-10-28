@@ -14,6 +14,11 @@ use maplit::hashmap;
 use pact_models::http_utils;
 use pact_models::http_utils::HttpAuth;
 use pact_models::json_utils::json_to_string;
+
+#[derive(Debug, Clone)]
+pub struct CustomHeaders {
+    pub headers: std::collections::HashMap<String, String>,
+}
 use pact_models::pact::{Pact, load_pact_from_json};
 use regex::{Captures, Regex};
 use reqwest::{Method, Url};
@@ -261,12 +266,13 @@ impl Default for Link {
 /// HAL aware HTTP client
 #[derive(Clone)]
 pub struct HALClient {
-    client: ClientWithMiddleware,
-    url: String,
+    pub url: String,
+    pub client: ClientWithMiddleware,
     path_info: Option<Value>,
     auth: Option<HttpAuth>,
+    custom_headers: Option<CustomHeaders>,
     ssl_options: SslOptions,
-    retries: u8,
+    pub retries: u8,
 }
 
 struct OtelPropagatorMiddleware;
@@ -315,11 +321,30 @@ impl<T> WithCurrentSpan for T {
 }
 
 impl HALClient {
+    /// Helper method to apply custom headers to a request builder
+    fn apply_custom_headers(
+        &self,
+        mut builder: reqwest_middleware::RequestBuilder,
+    ) -> reqwest_middleware::RequestBuilder {
+        if let Some(ref custom_headers) = self.custom_headers {
+            for (name, value) in &custom_headers.headers {
+                builder = builder.header(name, value);
+            }
+        }
+        builder
+    }
+
     /// Initialise a client with the URL and authentication
-    pub fn with_url(url: &str, auth: Option<HttpAuth>, ssl_options: SslOptions) -> HALClient {
+    pub fn with_url(
+        url: &str,
+        auth: Option<HttpAuth>,
+        ssl_options: SslOptions,
+        custom_headers: Option<CustomHeaders>,
+    ) -> HALClient {
         HALClient {
             url: url.to_string(),
             auth: auth.clone(),
+            custom_headers,
             ssl_options: ssl_options.clone(),
             ..HALClient::setup(url, auth, ssl_options)
         }
@@ -331,6 +356,7 @@ impl HALClient {
             url: self.url.clone(),
             path_info: Some(path_info),
             auth: self.auth,
+            custom_headers: self.custom_headers,
             retries: self.retries,
             ssl_options: self.ssl_options,
         }
@@ -467,7 +493,7 @@ impl HALClient {
             broker_url.join(path)?
         };
 
-        let request_builder = match self.auth {
+        let mut request_builder = match self.auth {
             Some(ref auth) => match auth {
                 HttpAuth::User(username, password) => {
                     self.client.get(url).basic_auth(username, password.clone())
@@ -478,6 +504,9 @@ impl HALClient {
             None => self.client.get(url),
         }
         .header("accept", "application/hal+json, application/json");
+
+        // Apply custom headers if present
+        request_builder = self.apply_custom_headers(request_builder);
 
         let response = utils::with_retries(self.retries, request_builder)
             .await
@@ -875,6 +904,7 @@ impl HALClient {
             url: url.to_string(),
             path_info: None,
             auth,
+            custom_headers: None,
             retries: 3,
             ssl_options,
         }
@@ -906,6 +936,7 @@ pub async fn fetch_pacts_from_broker(
     provider_name: &str,
     auth: Option<HttpAuth>,
     ssl_options: SslOptions,
+    custom_headers: Option<CustomHeaders>,
 ) -> anyhow::Result<
     Vec<
         anyhow::Result<(
@@ -922,7 +953,7 @@ pub async fn fetch_pacts_from_broker(
         auth.clone().unwrap_or_default()
     );
 
-    let mut hal_client = HALClient::with_url(broker_url, auth, ssl_options);
+    let mut hal_client = HALClient::with_url(broker_url, auth, ssl_options, custom_headers);
     let template_values = hashmap! { "provider".to_string() => provider_name.to_string() };
 
     hal_client = hal_client
@@ -990,6 +1021,7 @@ pub async fn fetch_pacts_dynamically_from_broker(
     auth: Option<HttpAuth>,
     ssl_options: SslOptions,
     headers: Option<HashMap<String, String>>,
+    custom_headers: Option<CustomHeaders>,
 ) -> anyhow::Result<
     Vec<
         Result<
@@ -1014,7 +1046,7 @@ pub async fn fetch_pacts_dynamically_from_broker(
         auth.clone().unwrap_or_default()
     );
 
-    let mut hal_client = HALClient::with_url(broker_url, auth, ssl_options);
+    let mut hal_client = HALClient::with_url(broker_url, auth, ssl_options, custom_headers);
     let template_values = hashmap! { "provider".to_string() => provider_name.clone() };
 
     hal_client = hal_client
@@ -1339,4 +1371,232 @@ pub struct PactVerificationProperties {
     pub pending: bool,
     /// Notices provided by the Pact Broker
     pub notices: Vec<HashMap<String, String>>,
+}
+
+#[cfg(test)]
+mod hal_client_custom_headers_tests {
+    use super::*;
+    use crate::cli::pact_broker::main::types::SslOptions;
+    use std::collections::HashMap;
+
+    fn create_test_custom_headers() -> CustomHeaders {
+        let mut headers = HashMap::new();
+        headers.insert("Authorization".to_string(), "Bearer test-token".to_string());
+        headers.insert("X-API-Key".to_string(), "secret-key".to_string());
+        CustomHeaders { headers }
+    }
+
+    fn create_cloudflare_custom_headers() -> CustomHeaders {
+        let mut headers = HashMap::new();
+        headers.insert(
+            "CF-Access-Client-Id".to_string(),
+            "client-id-123".to_string(),
+        );
+        headers.insert(
+            "CF-Access-Client-Secret".to_string(),
+            "secret-456".to_string(),
+        );
+        CustomHeaders { headers }
+    }
+
+    #[test]
+    fn test_hal_client_with_custom_headers() {
+        let custom_headers = Some(create_test_custom_headers());
+        let ssl_options = SslOptions::default();
+
+        let client = HALClient::with_url(
+            "https://test.example.com",
+            None,
+            ssl_options,
+            custom_headers.clone(),
+        );
+
+        assert_eq!(client.url, "https://test.example.com");
+        assert!(client.custom_headers.is_some());
+
+        let headers = client.custom_headers.unwrap();
+        assert_eq!(headers.headers.len(), 2);
+        assert_eq!(
+            headers.headers.get("Authorization"),
+            Some(&"Bearer test-token".to_string())
+        );
+        assert_eq!(
+            headers.headers.get("X-API-Key"),
+            Some(&"secret-key".to_string())
+        );
+    }
+
+    #[test]
+    fn test_hal_client_with_cloudflare_headers() {
+        let custom_headers = Some(create_cloudflare_custom_headers());
+        let ssl_options = SslOptions::default();
+
+        let client = HALClient::with_url(
+            "https://pact-broker.example.com",
+            None,
+            ssl_options,
+            custom_headers.clone(),
+        );
+
+        assert!(client.custom_headers.is_some());
+
+        let headers = client.custom_headers.unwrap();
+        assert_eq!(headers.headers.len(), 2);
+        assert_eq!(
+            headers.headers.get("CF-Access-Client-Id"),
+            Some(&"client-id-123".to_string())
+        );
+        assert_eq!(
+            headers.headers.get("CF-Access-Client-Secret"),
+            Some(&"secret-456".to_string())
+        );
+    }
+
+    #[test]
+    fn test_hal_client_without_custom_headers() {
+        let ssl_options = SslOptions::default();
+
+        let client = HALClient::with_url("https://test.example.com", None, ssl_options, None);
+
+        assert!(client.custom_headers.is_none());
+    }
+
+    #[test]
+    fn test_hal_client_with_auth_and_custom_headers() {
+        let auth = Some(HttpAuth::Token("bearer-token".to_string()));
+        let custom_headers = Some(create_test_custom_headers());
+        let ssl_options = SslOptions::default();
+
+        let client = HALClient::with_url(
+            "https://test.example.com",
+            auth.clone(),
+            ssl_options,
+            custom_headers,
+        );
+
+        assert!(client.auth.is_some());
+        assert!(client.custom_headers.is_some());
+
+        if let Some(HttpAuth::Token(token)) = client.auth {
+            assert_eq!(token, "bearer-token");
+        }
+    }
+
+    #[test]
+    fn test_apply_custom_headers_with_mock_request() {
+        use reqwest::Client;
+        use reqwest_middleware::ClientBuilder;
+
+        let custom_headers = Some(create_test_custom_headers());
+        let ssl_options = SslOptions::default();
+
+        let client = HALClient::with_url(
+            "https://test.example.com",
+            None,
+            ssl_options,
+            custom_headers,
+        );
+
+        // Create a mock request builder to test header application
+        let reqwest_client = Client::new();
+        let middleware_client = ClientBuilder::new(reqwest_client).build();
+        let request_builder = middleware_client.get("https://test.example.com/test");
+
+        // Apply custom headers
+        let modified_builder = client.apply_custom_headers(request_builder);
+
+        // Build the request to inspect headers
+        let request = modified_builder.build().unwrap();
+
+        // Check that custom headers were applied
+        assert!(request.headers().contains_key("authorization"));
+        assert!(request.headers().contains_key("x-api-key"));
+
+        assert_eq!(
+            request
+                .headers()
+                .get("authorization")
+                .unwrap()
+                .to_str()
+                .unwrap(),
+            "Bearer test-token"
+        );
+        assert_eq!(
+            request
+                .headers()
+                .get("x-api-key")
+                .unwrap()
+                .to_str()
+                .unwrap(),
+            "secret-key"
+        );
+    }
+
+    #[test]
+    fn test_apply_custom_headers_without_headers() {
+        use reqwest::Client;
+        use reqwest_middleware::ClientBuilder;
+
+        let ssl_options = SslOptions::default();
+
+        let client = HALClient::with_url("https://test.example.com", None, ssl_options, None);
+
+        // Create a mock request builder
+        let reqwest_client = Client::new();
+        let middleware_client = ClientBuilder::new(reqwest_client).build();
+        let request_builder = middleware_client.get("https://test.example.com/test");
+
+        // Apply custom headers (should be no-op)
+        let modified_builder = client.apply_custom_headers(request_builder);
+
+        // Build the request to inspect headers
+        let request = modified_builder.build().unwrap();
+
+        // Should not contain our test headers
+        assert!(!request.headers().contains_key("authorization"));
+        assert!(!request.headers().contains_key("x-api-key"));
+    }
+
+    #[test]
+    fn test_custom_headers_struct_creation() {
+        let mut headers = HashMap::new();
+        headers.insert("Test-Header".to_string(), "test-value".to_string());
+
+        let custom_headers = CustomHeaders { headers };
+
+        assert_eq!(custom_headers.headers.len(), 1);
+        assert_eq!(
+            custom_headers.headers.get("Test-Header"),
+            Some(&"test-value".to_string())
+        );
+    }
+
+    #[test]
+    fn test_custom_headers_empty() {
+        let headers = HashMap::new();
+        let custom_headers = CustomHeaders { headers };
+
+        assert_eq!(custom_headers.headers.len(), 0);
+        assert!(custom_headers.headers.is_empty());
+    }
+
+    #[test]
+    fn test_custom_headers_case_sensitivity() {
+        let mut headers = HashMap::new();
+        headers.insert("content-type".to_string(), "application/json".to_string());
+        headers.insert("Content-Type".to_string(), "text/plain".to_string());
+
+        let custom_headers = CustomHeaders { headers };
+
+        // Both should exist as separate entries (case sensitive keys)
+        assert_eq!(custom_headers.headers.len(), 2);
+        assert_eq!(
+            custom_headers.headers.get("content-type"),
+            Some(&"application/json".to_string())
+        );
+        assert_eq!(
+            custom_headers.headers.get("Content-Type"),
+            Some(&"text/plain".to_string())
+        );
+    }
 }

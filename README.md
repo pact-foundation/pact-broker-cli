@@ -183,6 +183,9 @@ Options:
           
           [env: PACT_BROKER_TOKEN=]
 
+      --custom-header <HEADER>
+          Custom header(s) to send with requests (format: 'Header-Name: Value', can be used multiple times)
+
       --validate
           Validate the Pact files before publishing.
 
@@ -289,6 +292,8 @@ Options:
           Pact Broker basic auth password [env: PACT_BROKER_PASSWORD=]
   -k, --broker-token <PACT_BROKER_TOKEN>
           Pact Broker bearer token [env: PACT_BROKER_TOKEN=]
+      --custom-header <HEADER>
+          Custom header(s) to send with requests (format: 'Header-Name: Value', can be used multiple times)
   -c, --ssl-certificate <SSL_CERT_FILE>
           The path to a valid SSL certificate file [env: SSL_CERT_FILE=]
       --skip-ssl-verification
@@ -347,6 +352,8 @@ Options:
           Pact Broker basic auth password [env: PACT_BROKER_PASSWORD=]
   -k, --broker-token <PACT_BROKER_TOKEN>
           Pact Broker bearer token [env: PACT_BROKER_TOKEN=]
+      --custom-header <HEADER>
+          Custom header(s) to send with requests (format: 'Header-Name: Value', can be used multiple times)
   -c, --ssl-certificate <SSL_CERT_FILE>
           The path to a valid SSL certificate file [env: SSL_CERT_FILE=]
       --skip-ssl-verification
@@ -429,6 +436,8 @@ Options:
           Pact Broker basic auth password [env: PACT_BROKER_PASSWORD=]
   -k, --broker-token <PACT_BROKER_TOKEN>
           Pact Broker bearer token [env: PACT_BROKER_TOKEN=]
+      --custom-header <HEADER>
+          Custom header(s) to send with requests (format: 'Header-Name: Value', can be used multiple times)
   -c, --ssl-certificate <SSL_CERT_FILE>
           The path to a valid SSL certificate file [env: SSL_CERT_FILE=]
       --skip-ssl-verification
@@ -487,6 +496,8 @@ Options:
           Pact Broker basic auth password [env: PACT_BROKER_PASSWORD=]
   -k, --broker-token <PACT_BROKER_TOKEN>
           Pact Broker bearer token [env: PACT_BROKER_TOKEN=]
+      --custom-header <HEADER>
+          Custom header(s) to send with requests (format: 'Header-Name: Value', can be used multiple times)
   -c, --ssl-certificate <SSL_CERT_FILE>
           The path to a valid SSL certificate file [env: SSL_CERT_FILE=]
       --skip-ssl-verification
@@ -535,6 +546,8 @@ Options:
           Pact Broker basic auth password [env: PACT_BROKER_PASSWORD=]
   -k, --broker-token <PACT_BROKER_TOKEN>
           Pact Broker bearer token [env: PACT_BROKER_TOKEN=]
+      --custom-header <HEADER>
+          Custom header(s) to send with requests (format: 'Header-Name: Value', can be used multiple times)
   -c, --ssl-certificate <SSL_CERT_FILE>
           The path to a valid SSL certificate file [env: SSL_CERT_FILE=]
       --skip-ssl-verification
@@ -581,6 +594,8 @@ Options:
           Pact Broker basic auth password [env: PACT_BROKER_PASSWORD=]
   -k, --broker-token <PACT_BROKER_TOKEN>
           Pact Broker bearer token [env: PACT_BROKER_TOKEN=]
+      --custom-header <HEADER>
+          Custom header(s) to send with requests (format: 'Header-Name: Value', can be used multiple times)
   -c, --ssl-certificate <SSL_CERT_FILE>
           The path to a valid SSL certificate file [env: SSL_CERT_FILE=]
       --skip-ssl-verification
@@ -627,6 +642,8 @@ Options:
           Pact Broker basic auth password [env: PACT_BROKER_PASSWORD=]
   -k, --broker-token <PACT_BROKER_TOKEN>
           Pact Broker bearer token [env: PACT_BROKER_TOKEN=]
+      --custom-header <HEADER>
+          Custom header(s) to send with requests (format: 'Header-Name: Value', can be used multiple times)
   -c, --ssl-certificate <SSL_CERT_FILE>
           The path to a valid SSL certificate file [env: SSL_CERT_FILE=]
       --skip-ssl-verification
@@ -683,6 +700,8 @@ Options:
           Pact Broker basic auth password [env: PACT_BROKER_PASSWORD=]
   -k, --broker-token <PACT_BROKER_TOKEN>
           Pact Broker bearer token [env: PACT_BROKER_TOKEN=]
+      --custom-header <HEADER>
+          Custom header(s) to send with requests (format: 'Header-Name: Value', can be used multiple times)
   -c, --ssl-certificate <SSL_CERT_FILE>
           The path to a valid SSL certificate file [env: SSL_CERT_FILE=]
       --skip-ssl-verification
@@ -749,6 +768,9 @@ Options:
           Pact Broker bearer token
           
           [env: PACT_BROKER_TOKEN=]
+
+      --custom-header <HEADER>
+          Custom header(s) to send with requests (format: 'Header-Name: Value', can be used multiple times)
 
   -c, --ssl-certificate <SSL_CERT_FILE>
           The path to a valid SSL certificate file
@@ -842,6 +864,8 @@ Options:
           Pact Broker basic auth password [env: PACT_BROKER_PASSWORD=]
   -k, --broker-token <PACT_BROKER_TOKEN>
           Pact Broker bearer token [env: PACT_BROKER_TOKEN=]
+      --custom-header <HEADER>
+          Custom header(s) to send with requests (format: 'Header-Name: Value', can be used multiple times)
   -c, --ssl-certificate <SSL_CERT_FILE>
           The path to a valid SSL certificate file [env: SSL_CERT_FILE=]
       --skip-ssl-verification
@@ -894,6 +918,8 @@ Options:
           Pact Broker basic auth password [env: PACT_BROKER_PASSWORD=]
   -k, --broker-token <PACT_BROKER_TOKEN>
           Pact Broker bearer token [env: PACT_BROKER_TOKEN=]
+      --custom-header <HEADER>
+          Custom header(s) to send with requests (format: 'Header-Name: Value', can be used multiple times)
   -c, --ssl-certificate <SSL_CERT_FILE>
           The path to a valid SSL certificate file [env: SSL_CERT_FILE=]
       --skip-ssl-verification
@@ -1042,6 +1068,9 @@ Options:
           
           [env: PACT_BROKER_TOKEN=]
 
+      --custom-header <HEADER>
+          Custom header(s) to send with requests (format: 'Header-Name: Value', can be used multiple times)
+
   -c, --ssl-certificate <SSL_CERT_FILE>
           The path to a valid SSL certificate file
           
@@ -1153,6 +1182,8 @@ Options:
           Pact Broker basic auth password [env: PACT_BROKER_PASSWORD=]
   -k, --broker-token <PACT_BROKER_TOKEN>
           Pact Broker bearer token [env: PACT_BROKER_TOKEN=]
+      --custom-header <HEADER>
+          Custom header(s) to send with requests (format: 'Header-Name: Value', can be used multiple times)
   -a, --pacticipant <PACTICIPANT>
           The pacticipant name. Use once for each pacticipant being checked. The following options (--version, --latest, --tag, --branch) must come after each --pacticipant.
   -e, --version <VERSION>
@@ -1225,6 +1256,9 @@ Options:
           Pact Broker bearer token
           
           [env: PACT_BROKER_TOKEN=]
+
+      --custom-header <HEADER>
+          Custom header(s) to send with requests (format: 'Header-Name: Value', can be used multiple times)
 
   -r, --provider <PROVIDER>
           The name of the provider
@@ -1329,6 +1363,8 @@ Options:
           Pact Broker basic auth password [env: PACT_BROKER_PASSWORD=]
   -k, --broker-token <PACT_BROKER_TOKEN>
           Pact Broker bearer token [env: PACT_BROKER_TOKEN=]
+      --custom-header <HEADER>
+          Custom header(s) to send with requests (format: 'Header-Name: Value', can be used multiple times)
       --name <NAME>
           Pacticipant name
       --display-name <DISPLAY_NAME>
@@ -1383,6 +1419,8 @@ Options:
           Pact Broker basic auth password [env: PACT_BROKER_PASSWORD=]
   -k, --broker-token <PACT_BROKER_TOKEN>
           Pact Broker bearer token [env: PACT_BROKER_TOKEN=]
+      --custom-header <HEADER>
+          Custom header(s) to send with requests (format: 'Header-Name: Value', can be used multiple times)
       --name <NAME>
           Pacticipant name
   -o, --output <OUTPUT>
@@ -1431,6 +1469,8 @@ Options:
           Pact Broker basic auth password [env: PACT_BROKER_PASSWORD=]
   -k, --broker-token <PACT_BROKER_TOKEN>
           Pact Broker bearer token [env: PACT_BROKER_TOKEN=]
+      --custom-header <HEADER>
+          Custom header(s) to send with requests (format: 'Header-Name: Value', can be used multiple times)
   -o, --output <OUTPUT>
           Value must be one of ["json", "table"] [default: table] [possible values: json, table]
   -c, --ssl-certificate <SSL_CERT_FILE>
@@ -1514,6 +1554,8 @@ Options:
           Pact Broker basic auth password [env: PACT_BROKER_PASSWORD=]
   -k, --broker-token <PACT_BROKER_TOKEN>
           Pact Broker bearer token [env: PACT_BROKER_TOKEN=]
+      --custom-header <HEADER>
+          Custom header(s) to send with requests (format: 'Header-Name: Value', can be used multiple times)
   -c, --ssl-certificate <SSL_CERT_FILE>
           The path to a valid SSL certificate file [env: SSL_CERT_FILE=]
       --skip-ssl-verification
@@ -1566,6 +1608,8 @@ Options:
           Pact Broker basic auth password [env: PACT_BROKER_PASSWORD=]
   -k, --broker-token <PACT_BROKER_TOKEN>
           Pact Broker bearer token [env: PACT_BROKER_TOKEN=]
+      --custom-header <HEADER>
+          Custom header(s) to send with requests (format: 'Header-Name: Value', can be used multiple times)
       --uuid <UUID>
           Specify the uuid for the webhook
   -X, --request <METHOD>
@@ -1652,6 +1696,8 @@ Options:
           Pact Broker basic auth password [env: PACT_BROKER_PASSWORD=]
   -k, --broker-token <PACT_BROKER_TOKEN>
           Pact Broker bearer token [env: PACT_BROKER_TOKEN=]
+      --custom-header <HEADER>
+          Custom header(s) to send with requests (format: 'Header-Name: Value', can be used multiple times)
   -c, --ssl-certificate <SSL_CERT_FILE>
           The path to a valid SSL certificate file [env: SSL_CERT_FILE=]
       --skip-ssl-verification
@@ -1698,6 +1744,8 @@ Options:
           Pact Broker basic auth password [env: PACT_BROKER_PASSWORD=]
   -k, --broker-token <PACT_BROKER_TOKEN>
           Pact Broker bearer token [env: PACT_BROKER_TOKEN=]
+      --custom-header <HEADER>
+          Custom header(s) to send with requests (format: 'Header-Name: Value', can be used multiple times)
   -c, --ssl-certificate <SSL_CERT_FILE>
           The path to a valid SSL certificate file [env: SSL_CERT_FILE=]
       --skip-ssl-verification
@@ -1744,6 +1792,8 @@ Options:
           Pact Broker basic auth password [env: PACT_BROKER_PASSWORD=]
   -k, --broker-token <PACT_BROKER_TOKEN>
           Pact Broker bearer token [env: PACT_BROKER_TOKEN=]
+      --custom-header <HEADER>
+          Custom header(s) to send with requests (format: 'Header-Name: Value', can be used multiple times)
       --branch <BRANCH>
           The pacticipant branch name
   -a, --pacticipant <PACTICIPANT>
@@ -1796,6 +1846,8 @@ Options:
           Pact Broker basic auth password [env: PACT_BROKER_PASSWORD=]
   -k, --broker-token <PACT_BROKER_TOKEN>
           Pact Broker bearer token [env: PACT_BROKER_TOKEN=]
+      --custom-header <HEADER>
+          Custom header(s) to send with requests (format: 'Header-Name: Value', can be used multiple times)
   -a, --pacticipant <PACTICIPANT>
           The pacticipant name
   -e, --version <VERSION>
@@ -1850,6 +1902,8 @@ Options:
           Pact Broker basic auth password [env: PACT_BROKER_PASSWORD=]
   -k, --broker-token <PACT_BROKER_TOKEN>
           Pact Broker bearer token [env: PACT_BROKER_TOKEN=]
+      --custom-header <HEADER>
+          Custom header(s) to send with requests (format: 'Header-Name: Value', can be used multiple times)
   -a, --pacticipant <PACTICIPANT>
           The pacticipant name
   -e, --version <VERSION>
@@ -1902,6 +1956,8 @@ Options:
           Pact Broker basic auth password [env: PACT_BROKER_PASSWORD=]
   -k, --broker-token <PACT_BROKER_TOKEN>
           Pact Broker bearer token [env: PACT_BROKER_TOKEN=]
+      --custom-header <HEADER>
+          Custom header(s) to send with requests (format: 'Header-Name: Value', can be used multiple times)
   -a, --pacticipant <PACTICIPANT>
           The name of the pacticipant that the version belongs to
   -e, --version <VERSION>
@@ -1960,6 +2016,8 @@ Options:
           Pact Broker basic auth password [env: PACT_BROKER_PASSWORD=]
   -k, --broker-token <PACT_BROKER_TOKEN>
           Pact Broker bearer token [env: PACT_BROKER_TOKEN=]
+      --custom-header <HEADER>
+          Custom header(s) to send with requests (format: 'Header-Name: Value', can be used multiple times)
   -a, --pacticipant <PACTICIPANT>
           The pacticipant name
   -e, --version <VERSION>
@@ -2051,6 +2109,8 @@ Options:
           Pact Broker basic auth password [env: PACT_BROKER_PASSWORD=]
   -k, --broker-token <PACT_BROKER_TOKEN>
           Pact Broker bearer token [env: PACT_BROKER_TOKEN=]
+      --custom-header <HEADER>
+          Custom header(s) to send with requests (format: 'Header-Name: Value', can be used multiple times)
       --provider <PROVIDER>
           The provider name
   -a, --provider-app-version <PROVIDER_APP_VERSION>

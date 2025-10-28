@@ -8,7 +8,9 @@ use serde_json::{Value, json};
 use crate::cli::{
     pact_broker::main::{
         HALClient, Notice, PactBrokerError, process_notices,
-        utils::{get_auth, get_broker_relation, get_broker_url, get_ssl_options},
+        utils::{
+            get_auth, get_broker_relation, get_broker_url, get_custom_headers, get_ssl_options,
+        },
     },
     utils::{self, git_info},
 };
@@ -97,9 +99,14 @@ pub fn publish(args: &ArgMatches) -> Result<Value, PactBrokerError> {
 
     let broker_url = get_broker_url(args).trim_end_matches('/').to_string();
     let auth = get_auth(args);
+    let custom_headers = get_custom_headers(args);
     let ssl_options = get_ssl_options(args);
-    let hal_client: HALClient =
-        HALClient::with_url(&broker_url, Some(auth.clone()), ssl_options.clone());
+    let hal_client: HALClient = HALClient::with_url(
+        &broker_url,
+        Some(auth.clone()),
+        ssl_options.clone(),
+        custom_headers.clone(),
+    );
 
     // Use pf:publish-provider-contract relation
     let publish_contract_href_path = tokio::runtime::Runtime::new().unwrap().block_on(async {

@@ -5,7 +5,7 @@ use tracing::debug;
 use crate::cli::{
     pact_broker::main::{
         HALClient, Notice, PactBrokerError, process_notices,
-        utils::{get_auth, get_broker_url, get_ssl_options},
+        utils::{get_auth, get_broker_url, get_custom_headers, get_ssl_options},
     },
     utils,
 };
@@ -145,11 +145,16 @@ pub fn can_i_deploy(
     let dry_run = args.get_flag("dry-run");
     let broker_url = get_broker_url(args).trim_end_matches('/').to_string();
     let auth = get_auth(args);
+    let custom_headers = get_custom_headers(args);
     let ssl_options = get_ssl_options(args);
 
     tokio::runtime::Runtime::new().unwrap().block_on(async {
-        let hal_client: HALClient =
-            HALClient::with_url(&broker_url, Some(auth.clone()), ssl_options.clone());
+        let hal_client: HALClient = HALClient::with_url(
+            &broker_url,
+            Some(auth.clone()),
+            ssl_options.clone(),
+            custom_headers.clone(),
+        );
 
         // Build matrix_href_path using selectors
         let mut matrix_href_path = String::from("/matrix?");

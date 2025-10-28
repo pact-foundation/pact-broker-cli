@@ -3,7 +3,7 @@ use serde_json::json;
 use crate::cli::{
     pact_broker::main::{
         HALClient, PactBrokerError,
-        utils::{get_auth, get_broker_url, get_ssl_options},
+        utils::{get_auth, get_broker_url, get_custom_headers, get_ssl_options},
     },
     utils,
 };
@@ -30,10 +30,11 @@ pub fn record_support_ended(args: &clap::ArgMatches) -> Result<String, PactBroke
     let version = args.get_one::<String>("version");
     let broker_url = get_broker_url(args).trim_end_matches('/').to_string();
     let auth = get_auth(args);
+    let custom_headers = get_custom_headers(args);
     let ssl_options = get_ssl_options(args);
 
     tokio::runtime::Runtime::new().unwrap().block_on(async {
-                let hal_client: HALClient = HALClient::with_url(&broker_url, Some(auth.clone()),ssl_options.clone());
+                let hal_client: HALClient = HALClient::with_url(&broker_url, Some(auth.clone()),ssl_options.clone(), custom_headers.clone());
 
 
                 let res = hal_client.clone()
