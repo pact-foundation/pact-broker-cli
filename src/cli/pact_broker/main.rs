@@ -517,7 +517,8 @@ impl HALClient {
                 _ => self.client.delete(url),
             },
             None => self.client.delete(url),
-        };
+        }
+        .header("Accept", "application/hal+json");
 
         let response = utils::with_retries(self.retries, request_builder)
             .await

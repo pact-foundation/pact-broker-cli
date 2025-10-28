@@ -1,5 +1,4 @@
 use maplit::hashmap;
-use url::Url;
 
 use crate::cli::pact_broker::main::{
     HALClient, PactBrokerError,
@@ -31,72 +30,28 @@ pub fn delete_webhook(args: &clap::ArgMatches) -> Result<String, PactBrokerError
         )
         .await?;
 
-        // Template the webhook relation with the UUID
+        // First, get the webhook to check if it exists
         let template_values = hashmap! { "uuid".to_string() => webhook_uuid.to_string() };
-        let webhook_response = follow_templated_broker_relation(
+        
+        // Try to fetch the webhook first
+        match follow_templated_broker_relation(
             hal_client.clone(),
             "pb:webhook".to_string(),
-            pb_webhook_href_path,
-            template_values,
-        )
-        .await?;
-
-        // Extract the self link from the webhook response
-        let webhook_url = webhook_response
-            .get("_links")
-            .and_then(|links| links.get("self"))
-            .and_then(|self_link| self_link.get("href"))
-            .and_then(|href| href.as_str())
-            .ok_or_else(|| {
-                PactBrokerError::IoError("Could not find webhook self link".to_string())
-            })?;
-
-        // Extract the path from the webhook URL
-        let webhook_path = if webhook_url.starts_with("http") {
-            // Parse URL and extract path
-            let parsed_url = webhook_url.parse::<Url>().map_err(|e| {
-                PactBrokerError::UrlError(format!("Invalid webhook URL: {}", e))
-            })?;
-            parsed_url.path().to_string()
-        } else {
-            webhook_url.to_string()
-        };
-
-        // Send DELETE request to the webhook path with proper headers
-        let broker_url = broker_url.parse::<Url>().map_err(|e| {
-            PactBrokerError::UrlError(format!("Invalid broker URL: {}", e))
-        })?;
-        let full_webhook_url = broker_url.join(&webhook_path).map_err(|e| {
-            PactBrokerError::UrlError(format!("Failed to join webhook path: {}", e))
-        })?;
-
-        let client = reqwest::Client::new();
-        let request_builder = match auth {
-            crate::cli::pact_broker::main::HttpAuth::User(username, password) => {
-                client.delete(full_webhook_url).basic_auth(&username, password.as_ref())
-            }
-            crate::cli::pact_broker::main::HttpAuth::Token(token) => {
-                client.delete(full_webhook_url).bearer_auth(&token)
-            }
-            _ => client.delete(full_webhook_url),
-        }
-        .header("Accept", "application/hal+json");
-
-        let response = request_builder.send().await.map_err(|e| {
-            PactBrokerError::IoError(format!("Failed to send DELETE request: {}", e))
-        })?;
-
-        if response.status().is_success() {
-            Ok(serde_json::json!({}))
-        } else if response.status() == 404 {
-            Err(PactBrokerError::NotFound("Webhook not found".to_string()))
-        } else {
-            let status = response.status();
-            let body = response.text().await.unwrap_or_default();
-            Err(PactBrokerError::IoError(format!(
-                "DELETE request failed with status {}: {}",
-                status, body
-            )))
+            pb_webhook_href_path.clone(),
+            template_values.clone(),
+        ).await {
+            Ok(_webhook_data) => {
+                // Webhook exists, now delete it
+                let link = crate::cli::pact_broker::main::Link {
+                    name: "pb:webhook".to_string(),
+                    href: Some(pb_webhook_href_path),
+                    templated: true,
+                    title: None,
+                };
+                
+                hal_client.delete_url(&link, &template_values).await
+            },
+            Err(err) => Err(err),
         }
     });
 
