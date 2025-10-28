@@ -874,7 +874,7 @@ pub fn add_create_version_tag_subcommand() -> Command {
 }
 pub fn add_describe_version_subcommand() -> Command {
     Command::new("describe-version")
-    .about("Describes a pacticipant version. If no version or tag is specified, the latest version is described.")
+    .about("Describes a pacticipant version. If no version or tag is specified, the latest version is described. Use --environment to query versions deployed/released to specific environments.")
     .args(add_broker_auth_arguments())
     .arg(Arg::new("pacticipant")
         .short('a')
@@ -893,6 +893,18 @@ pub fn add_describe_version_subcommand() -> Command {
         .value_name("TAG")
         .num_args(0..=1)
         .help("Describe the latest pacticipant version. Optionally specify a TAG to describe the latest version with the specified tag"))
+    .arg(Arg::new("environment")
+        .long("environment")
+        .value_name("ENVIRONMENT")
+        .help("The environment name to describe versions deployed/released to. Returns all versions deployed or released to this environment"))
+    .arg(Arg::new("deployed")
+        .long("deployed")
+        .action(clap::ArgAction::SetTrue)
+        .help("Show only deployed versions (use with --environment)"))
+    .arg(Arg::new("released")
+        .long("released")
+        .action(clap::ArgAction::SetTrue)
+        .help("Show only released versions (use with --environment)"))
         .args(crate::cli::add_ssl_arguments())
         .args(crate::cli::add_output_arguments(["json", "table"].to_vec(), "table"))
 }

@@ -1713,7 +1713,7 @@ Add a tag to a pacticipant version
 
 ```console
 $ pact-broker-cli describe-version --help
-Describes a pacticipant version. If no version or tag is specified, the latest version is described.
+Describes a pacticipant version. If no version or tag is specified, the latest version is described. Use --environment to query versions deployed/released to specific environments.
 
 Usage: pact-broker-cli describe-version [OPTIONS] --broker-base-url <PACT_BROKER_BASE_URL> --pacticipant <PACTICIPANT>
 
@@ -1732,6 +1732,12 @@ Options:
           The pacticipant version number
   -l, --latest [<TAG>]
           Describe the latest pacticipant version. Optionally specify a TAG to describe the latest version with the specified tag
+      --environment <ENVIRONMENT>
+          The environment name to describe versions deployed/released to. Returns all versions deployed or released to this environment
+      --deployed
+          Show only deployed versions (use with --environment)
+      --released
+          Show only released versions (use with --environment)
   -c, --ssl-certificate <SSL_CERT_FILE>
           The path to a valid SSL certificate file [env: SSL_CERT_FILE=]
       --skip-ssl-verification
