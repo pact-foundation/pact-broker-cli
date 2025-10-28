@@ -17,7 +17,7 @@ use crate::cli::pact_broker::main::subcommands::{
     add_create_or_update_pacticipant_subcommand, add_create_or_update_version_subcommand,
     add_create_or_update_webhook_subcommand, add_create_version_tag_subcommand,
     add_create_webhook_subcommand, add_delete_branch_subcommand, add_delete_environment_subcommand,
-    add_describe_environment_subcommand, add_describe_pacticipant_subcommand,
+    add_delete_version_tag_subcommand, add_describe_environment_subcommand, add_describe_pacticipant_subcommand,
     add_describe_version_subcommand, add_generate_uuid_subcommand,
     add_list_environments_subcommand, add_list_latest_pact_versions_subcommand,
     add_list_pacticipants_subcommand, add_provider_states_subcommand, add_publish_pacts_subcommand,
@@ -26,6 +26,7 @@ use crate::cli::pact_broker::main::subcommands::{
     add_test_webhook_subcommand, add_update_environment_subcommand,
 };
 use crate::cli::pact_broker::main::tags::create_version_tag;
+use crate::cli::pact_broker::main::tags::delete_tag::delete_version_tag;
 use crate::cli::pact_broker::main::types::{BrokerDetails, OutputType};
 use crate::cli::pact_broker::main::utils::{
     get_auth, get_broker_url, get_ssl_options, handle_error,
@@ -65,6 +66,7 @@ pub fn add_pact_broker_client_command() -> Command {
         .subcommand(add_test_webhook_subcommand())
         .subcommand(add_delete_branch_subcommand())
         .subcommand(add_create_version_tag_subcommand())
+        .subcommand(add_delete_version_tag_subcommand())
         .subcommand(add_describe_version_subcommand())
         .subcommand(add_create_or_update_version_subcommand())
         .subcommand(add_generate_uuid_subcommand())
@@ -316,6 +318,15 @@ pub fn run(args: &ArgMatches, raw_args: Vec<String>) -> Result<serde_json::Value
         }
         Some(("create-version-tag", args)) => {
             let res = create_version_tag::create_version_tag(args);
+            if let Err(err) = res {
+                handle_error(err);
+                Err(1)
+            } else {
+                Ok(serde_json::to_value(res.unwrap()).unwrap())
+            }
+        }
+        Some(("delete-version-tag", args)) => {
+            let res = delete_version_tag(args);
             if let Err(err) = res {
                 handle_error(err);
                 Err(1)

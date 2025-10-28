@@ -872,6 +872,37 @@ pub fn add_create_version_tag_subcommand() -> Command {
         )
         .args(crate::cli::add_ssl_arguments())
 }
+pub fn add_delete_version_tag_subcommand() -> Command {
+    Command::new("delete-version-tag")
+        .about("Delete a tag from a pacticipant version")
+        .args(add_broker_auth_arguments())
+        .arg(
+            Arg::new("pacticipant")
+                .short('a')
+                .long("pacticipant")
+                .value_name("PACTICIPANT")
+                .required(true)
+                .help("The pacticipant name"),
+        )
+        .arg(
+            Arg::new("version")
+                .short('e')
+                .long("version")
+                .value_name("VERSION")
+                .required(true)
+                .help("The pacticipant version"),
+        )
+        .arg(
+            Arg::new("tag")
+                .short('t')
+                .long("tag")
+                .value_name("TAG")
+                .required(true)
+                .value_parser(clap::builder::NonEmptyStringValueParser::new())
+                .help("Tag name to delete from the pacticipant version"),
+        )
+        .args(crate::cli::add_ssl_arguments())
+}
 pub fn add_describe_version_subcommand() -> Command {
     Command::new("describe-version")
     .about("Describes a pacticipant version. If no version or tag is specified, the latest version is described. Use --environment to query versions deployed/released to specific environments.")
