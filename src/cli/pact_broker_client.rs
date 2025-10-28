@@ -17,7 +17,7 @@ use crate::cli::pact_broker::main::subcommands::{
     add_create_or_update_pacticipant_subcommand, add_create_or_update_version_subcommand,
     add_create_or_update_webhook_subcommand, add_create_version_tag_subcommand,
     add_create_webhook_subcommand, add_delete_branch_subcommand, add_delete_environment_subcommand,
-    add_delete_version_tag_subcommand, add_describe_environment_subcommand, add_describe_pacticipant_subcommand,
+    add_delete_version_tag_subcommand, add_delete_webhook_subcommand, add_describe_environment_subcommand, add_describe_pacticipant_subcommand,
     add_describe_version_subcommand, add_generate_uuid_subcommand,
     add_list_environments_subcommand, add_list_latest_pact_versions_subcommand,
     add_list_pacticipants_subcommand, add_provider_states_subcommand, add_publish_pacts_subcommand,
@@ -34,6 +34,7 @@ use crate::cli::pact_broker::main::utils::{
 use crate::cli::pact_broker::main::versions::create::create_or_update_version;
 use crate::cli::pact_broker::main::versions::describe::describe_version;
 use crate::cli::pact_broker::main::webhooks::create::create_webhook;
+use crate::cli::pact_broker::main::webhooks::delete::delete_webhook;
 use crate::cli::pact_broker::main::webhooks::test::test_webhook;
 use crate::cli::pact_broker::main::{can_i_deploy, pact_publish};
 use clap::{ArgMatches, Command, command};
@@ -63,6 +64,7 @@ pub fn add_pact_broker_client_command() -> Command {
         .subcommand(add_list_pacticipants_subcommand())
         .subcommand(add_create_webhook_subcommand())
         .subcommand(add_create_or_update_webhook_subcommand())
+        .subcommand(add_delete_webhook_subcommand())
         .subcommand(add_test_webhook_subcommand())
         .subcommand(add_delete_branch_subcommand())
         .subcommand(add_create_version_tag_subcommand())
@@ -300,6 +302,15 @@ pub fn run(args: &ArgMatches, raw_args: Vec<String>) -> Result<serde_json::Value
         }
         Some(("test-webhook", args)) => {
             let res = test_webhook(args);
+            if let Err(err) = res {
+                handle_error(err);
+                Err(1)
+            } else {
+                Ok(serde_json::to_value(res.unwrap()).unwrap())
+            }
+        }
+        Some(("delete-webhook", args)) => {
+            let res = delete_webhook(args);
             if let Err(err) = res {
                 handle_error(err);
                 Err(1)

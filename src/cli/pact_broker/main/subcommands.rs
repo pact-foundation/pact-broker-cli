@@ -800,6 +800,20 @@ pub fn add_test_webhook_subcommand() -> Command {
         .args(add_broker_auth_arguments())
         .args(crate::cli::add_ssl_arguments())
 }
+pub fn add_delete_webhook_subcommand() -> Command {
+    Command::new("delete-webhook")
+        .about("Delete a webhook")
+        .arg(
+            Arg::new("uuid")
+                .long("uuid")
+                .value_name("UUID")
+                .num_args(1)
+                .required(true)
+                .help("UUID of the webhook to delete"),
+        )
+        .args(add_broker_auth_arguments())
+        .args(crate::cli::add_ssl_arguments())
+}
 pub fn add_delete_branch_subcommand() -> Command {
     Command::new("delete-branch")
     .about("Deletes a pacticipant branch. Does not delete the versions or pacts/verifications associated with the branch, but does make the pacts inaccessible for verification via consumer versions selectors or WIP pacts.")
