@@ -128,6 +128,58 @@ pub fn add_list_latest_pact_versions_subcommand() -> Command {
             "table",
         ))
 }
+
+pub fn add_get_pacts_subcommand() -> Command {
+    Command::new("get-pacts")
+        .about("Get pacts for a specified provider, optionally filtered by consumer and/or branch")
+        .arg(
+            Arg::new("provider")
+                .long("provider")
+                // .short('p')
+                .help("The name of the provider")
+                .required(true)
+                .value_name("PROVIDER"),
+        )
+        .arg(
+            Arg::new("consumer")
+                .long("consumer")
+                // .short('c')
+                .help("The name of the consumer (optional)")
+                .value_name("CONSUMER"),
+        )
+        .arg(
+            Arg::new("branch")
+                .long("branch")
+                // .short('b')
+                .help("The branch name (optional, defaults to main branch)")
+                .value_name("BRANCH"),
+        )
+        .arg(
+            Arg::new("latest")
+                .long("latest")
+                .help("Get only the latest pact(s)")
+                .action(clap::ArgAction::SetTrue),
+        )
+        .arg(
+            Arg::new("download")
+                .long("download")
+                .help("Download the pact files to local directory")
+                .action(clap::ArgAction::SetTrue),
+        )
+        .arg(
+            Arg::new("download-dir")
+                .long("download-dir")
+                .help("Directory to download pact files to (defaults to ./pacts)")
+                .value_name("DIR")
+                .default_value("./pacts"),
+        )
+        .args(add_broker_auth_arguments())
+        .args(crate::cli::add_ssl_arguments())
+        .args(crate::cli::add_output_arguments(
+            ["json", "table"].to_vec(),
+            "table",
+        ))
+}
 pub fn add_create_environment_subcommand() -> Command {
     Command::new("create-environment")
     .about("Create an environment resource in the Pact Broker to represent a real world deployment or release environment")

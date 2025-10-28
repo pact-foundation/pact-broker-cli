@@ -318,6 +318,86 @@ Options:
 
 List the latest pact for each integration
 
+#### get-pacts
+
+```console
+$ pact-broker-cli get-pacts --help
+Get pacts for a specified provider, optionally filtered by consumer and/or branch
+
+Usage: pact-broker-cli get-pacts [OPTIONS] --provider <PROVIDER> --broker-base-url <PACT_BROKER_BASE_URL>
+
+Options:
+      --provider <PROVIDER>
+          The name of the provider
+      --consumer <CONSUMER>
+          The name of the consumer (optional)
+      --branch <BRANCH>
+          The branch name (optional, defaults to main branch)
+      --latest
+          Get only the latest pact(s)
+      --download
+          Download the pact files to local directory
+      --download-dir <DIR>
+          Directory to download pact files to (defaults to ./pacts) [default: ./pacts]
+  -b, --broker-base-url <PACT_BROKER_BASE_URL>
+          The base URL of the Pact Broker [env: PACT_BROKER_BASE_URL=]
+  -u, --broker-username <PACT_BROKER_USERNAME>
+          Pact Broker basic auth username [env: PACT_BROKER_USERNAME=]
+  -p, --broker-password <PACT_BROKER_PASSWORD>
+          Pact Broker basic auth password [env: PACT_BROKER_PASSWORD=]
+  -k, --broker-token <PACT_BROKER_TOKEN>
+          Pact Broker bearer token [env: PACT_BROKER_TOKEN=]
+  -c, --ssl-certificate <SSL_CERT_FILE>
+          The path to a valid SSL certificate file [env: SSL_CERT_FILE=]
+      --skip-ssl-verification
+          Skip SSL certificate verification [env: SSL_SKIP_VERIFICATION=]
+      --ssl-trust-store <SSL_TRUST_STORE>
+          Use the system's root trust store for SSL verification [env: SSL_TRUST_STORE=] [default: true] [possible values: true, false]
+  -o, --output <OUTPUT>
+          Value must be one of ["json", "table"] [default: table] [possible values: json, table]
+      --enable-otel
+          Enable OpenTelemetry tracing
+      --enable-otel-logs
+          Enable OpenTelemetry logging
+      --enable-otel-traces
+          Enable OpenTelemetry traces
+      --otel-exporter <otel-exporter>
+          The OpenTelemetry exporter(s) to use, comma separated (stdout, otlp) [env: OTEL_TRACES_EXPORTER=]
+      --otel-exporter-endpoint <otel-exporter-endpoint>
+          The endpoint to use for the OTLP exporter (required if --otel-exporter=otlp) [env: OTEL_EXPORTER_OTLP_ENDPOINT=]
+      --otel-exporter-protocol <otel-exporter-protocol>
+          The protocol to use for the OTLP exporter (http/protobuf, http) [env: OTEL_EXPORTER_OTLP_PROTOCOL=] [default: http] [possible values: http, http/protobuf]
+      --log-level <LEVEL>
+          Set the log level (none, off, error, warn, info, debug, trace) [default: off] [possible values: off, none, error, warn, info, debug, trace]
+  -h, --help
+          Print help
+
+```
+
+Retrieve pacts for a specified provider with optional filtering by consumer and/or branch. This command allows you to query pacts associated with a provider, providing flexibility to narrow down results based on specific consumers or branches.
+
+Examples:
+
+```sh
+# Get all pacts for a provider
+pact-broker-cli get-pacts --provider "My API" --broker-base-url http://localhost:9292
+
+# Get pacts for a specific provider and consumer
+pact-broker-cli get-pacts --provider "My API" --consumer "My App" --broker-base-url http://localhost:9292
+
+# Get pacts for a provider from a specific branch
+pact-broker-cli get-pacts --provider "My API" --branch "feature/new-endpoint" --broker-base-url http://localhost:9292
+
+# Get only the latest pacts for a provider
+pact-broker-cli get-pacts --provider "My API" --latest --broker-base-url http://localhost:9292
+
+# Get pacts for a specific provider and consumer from a specific branch
+pact-broker-cli get-pacts --provider "My API" --consumer "My App" --branch "develop" --broker-base-url http://localhost:9292
+
+# Output in JSON format
+pact-broker-cli get-pacts --provider "My API" --output json --broker-base-url http://localhost:9292
+```
+
 ### Environments
 
 #### create-environment
