@@ -8,6 +8,24 @@ pub struct BrokerDetails {
     pub(crate) url: String,
     pub(crate) ssl_options: SslOptions,
 }
+
+impl BrokerDetails {
+    pub fn from_args(
+        args: &clap::ArgMatches,
+    ) -> Result<Self, crate::cli::pact_broker::main::PactBrokerError> {
+        use crate::cli::pact_broker::main::utils::{get_auth, get_broker_url, get_ssl_options};
+
+        let url = get_broker_url(args).trim_end_matches('/').to_string();
+        let auth = get_auth(args);
+        let ssl_options = get_ssl_options(args);
+
+        Ok(BrokerDetails {
+            auth: Some(auth),
+            url,
+            ssl_options,
+        })
+    }
+}
 #[derive(Clone)]
 pub enum OutputType {
     Json,

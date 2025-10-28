@@ -28,6 +28,7 @@ pub mod environments;
 pub mod pact_publish;
 pub mod pacticipants;
 pub mod pacts;
+pub mod provider_states;
 pub mod subcommands;
 pub mod tags;
 #[cfg(test)]
@@ -39,6 +40,7 @@ pub mod versions;
 pub mod webhooks;
 use utils::with_retries;
 // for otel
+use crate::cli::utils::{CYAN, GREEN, RED, YELLOW};
 use http::Extensions;
 use opentelemetry::Context;
 use opentelemetry::global;
@@ -48,7 +50,6 @@ use reqwest::Response;
 use reqwest_middleware::{ClientBuilder, ClientWithMiddleware};
 use reqwest_middleware::{Middleware, Next};
 use reqwest_tracing::TracingMiddleware;
-use crate::cli::utils::{CYAN, GREEN, RED, YELLOW};
 
 use crate::cli::pact_broker::main::types::SslOptions;
 
@@ -168,7 +169,7 @@ impl PartialEq<String> for PactBrokerError {
             PactBrokerError::UrlError(s) => buffer.push_str(s),
             PactBrokerError::ValidationError(errors) => {
                 buffer.push_str(errors.iter().join(", ").as_str())
-            },
+            }
             PactBrokerError::ValidationErrorWithNotices(errors, _) => {
                 buffer.push_str(errors.iter().join(", ").as_str())
             }
@@ -586,7 +587,10 @@ impl HALClient {
                         let body_text = from_utf8(&body)
                             .map(|b| b.to_string())
                             .unwrap_or_else(|err| format!("could not read body: {}", err));
-                        error!("Request to pact broker path '{}' failed: {}", path, body_text);
+                        error!(
+                            "Request to pact broker path '{}' failed: {}",
+                            path, body_text
+                        );
                         Err(PactBrokerError::IoError(format!(
                             "Request to pact broker path '{}' failed: {}. URL: '{}'",
                             path, status_code, self.url
@@ -597,7 +601,10 @@ impl HALClient {
                 let body_text = from_utf8(&body)
                     .map(|b| b.to_string())
                     .unwrap_or_else(|err| format!("could not read body: {}", err));
-                error!("Request to pact broker path '{}' failed: {}", path, body_text);
+                error!(
+                    "Request to pact broker path '{}' failed: {}",
+                    path, body_text
+                );
                 Err(PactBrokerError::IoError(format!(
                     "Request to pact broker path '{}' failed: {}. URL: '{}'",
                     path, status_code, self.url
@@ -775,10 +782,12 @@ fn handle_validation_errors(body: Value) -> PactBrokerError {
     match &body {
         Value::Object(attrs) => {
             // Extract notices if present
-            let notices: Vec<Notice> = attrs.get("notices")
+            let notices: Vec<Notice> = attrs
+                .get("notices")
                 .and_then(|n| n.as_array())
                 .map(|notices_array| {
-                    notices_array.iter()
+                    notices_array
+                        .iter()
                         .filter_map(|notice| serde_json::from_value::<Notice>(notice.clone()).ok())
                         .collect()
                 })
@@ -802,7 +811,7 @@ fn handle_validation_errors(body: Value) -> PactBrokerError {
                     Value::String(s) => vec![s.clone()],
                     _ => vec![errors.to_string()],
                 };
-                
+
                 if !notices.is_empty() {
                     PactBrokerError::ValidationErrorWithNotices(error_messages, notices)
                 } else {

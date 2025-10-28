@@ -20,7 +20,7 @@ use crate::cli::pact_broker::main::subcommands::{
     add_describe_environment_subcommand, add_describe_pacticipant_subcommand,
     add_describe_version_subcommand, add_generate_uuid_subcommand,
     add_list_environments_subcommand, add_list_latest_pact_versions_subcommand,
-    add_list_pacticipants_subcommand, add_publish_pacts_subcommand,
+    add_list_pacticipants_subcommand, add_provider_states_subcommand, add_publish_pacts_subcommand,
     add_record_deployment_subcommand, add_record_release_subcommand,
     add_record_support_ended_subcommand, add_record_undeployment_subcommand,
     add_test_webhook_subcommand, add_update_environment_subcommand,
@@ -68,6 +68,7 @@ pub fn add_pact_broker_client_command() -> Command {
         .subcommand(add_describe_version_subcommand())
         .subcommand(add_create_or_update_version_subcommand())
         .subcommand(add_generate_uuid_subcommand())
+        .subcommand(add_provider_states_subcommand().arg_required_else_help(true))
 }
 
 pub fn run(args: &ArgMatches, raw_args: Vec<String>) -> Result<serde_json::Value, i32> {
@@ -346,6 +347,30 @@ pub fn run(args: &ArgMatches, raw_args: Vec<String>) -> Result<serde_json::Value
             });
             println!("{}", value["uuid"].as_str().unwrap());
             Ok(value)
+        }
+        Some(("provider-states", args)) => {
+            match args.subcommand() {
+                Some(("list", list_args)) => {
+                    use crate::cli::pact_broker::main::provider_states::list::handle_list_provider_states_command;
+                    let res = handle_list_provider_states_command(list_args);
+                    match res {
+                        Ok(output) => {
+                            println!("{}", output);
+                            Ok(serde_json::Value::String(output))
+                        }
+                        Err(err) => {
+                            handle_error(err);
+                            Err(1)
+                        }
+                    }
+                }
+                _ => {
+                    error!(
+                        "⚠️ No provider-states subcommand provided, try running provider-states --help"
+                    );
+                    Err(1)
+                }
+            }
         }
         _ => {
             error!("⚠️ No option provided, try running --help");

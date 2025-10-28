@@ -940,3 +940,47 @@ pub fn add_generate_uuid_subcommand() -> Command {
     Command::new("generate-uuid")
         .about("Generate a UUID for use when calling create-or-update-webhook")
 }
+
+pub fn add_list_provider_states_subcommand() -> Command {
+    Command::new("list")
+        .about("List aggregated provider states for a provider")
+        .long_about("This command retrieves a de-duplicated list of all provider states for a given provider.\n\
+                    Provider states are collected from the latest pact on the main branch for any dependent consumers,\n\
+                    or from a specified branch or environment.")
+        .args(add_broker_auth_arguments())
+        .arg(
+            Arg::new("provider")
+                .short('r')
+                .long("provider")
+                .value_name("PROVIDER")
+                .required(true)
+                .help("The name of the provider"),
+        )
+        .arg(
+            Arg::new("branch")
+                .long("branch")
+                .value_name("BRANCH")
+                .help("The branch name to get provider states from")
+                .conflicts_with("environment"),
+        )
+        .arg(
+            Arg::new("environment")
+                .long("environment")
+                .value_name("ENVIRONMENT")
+                .help("The environment name to get provider states from")
+                .conflicts_with("branch"),
+        )
+        .arg(
+            Arg::new("json")
+                .long("json")
+                .action(clap::ArgAction::SetTrue)
+                .help("Output in JSON format"),
+        )
+        .args(crate::cli::add_ssl_arguments())
+}
+
+pub fn add_provider_states_subcommand() -> Command {
+    Command::new("provider-states")
+        .about("Manage provider states")
+        .subcommand(add_list_provider_states_subcommand())
+}

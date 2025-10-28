@@ -1113,6 +1113,123 @@ Options:
 Description:
   Checks if the specified pacticipant version is compatible with the configured main branch of each of the pacticipants with which it is integrated.
 
+### Provider States
+
+#### list
+
+```console
+$ pact-broker-cli provider-states list --help
+This command retrieves a de-duplicated list of all provider states for a given provider.
+Provider states are collected from the latest pact on the main branch for any dependent consumers,
+or from a specified branch or environment.
+
+Usage: pact-broker-cli provider-states list [OPTIONS] --broker-base-url <PACT_BROKER_BASE_URL> --provider <PROVIDER>
+
+Options:
+  -b, --broker-base-url <PACT_BROKER_BASE_URL>
+          The base URL of the Pact Broker
+          
+          [env: PACT_BROKER_BASE_URL=]
+
+  -u, --broker-username <PACT_BROKER_USERNAME>
+          Pact Broker basic auth username
+          
+          [env: PACT_BROKER_USERNAME=]
+
+  -p, --broker-password <PACT_BROKER_PASSWORD>
+          Pact Broker basic auth password
+          
+          [env: PACT_BROKER_PASSWORD=]
+
+  -k, --broker-token <PACT_BROKER_TOKEN>
+          Pact Broker bearer token
+          
+          [env: PACT_BROKER_TOKEN=]
+
+  -r, --provider <PROVIDER>
+          The name of the provider
+
+      --branch <BRANCH>
+          The branch name to get provider states from
+
+      --environment <ENVIRONMENT>
+          The environment name to get provider states from
+
+      --json
+          Output in JSON format
+
+  -c, --ssl-certificate <SSL_CERT_FILE>
+          The path to a valid SSL certificate file
+          
+          [env: SSL_CERT_FILE=]
+
+      --skip-ssl-verification
+          Skip SSL certificate verification
+          
+          [env: SSL_SKIP_VERIFICATION=]
+
+      --ssl-trust-store <SSL_TRUST_STORE>
+          Use the system's root trust store for SSL verification
+          
+          [env: SSL_TRUST_STORE=]
+          [default: true]
+          [possible values: true, false]
+
+      --enable-otel
+          Enable OpenTelemetry tracing
+
+      --enable-otel-logs
+          Enable OpenTelemetry logging
+
+      --enable-otel-traces
+          Enable OpenTelemetry traces
+
+      --otel-exporter <otel-exporter>
+          The OpenTelemetry exporter(s) to use, comma separated (stdout, otlp)
+          
+          [env: OTEL_TRACES_EXPORTER=]
+
+      --otel-exporter-endpoint <otel-exporter-endpoint>
+          The endpoint to use for the OTLP exporter (required if --otel-exporter=otlp)
+          
+          [env: OTEL_EXPORTER_OTLP_ENDPOINT=]
+
+      --otel-exporter-protocol <otel-exporter-protocol>
+          The protocol to use for the OTLP exporter (http/protobuf, http)
+          
+          [env: OTEL_EXPORTER_OTLP_PROTOCOL=]
+          [default: http]
+          [possible values: http, http/protobuf]
+
+      --log-level <LEVEL>
+          Set the log level (none, off, error, warn, info, debug, trace)
+          
+          [default: off]
+          [possible values: off, none, error, warn, info, debug, trace]
+
+  -h, --help
+          Print help (see a summary with '-h')
+
+```
+
+List aggregated provider states for a provider. This command retrieves all unique provider states across consumer pacts for the specified provider. Provider states are used in contract testing to set up specific server-side conditions before running verification tests.
+
+Examples:
+
+```sh
+# List all provider states for a provider from the main branch
+pact-broker-cli provider-states list --broker-base-url http://localhost:9292 --provider "My API"
+
+# List provider states from a specific branch
+pact-broker-cli provider-states list --broker-base-url http://localhost:9292 --provider "My API" --branch "feature/new-endpoint"
+
+# List provider states from a specific environment
+pact-broker-cli provider-states list --broker-base-url http://localhost:9292 --provider "My API" --environment "test"
+
+# Output in JSON format
+pact-broker-cli provider-states list --broker-base-url http://localhost:9292 --provider "My API" --json
+```
+
 ### Pacticipants
 
 #### create-or-update-pacticipant

@@ -4,7 +4,8 @@ use tracing::debug;
 
 use crate::cli::{
     pact_broker::main::{
-        HALClient, PactBrokerError, process_notices, Notice, utils::{get_auth, get_broker_url, get_ssl_options}
+        HALClient, Notice, PactBrokerError, process_notices,
+        utils::{get_auth, get_broker_url, get_ssl_options},
     },
     utils,
 };
@@ -357,7 +358,10 @@ pub fn can_i_deploy(
             }
             Err(err) => {
                 match &err {
-                    crate::cli::pact_broker::main::PactBrokerError::ValidationErrorWithNotices(messages, notices) => {
+                    crate::cli::pact_broker::main::PactBrokerError::ValidationErrorWithNotices(
+                        messages,
+                        notices,
+                    ) => {
                         println!("❌ Can-i-deploy command failed:");
                         for message in messages {
                             println!("   {}", message);
@@ -366,12 +370,12 @@ pub fn can_i_deploy(
                             println!("\nDetails:");
                             process_notices(notices);
                         }
-                    },
+                    }
                     _ => {
                         println!("❌ {}", err.to_string());
                     }
                 }
-                return Err(err)
+                return Err(err);
             }
         }
     })

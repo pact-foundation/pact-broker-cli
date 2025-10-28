@@ -7,7 +7,8 @@ use serde_json::{Value, json};
 
 use crate::cli::{
     pact_broker::main::{
-        HALClient, PactBrokerError, process_notices, utils::{get_auth, get_broker_relation, get_broker_url, get_ssl_options}, Notice
+        HALClient, Notice, PactBrokerError, process_notices,
+        utils::{get_auth, get_broker_relation, get_broker_url, get_ssl_options},
     },
     utils::{self, git_info},
 };
@@ -83,7 +84,6 @@ struct PfProviderContract {
     name: String,
     title: String,
 }
-
 
 pub fn publish(args: &ArgMatches) -> Result<Value, PactBrokerError> {
     // Load contract file
@@ -344,7 +344,7 @@ pub fn publish(args: &ArgMatches) -> Result<Value, PactBrokerError> {
                             println!("❌ {}", err.to_string());
                         }
                     }
-                    return Err(err)
+                    return Err(err);
                 }
             }
             Ok(json!({}))
