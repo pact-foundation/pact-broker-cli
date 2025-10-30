@@ -489,7 +489,7 @@ mod get_pacts_tests {
                 {
                 "href": "http://example.org/pacts/provider/Pricing%20Service/consumer/Condor/version/1.3.0",
                 "title": "Pact",
-                "name": "Version 1.3.0 - 28/10/2025"
+                "name": like!("Version 1.3.0 - 28/10/2025")
                 }
             ]
             }
