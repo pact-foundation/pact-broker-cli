@@ -183,6 +183,9 @@ Options:
           
           [env: PACT_BROKER_TOKEN=]
 
+      --custom-header <HEADER>
+          Custom header(s) to send with requests (format: 'Header-Name: Value', can be used multiple times)
+
       --validate
           Validate the Pact files before publishing.
 
@@ -289,6 +292,8 @@ Options:
           Pact Broker basic auth password [env: PACT_BROKER_PASSWORD=]
   -k, --broker-token <PACT_BROKER_TOKEN>
           Pact Broker bearer token [env: PACT_BROKER_TOKEN=]
+      --custom-header <HEADER>
+          Custom header(s) to send with requests (format: 'Header-Name: Value', can be used multiple times)
   -c, --ssl-certificate <SSL_CERT_FILE>
           The path to a valid SSL certificate file [env: SSL_CERT_FILE=]
       --skip-ssl-verification
@@ -317,6 +322,88 @@ Options:
 ```
 
 List the latest pact for each integration
+
+#### get-pacts
+
+```console
+$ pact-broker-cli get-pacts --help
+Get pacts for a specified provider, optionally filtered by consumer and/or branch
+
+Usage: pact-broker-cli get-pacts [OPTIONS] --provider <PROVIDER> --broker-base-url <PACT_BROKER_BASE_URL>
+
+Options:
+      --provider <PROVIDER>
+          The name of the provider
+      --consumer <CONSUMER>
+          The name of the consumer (optional)
+      --branch <BRANCH>
+          The branch name (optional, defaults to main branch)
+      --latest
+          Get only the latest pact(s)
+      --download
+          Download the pact files to local directory
+      --download-dir <DIR>
+          Directory to download pact files to (defaults to ./pacts) [default: ./pacts]
+  -b, --broker-base-url <PACT_BROKER_BASE_URL>
+          The base URL of the Pact Broker [env: PACT_BROKER_BASE_URL=]
+  -u, --broker-username <PACT_BROKER_USERNAME>
+          Pact Broker basic auth username [env: PACT_BROKER_USERNAME=]
+  -p, --broker-password <PACT_BROKER_PASSWORD>
+          Pact Broker basic auth password [env: PACT_BROKER_PASSWORD=]
+  -k, --broker-token <PACT_BROKER_TOKEN>
+          Pact Broker bearer token [env: PACT_BROKER_TOKEN=]
+      --custom-header <HEADER>
+          Custom header(s) to send with requests (format: 'Header-Name: Value', can be used multiple times)
+  -c, --ssl-certificate <SSL_CERT_FILE>
+          The path to a valid SSL certificate file [env: SSL_CERT_FILE=]
+      --skip-ssl-verification
+          Skip SSL certificate verification [env: SSL_SKIP_VERIFICATION=]
+      --ssl-trust-store <SSL_TRUST_STORE>
+          Use the system's root trust store for SSL verification [env: SSL_TRUST_STORE=] [default: true] [possible values: true, false]
+  -o, --output <OUTPUT>
+          Value must be one of ["json", "table"] [default: table] [possible values: json, table]
+      --enable-otel
+          Enable OpenTelemetry tracing
+      --enable-otel-logs
+          Enable OpenTelemetry logging
+      --enable-otel-traces
+          Enable OpenTelemetry traces
+      --otel-exporter <otel-exporter>
+          The OpenTelemetry exporter(s) to use, comma separated (stdout, otlp) [env: OTEL_TRACES_EXPORTER=]
+      --otel-exporter-endpoint <otel-exporter-endpoint>
+          The endpoint to use for the OTLP exporter (required if --otel-exporter=otlp) [env: OTEL_EXPORTER_OTLP_ENDPOINT=]
+      --otel-exporter-protocol <otel-exporter-protocol>
+          The protocol to use for the OTLP exporter (http/protobuf, http) [env: OTEL_EXPORTER_OTLP_PROTOCOL=] [default: http] [possible values: http, http/protobuf]
+      --log-level <LEVEL>
+          Set the log level (none, off, error, warn, info, debug, trace) [default: off] [possible values: off, none, error, warn, info, debug, trace]
+  -h, --help
+          Print help
+
+```
+
+Retrieve pacts for a specified provider with optional filtering by consumer and/or branch. This command allows you to query pacts associated with a provider, providing flexibility to narrow down results based on specific consumers or branches.
+
+Examples:
+
+```sh
+# Get all pacts for a provider
+pact-broker-cli get-pacts --provider "My API" --broker-base-url http://localhost:9292
+
+# Get pacts for a specific provider and consumer
+pact-broker-cli get-pacts --provider "My API" --consumer "My App" --broker-base-url http://localhost:9292
+
+# Get pacts for a provider from a specific branch
+pact-broker-cli get-pacts --provider "My API" --branch "feature/new-endpoint" --broker-base-url http://localhost:9292
+
+# Get only the latest pacts for a provider
+pact-broker-cli get-pacts --provider "My API" --latest --broker-base-url http://localhost:9292
+
+# Get pacts for a specific provider and consumer from a specific branch
+pact-broker-cli get-pacts --provider "My API" --consumer "My App" --branch "develop" --broker-base-url http://localhost:9292
+
+# Output in JSON format
+pact-broker-cli get-pacts --provider "My API" --output json --broker-base-url http://localhost:9292
+```
 
 ### Environments
 
@@ -349,6 +436,8 @@ Options:
           Pact Broker basic auth password [env: PACT_BROKER_PASSWORD=]
   -k, --broker-token <PACT_BROKER_TOKEN>
           Pact Broker bearer token [env: PACT_BROKER_TOKEN=]
+      --custom-header <HEADER>
+          Custom header(s) to send with requests (format: 'Header-Name: Value', can be used multiple times)
   -c, --ssl-certificate <SSL_CERT_FILE>
           The path to a valid SSL certificate file [env: SSL_CERT_FILE=]
       --skip-ssl-verification
@@ -407,6 +496,8 @@ Options:
           Pact Broker basic auth password [env: PACT_BROKER_PASSWORD=]
   -k, --broker-token <PACT_BROKER_TOKEN>
           Pact Broker bearer token [env: PACT_BROKER_TOKEN=]
+      --custom-header <HEADER>
+          Custom header(s) to send with requests (format: 'Header-Name: Value', can be used multiple times)
   -c, --ssl-certificate <SSL_CERT_FILE>
           The path to a valid SSL certificate file [env: SSL_CERT_FILE=]
       --skip-ssl-verification
@@ -455,6 +546,8 @@ Options:
           Pact Broker basic auth password [env: PACT_BROKER_PASSWORD=]
   -k, --broker-token <PACT_BROKER_TOKEN>
           Pact Broker bearer token [env: PACT_BROKER_TOKEN=]
+      --custom-header <HEADER>
+          Custom header(s) to send with requests (format: 'Header-Name: Value', can be used multiple times)
   -c, --ssl-certificate <SSL_CERT_FILE>
           The path to a valid SSL certificate file [env: SSL_CERT_FILE=]
       --skip-ssl-verification
@@ -501,6 +594,8 @@ Options:
           Pact Broker basic auth password [env: PACT_BROKER_PASSWORD=]
   -k, --broker-token <PACT_BROKER_TOKEN>
           Pact Broker bearer token [env: PACT_BROKER_TOKEN=]
+      --custom-header <HEADER>
+          Custom header(s) to send with requests (format: 'Header-Name: Value', can be used multiple times)
   -c, --ssl-certificate <SSL_CERT_FILE>
           The path to a valid SSL certificate file [env: SSL_CERT_FILE=]
       --skip-ssl-verification
@@ -547,6 +642,8 @@ Options:
           Pact Broker basic auth password [env: PACT_BROKER_PASSWORD=]
   -k, --broker-token <PACT_BROKER_TOKEN>
           Pact Broker bearer token [env: PACT_BROKER_TOKEN=]
+      --custom-header <HEADER>
+          Custom header(s) to send with requests (format: 'Header-Name: Value', can be used multiple times)
   -c, --ssl-certificate <SSL_CERT_FILE>
           The path to a valid SSL certificate file [env: SSL_CERT_FILE=]
       --skip-ssl-verification
@@ -603,6 +700,8 @@ Options:
           Pact Broker basic auth password [env: PACT_BROKER_PASSWORD=]
   -k, --broker-token <PACT_BROKER_TOKEN>
           Pact Broker bearer token [env: PACT_BROKER_TOKEN=]
+      --custom-header <HEADER>
+          Custom header(s) to send with requests (format: 'Header-Name: Value', can be used multiple times)
   -c, --ssl-certificate <SSL_CERT_FILE>
           The path to a valid SSL certificate file [env: SSL_CERT_FILE=]
       --skip-ssl-verification
@@ -669,6 +768,9 @@ Options:
           Pact Broker bearer token
           
           [env: PACT_BROKER_TOKEN=]
+
+      --custom-header <HEADER>
+          Custom header(s) to send with requests (format: 'Header-Name: Value', can be used multiple times)
 
   -c, --ssl-certificate <SSL_CERT_FILE>
           The path to a valid SSL certificate file
@@ -762,6 +864,8 @@ Options:
           Pact Broker basic auth password [env: PACT_BROKER_PASSWORD=]
   -k, --broker-token <PACT_BROKER_TOKEN>
           Pact Broker bearer token [env: PACT_BROKER_TOKEN=]
+      --custom-header <HEADER>
+          Custom header(s) to send with requests (format: 'Header-Name: Value', can be used multiple times)
   -c, --ssl-certificate <SSL_CERT_FILE>
           The path to a valid SSL certificate file [env: SSL_CERT_FILE=]
       --skip-ssl-verification
@@ -814,6 +918,8 @@ Options:
           Pact Broker basic auth password [env: PACT_BROKER_PASSWORD=]
   -k, --broker-token <PACT_BROKER_TOKEN>
           Pact Broker bearer token [env: PACT_BROKER_TOKEN=]
+      --custom-header <HEADER>
+          Custom header(s) to send with requests (format: 'Header-Name: Value', can be used multiple times)
   -c, --ssl-certificate <SSL_CERT_FILE>
           The path to a valid SSL certificate file [env: SSL_CERT_FILE=]
       --skip-ssl-verification
@@ -962,6 +1068,9 @@ Options:
           
           [env: PACT_BROKER_TOKEN=]
 
+      --custom-header <HEADER>
+          Custom header(s) to send with requests (format: 'Header-Name: Value', can be used multiple times)
+
   -c, --ssl-certificate <SSL_CERT_FILE>
           The path to a valid SSL certificate file
           
@@ -1073,6 +1182,8 @@ Options:
           Pact Broker basic auth password [env: PACT_BROKER_PASSWORD=]
   -k, --broker-token <PACT_BROKER_TOKEN>
           Pact Broker bearer token [env: PACT_BROKER_TOKEN=]
+      --custom-header <HEADER>
+          Custom header(s) to send with requests (format: 'Header-Name: Value', can be used multiple times)
   -a, --pacticipant <PACTICIPANT>
           The pacticipant name. Use once for each pacticipant being checked. The following options (--version, --latest, --tag, --branch) must come after each --pacticipant.
   -e, --version <VERSION>
@@ -1113,6 +1224,126 @@ Options:
 Description:
   Checks if the specified pacticipant version is compatible with the configured main branch of each of the pacticipants with which it is integrated.
 
+### Provider States
+
+#### list
+
+```console
+$ pact-broker-cli provider-states list --help
+This command retrieves a de-duplicated list of all provider states for a given provider.
+Provider states are collected from the latest pact on the main branch for any dependent consumers,
+or from a specified branch or environment.
+
+Usage: pact-broker-cli provider-states list [OPTIONS] --broker-base-url <PACT_BROKER_BASE_URL> --provider <PROVIDER>
+
+Options:
+  -b, --broker-base-url <PACT_BROKER_BASE_URL>
+          The base URL of the Pact Broker
+          
+          [env: PACT_BROKER_BASE_URL=]
+
+  -u, --broker-username <PACT_BROKER_USERNAME>
+          Pact Broker basic auth username
+          
+          [env: PACT_BROKER_USERNAME=]
+
+  -p, --broker-password <PACT_BROKER_PASSWORD>
+          Pact Broker basic auth password
+          
+          [env: PACT_BROKER_PASSWORD=]
+
+  -k, --broker-token <PACT_BROKER_TOKEN>
+          Pact Broker bearer token
+          
+          [env: PACT_BROKER_TOKEN=]
+
+      --custom-header <HEADER>
+          Custom header(s) to send with requests (format: 'Header-Name: Value', can be used multiple times)
+
+  -r, --provider <PROVIDER>
+          The name of the provider
+
+      --branch <BRANCH>
+          The branch name to get provider states from
+
+      --environment <ENVIRONMENT>
+          The environment name to get provider states from
+
+      --json
+          Output in JSON format
+
+  -c, --ssl-certificate <SSL_CERT_FILE>
+          The path to a valid SSL certificate file
+          
+          [env: SSL_CERT_FILE=]
+
+      --skip-ssl-verification
+          Skip SSL certificate verification
+          
+          [env: SSL_SKIP_VERIFICATION=]
+
+      --ssl-trust-store <SSL_TRUST_STORE>
+          Use the system's root trust store for SSL verification
+          
+          [env: SSL_TRUST_STORE=]
+          [default: true]
+          [possible values: true, false]
+
+      --enable-otel
+          Enable OpenTelemetry tracing
+
+      --enable-otel-logs
+          Enable OpenTelemetry logging
+
+      --enable-otel-traces
+          Enable OpenTelemetry traces
+
+      --otel-exporter <otel-exporter>
+          The OpenTelemetry exporter(s) to use, comma separated (stdout, otlp)
+          
+          [env: OTEL_TRACES_EXPORTER=]
+
+      --otel-exporter-endpoint <otel-exporter-endpoint>
+          The endpoint to use for the OTLP exporter (required if --otel-exporter=otlp)
+          
+          [env: OTEL_EXPORTER_OTLP_ENDPOINT=]
+
+      --otel-exporter-protocol <otel-exporter-protocol>
+          The protocol to use for the OTLP exporter (http/protobuf, http)
+          
+          [env: OTEL_EXPORTER_OTLP_PROTOCOL=]
+          [default: http]
+          [possible values: http, http/protobuf]
+
+      --log-level <LEVEL>
+          Set the log level (none, off, error, warn, info, debug, trace)
+          
+          [default: off]
+          [possible values: off, none, error, warn, info, debug, trace]
+
+  -h, --help
+          Print help (see a summary with '-h')
+
+```
+
+List aggregated provider states for a provider. This command retrieves all unique provider states across consumer pacts for the specified provider. Provider states are used in contract testing to set up specific server-side conditions before running verification tests.
+
+Examples:
+
+```sh
+# List all provider states for a provider from the main branch
+pact-broker-cli provider-states list --broker-base-url http://localhost:9292 --provider "My API"
+
+# List provider states from a specific branch
+pact-broker-cli provider-states list --broker-base-url http://localhost:9292 --provider "My API" --branch "feature/new-endpoint"
+
+# List provider states from a specific environment
+pact-broker-cli provider-states list --broker-base-url http://localhost:9292 --provider "My API" --environment "test"
+
+# Output in JSON format
+pact-broker-cli provider-states list --broker-base-url http://localhost:9292 --provider "My API" --json
+```
+
 ### Pacticipants
 
 #### create-or-update-pacticipant
@@ -1132,6 +1363,8 @@ Options:
           Pact Broker basic auth password [env: PACT_BROKER_PASSWORD=]
   -k, --broker-token <PACT_BROKER_TOKEN>
           Pact Broker bearer token [env: PACT_BROKER_TOKEN=]
+      --custom-header <HEADER>
+          Custom header(s) to send with requests (format: 'Header-Name: Value', can be used multiple times)
       --name <NAME>
           Pacticipant name
       --display-name <DISPLAY_NAME>
@@ -1186,6 +1419,8 @@ Options:
           Pact Broker basic auth password [env: PACT_BROKER_PASSWORD=]
   -k, --broker-token <PACT_BROKER_TOKEN>
           Pact Broker bearer token [env: PACT_BROKER_TOKEN=]
+      --custom-header <HEADER>
+          Custom header(s) to send with requests (format: 'Header-Name: Value', can be used multiple times)
       --name <NAME>
           Pacticipant name
   -o, --output <OUTPUT>
@@ -1234,6 +1469,8 @@ Options:
           Pact Broker basic auth password [env: PACT_BROKER_PASSWORD=]
   -k, --broker-token <PACT_BROKER_TOKEN>
           Pact Broker bearer token [env: PACT_BROKER_TOKEN=]
+      --custom-header <HEADER>
+          Custom header(s) to send with requests (format: 'Header-Name: Value', can be used multiple times)
   -o, --output <OUTPUT>
           Value must be one of ["json", "table"] [default: table] [possible values: json, table]
   -c, --ssl-certificate <SSL_CERT_FILE>
@@ -1317,6 +1554,8 @@ Options:
           Pact Broker basic auth password [env: PACT_BROKER_PASSWORD=]
   -k, --broker-token <PACT_BROKER_TOKEN>
           Pact Broker bearer token [env: PACT_BROKER_TOKEN=]
+      --custom-header <HEADER>
+          Custom header(s) to send with requests (format: 'Header-Name: Value', can be used multiple times)
   -c, --ssl-certificate <SSL_CERT_FILE>
           The path to a valid SSL certificate file [env: SSL_CERT_FILE=]
       --skip-ssl-verification
@@ -1369,6 +1608,8 @@ Options:
           Pact Broker basic auth password [env: PACT_BROKER_PASSWORD=]
   -k, --broker-token <PACT_BROKER_TOKEN>
           Pact Broker bearer token [env: PACT_BROKER_TOKEN=]
+      --custom-header <HEADER>
+          Custom header(s) to send with requests (format: 'Header-Name: Value', can be used multiple times)
       --uuid <UUID>
           Specify the uuid for the webhook
   -X, --request <METHOD>
@@ -1455,6 +1696,8 @@ Options:
           Pact Broker basic auth password [env: PACT_BROKER_PASSWORD=]
   -k, --broker-token <PACT_BROKER_TOKEN>
           Pact Broker bearer token [env: PACT_BROKER_TOKEN=]
+      --custom-header <HEADER>
+          Custom header(s) to send with requests (format: 'Header-Name: Value', can be used multiple times)
   -c, --ssl-certificate <SSL_CERT_FILE>
           The path to a valid SSL certificate file [env: SSL_CERT_FILE=]
       --skip-ssl-verification
@@ -1482,6 +1725,54 @@ Options:
 
 Test the execution of a webhook
 
+#### delete-webhook
+
+```console
+$ pact-broker-cli delete-webhook --help
+Delete a webhook
+
+Usage: pact-broker-cli delete-webhook [OPTIONS] --uuid <UUID> --broker-base-url <PACT_BROKER_BASE_URL>
+
+Options:
+      --uuid <UUID>
+          UUID of the webhook to delete
+  -b, --broker-base-url <PACT_BROKER_BASE_URL>
+          The base URL of the Pact Broker [env: PACT_BROKER_BASE_URL=]
+  -u, --broker-username <PACT_BROKER_USERNAME>
+          Pact Broker basic auth username [env: PACT_BROKER_USERNAME=]
+  -p, --broker-password <PACT_BROKER_PASSWORD>
+          Pact Broker basic auth password [env: PACT_BROKER_PASSWORD=]
+  -k, --broker-token <PACT_BROKER_TOKEN>
+          Pact Broker bearer token [env: PACT_BROKER_TOKEN=]
+      --custom-header <HEADER>
+          Custom header(s) to send with requests (format: 'Header-Name: Value', can be used multiple times)
+  -c, --ssl-certificate <SSL_CERT_FILE>
+          The path to a valid SSL certificate file [env: SSL_CERT_FILE=]
+      --skip-ssl-verification
+          Skip SSL certificate verification [env: SSL_SKIP_VERIFICATION=]
+      --ssl-trust-store <SSL_TRUST_STORE>
+          Use the system's root trust store for SSL verification [env: SSL_TRUST_STORE=] [default: true] [possible values: true, false]
+      --enable-otel
+          Enable OpenTelemetry tracing
+      --enable-otel-logs
+          Enable OpenTelemetry logging
+      --enable-otel-traces
+          Enable OpenTelemetry traces
+      --otel-exporter <otel-exporter>
+          The OpenTelemetry exporter(s) to use, comma separated (stdout, otlp) [env: OTEL_TRACES_EXPORTER=]
+      --otel-exporter-endpoint <otel-exporter-endpoint>
+          The endpoint to use for the OTLP exporter (required if --otel-exporter=otlp) [env: OTEL_EXPORTER_OTLP_ENDPOINT=]
+      --otel-exporter-protocol <otel-exporter-protocol>
+          The protocol to use for the OTLP exporter (http/protobuf, http) [env: OTEL_EXPORTER_OTLP_PROTOCOL=] [default: http] [possible values: http, http/protobuf]
+      --log-level <LEVEL>
+          Set the log level (none, off, error, warn, info, debug, trace) [default: off] [possible values: off, none, error, warn, info, debug, trace]
+  -h, --help
+          Print help
+
+```
+
+Delete a webhook by its UUID. The command will not return an error if the webhook does not exist, but will print a message indicating whether or not it was found.
+
 ### Branches
 
 #### delete-branch
@@ -1501,6 +1792,8 @@ Options:
           Pact Broker basic auth password [env: PACT_BROKER_PASSWORD=]
   -k, --broker-token <PACT_BROKER_TOKEN>
           Pact Broker bearer token [env: PACT_BROKER_TOKEN=]
+      --custom-header <HEADER>
+          Custom header(s) to send with requests (format: 'Header-Name: Value', can be used multiple times)
       --branch <BRANCH>
           The pacticipant branch name
   -a, --pacticipant <PACTICIPANT>
@@ -1553,6 +1846,8 @@ Options:
           Pact Broker basic auth password [env: PACT_BROKER_PASSWORD=]
   -k, --broker-token <PACT_BROKER_TOKEN>
           Pact Broker bearer token [env: PACT_BROKER_TOKEN=]
+      --custom-header <HEADER>
+          Custom header(s) to send with requests (format: 'Header-Name: Value', can be used multiple times)
   -a, --pacticipant <PACTICIPANT>
           The pacticipant name
   -e, --version <VERSION>
@@ -1590,13 +1885,65 @@ Options:
 
 Add a tag to a pacticipant version
 
+#### delete-version-tag
+
+```console
+$ pact-broker-cli delete-version-tag --help
+Delete a tag from a pacticipant version
+
+Usage: pact-broker-cli delete-version-tag [OPTIONS] --broker-base-url <PACT_BROKER_BASE_URL> --pacticipant <PACTICIPANT> --version <VERSION> --tag <TAG>
+
+Options:
+  -b, --broker-base-url <PACT_BROKER_BASE_URL>
+          The base URL of the Pact Broker [env: PACT_BROKER_BASE_URL=]
+  -u, --broker-username <PACT_BROKER_USERNAME>
+          Pact Broker basic auth username [env: PACT_BROKER_USERNAME=]
+  -p, --broker-password <PACT_BROKER_PASSWORD>
+          Pact Broker basic auth password [env: PACT_BROKER_PASSWORD=]
+  -k, --broker-token <PACT_BROKER_TOKEN>
+          Pact Broker bearer token [env: PACT_BROKER_TOKEN=]
+      --custom-header <HEADER>
+          Custom header(s) to send with requests (format: 'Header-Name: Value', can be used multiple times)
+  -a, --pacticipant <PACTICIPANT>
+          The pacticipant name
+  -e, --version <VERSION>
+          The pacticipant version
+  -t, --tag <TAG>
+          Tag name to delete from the pacticipant version
+  -c, --ssl-certificate <SSL_CERT_FILE>
+          The path to a valid SSL certificate file [env: SSL_CERT_FILE=]
+      --skip-ssl-verification
+          Skip SSL certificate verification [env: SSL_SKIP_VERIFICATION=]
+      --ssl-trust-store <SSL_TRUST_STORE>
+          Use the system's root trust store for SSL verification [env: SSL_TRUST_STORE=] [default: true] [possible values: true, false]
+      --enable-otel
+          Enable OpenTelemetry tracing
+      --enable-otel-logs
+          Enable OpenTelemetry logging
+      --enable-otel-traces
+          Enable OpenTelemetry traces
+      --otel-exporter <otel-exporter>
+          The OpenTelemetry exporter(s) to use, comma separated (stdout, otlp) [env: OTEL_TRACES_EXPORTER=]
+      --otel-exporter-endpoint <otel-exporter-endpoint>
+          The endpoint to use for the OTLP exporter (required if --otel-exporter=otlp) [env: OTEL_EXPORTER_OTLP_ENDPOINT=]
+      --otel-exporter-protocol <otel-exporter-protocol>
+          The protocol to use for the OTLP exporter (http/protobuf, http) [env: OTEL_EXPORTER_OTLP_PROTOCOL=] [default: http] [possible values: http, http/protobuf]
+      --log-level <LEVEL>
+          Set the log level (none, off, error, warn, info, debug, trace) [default: off] [possible values: off, none, error, warn, info, debug, trace]
+  -h, --help
+          Print help
+
+```
+
+Delete a tag from a pacticipant version. The command will not throw an error if the tag does not exist, but will print a message indicating whether or not it was found.
+
 ### Versions
 
 #### describe-version
 
 ```console
 $ pact-broker-cli describe-version --help
-Describes a pacticipant version. If no version or tag is specified, the latest version is described.
+Describes a pacticipant version. If no version or tag is specified, the latest version is described. Use --environment to query versions deployed/released to specific environments.
 
 Usage: pact-broker-cli describe-version [OPTIONS] --broker-base-url <PACT_BROKER_BASE_URL> --pacticipant <PACTICIPANT>
 
@@ -1609,12 +1956,20 @@ Options:
           Pact Broker basic auth password [env: PACT_BROKER_PASSWORD=]
   -k, --broker-token <PACT_BROKER_TOKEN>
           Pact Broker bearer token [env: PACT_BROKER_TOKEN=]
+      --custom-header <HEADER>
+          Custom header(s) to send with requests (format: 'Header-Name: Value', can be used multiple times)
   -a, --pacticipant <PACTICIPANT>
           The name of the pacticipant that the version belongs to
   -e, --version <VERSION>
           The pacticipant version number
   -l, --latest [<TAG>]
           Describe the latest pacticipant version. Optionally specify a TAG to describe the latest version with the specified tag
+      --environment <ENVIRONMENT>
+          The environment name to describe versions deployed/released to. Returns all versions deployed or released to this environment
+      --deployed
+          Show only deployed versions (use with --environment)
+      --released
+          Show only released versions (use with --environment)
   -c, --ssl-certificate <SSL_CERT_FILE>
           The path to a valid SSL certificate file [env: SSL_CERT_FILE=]
       --skip-ssl-verification
@@ -1661,6 +2016,8 @@ Options:
           Pact Broker basic auth password [env: PACT_BROKER_PASSWORD=]
   -k, --broker-token <PACT_BROKER_TOKEN>
           Pact Broker bearer token [env: PACT_BROKER_TOKEN=]
+      --custom-header <HEADER>
+          Custom header(s) to send with requests (format: 'Header-Name: Value', can be used multiple times)
   -a, --pacticipant <PACTICIPANT>
           The pacticipant name
   -e, --version <VERSION>
@@ -1752,6 +2109,8 @@ Options:
           Pact Broker basic auth password [env: PACT_BROKER_PASSWORD=]
   -k, --broker-token <PACT_BROKER_TOKEN>
           Pact Broker bearer token [env: PACT_BROKER_TOKEN=]
+      --custom-header <HEADER>
+          Custom header(s) to send with requests (format: 'Header-Name: Value', can be used multiple times)
       --provider <PROVIDER>
           The provider name
   -a, --provider-app-version <PROVIDER_APP_VERSION>

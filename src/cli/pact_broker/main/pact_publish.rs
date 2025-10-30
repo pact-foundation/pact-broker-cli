@@ -16,10 +16,12 @@ use pact_models::{http_utils, pact};
 use serde::{Deserialize, Serialize};
 use serde_json::{Value, json};
 
-use crate::cli::pact_broker::main::{HALClient, process_notices, Notice};
+use crate::cli::pact_broker::main::utils::{
+    get_auth, get_broker_relation, get_broker_url, get_custom_headers,
+};
 use crate::cli::pact_broker::main::utils::{get_ssl_options, handle_error};
-use crate::cli::pact_broker::main::utils::{get_auth, get_broker_relation, get_broker_url};
-use crate::cli::utils::{git_info};
+use crate::cli::pact_broker::main::{HALClient, Notice, process_notices};
+use crate::cli::utils::git_info;
 use std::collections::HashMap;
 
 use super::verification::{VerificationResult, display_results, verify_json};
@@ -149,38 +151,46 @@ struct Log {
 /// Check if two interactions have the same description and provider state
 fn same_description_and_state(original: &Value, additional: &Value) -> bool {
     let same_description = original.get("description") == additional.get("description");
-    
-    let same_state = match (original.get("providerState"), additional.get("providerState")) {
+
+    let same_state = match (
+        original.get("providerState"),
+        additional.get("providerState"),
+    ) {
         (Some(orig_state), Some(add_state)) => orig_state == add_state,
         (None, None) => true,
         _ => {
             // Check providerStates array as well
-            match (original.get("providerStates"), additional.get("providerStates")) {
+            match (
+                original.get("providerStates"),
+                additional.get("providerStates"),
+            ) {
                 (Some(orig_states), Some(add_states)) => orig_states == add_states,
                 (None, None) => true,
                 _ => false,
             }
         }
     };
-    
+
     same_description && same_state
 }
 
 fn almost_duplicate_message(original: &Value, new_interaction: &Value) -> String {
-    let description = new_interaction.get("description")
+    let description = new_interaction
+        .get("description")
         .and_then(|d| d.as_str())
         .unwrap_or("unknown");
-    
-    let provider_state = new_interaction.get("providerState")
+
+    let provider_state = new_interaction
+        .get("providerState")
         .or_else(|| new_interaction.get("providerStates"))
         .map(|s| serde_json::to_string(s).unwrap_or_else(|_| "unknown".to_string()))
         .unwrap_or_else(|| "null".to_string());
-    
-    let original_json = serde_json::to_string_pretty(original)
-        .unwrap_or_else(|_| "<invalid json>".to_string());
+
+    let original_json =
+        serde_json::to_string_pretty(original).unwrap_or_else(|_| "<invalid json>".to_string());
     let new_json = serde_json::to_string_pretty(new_interaction)
         .unwrap_or_else(|_| "<invalid json>".to_string());
-    
+
     format!(
         "Two interactions have been found with same description ({:?}) and provider state ({}) but a different request or response. Please use a different description or provider state, or hard-code any random data.\n\n{}\n\n{}",
         description, provider_state, original_json, new_json
@@ -192,14 +202,18 @@ fn merge_interactions_or_messages(
     additional_interactions: &[Value],
 ) -> Result<(), PactMergeError> {
     for new_interaction in additional_interactions {
-        if let Some(existing_index) = existing_interactions.iter().position(|existing| {
-            same_description_and_state(existing, new_interaction)
-        }) {
+        if let Some(existing_index) = existing_interactions
+            .iter()
+            .position(|existing| same_description_and_state(existing, new_interaction))
+        {
             if existing_interactions[existing_index] == *new_interaction {
                 existing_interactions[existing_index] = new_interaction.clone();
             } else {
                 return Err(PactMergeError {
-                    message: almost_duplicate_message(&existing_interactions[existing_index], new_interaction),
+                    message: almost_duplicate_message(
+                        &existing_interactions[existing_index],
+                        new_interaction,
+                    ),
                 });
             }
         } else {
@@ -241,22 +255,26 @@ pub fn handle_matches(args: &ArgMatches) -> Result<Vec<VerificationResult>, i32>
     }
 }
 
-
 pub fn publish_pacts(args: &ArgMatches) -> Result<Value, i32> {
     let files: Result<Vec<(String, Value)>, anyhow::Error> = load_files(args);
     if files.is_err() {
         let error = files.err().unwrap();
         println!("{}", error);
-        
+
         return Err(1);
     }
     let files = files.map_err(|_| 1)?;
 
     let broker_url = get_broker_url(args).trim_end_matches('/').to_string();
     let auth = get_auth(args);
+    let custom_headers = get_custom_headers(args);
     let ssl_options = get_ssl_options(args);
-    let hal_client: HALClient =
-        HALClient::with_url(&broker_url, Some(auth.clone()), ssl_options.clone());
+    let hal_client: HALClient = HALClient::with_url(
+        &broker_url,
+        Some(auth.clone()),
+        ssl_options.clone(),
+        custom_headers.clone(),
+    );
 
     let publish_pact_href_path = tokio::runtime::Runtime::new().unwrap().block_on(async {
         get_broker_relation(
@@ -359,7 +377,7 @@ pub fn publish_pacts(args: &ArgMatches) -> Result<Value, i32> {
                                     existing_arr.len(),
                                     new_arr.len()
                                 );
-                                
+
                                 match merge_interactions_or_messages(existing_arr, new_arr) {
                                     Ok(()) => {
                                         tracing::debug!(
@@ -557,7 +575,11 @@ pub fn load_files(args: &ArgMatches) -> anyhow::Result<Vec<(String, Value)>> {
                             }
                         }
                         Err(e) => {
-                            tracing::error!("Failed to load pact files from directory '{}': {}", input, e);
+                            tracing::error!(
+                                "Failed to load pact files from directory '{}': {}",
+                                input,
+                                e
+                            );
                             collected.push((input.to_string(), Err(e)));
                         }
                     }
@@ -577,13 +599,20 @@ pub fn load_files(args: &ArgMatches) -> anyhow::Result<Vec<(String, Value)>> {
                                 match entry {
                                     Ok(pathbuf) => {
                                         if let Some(fname) = pathbuf.to_str() {
-                                            tracing::debug!("Loading pact file from glob match: '{}'", fname);
+                                            tracing::debug!(
+                                                "Loading pact file from glob match: '{}'",
+                                                fname
+                                            );
                                             collected.push((fname.to_string(), load_file(fname)));
                                             found = true;
                                         }
                                     }
                                     Err(e) => {
-                                        tracing::error!("Error processing glob entry for '{}': {}", input, e);
+                                        tracing::error!(
+                                            "Error processing glob entry for '{}': {}",
+                                            input,
+                                            e
+                                        );
                                         collected.push((input.to_string(), Err(anyhow!(e))));
                                     }
                                 }
@@ -591,7 +620,10 @@ pub fn load_files(args: &ArgMatches) -> anyhow::Result<Vec<(String, Value)>> {
                             if !found {
                                 tracing::error!("No files matched glob pattern: '{}'", input);
                                 error!("No files matched glob pattern: '{}'", input);
-                                return Err(anyhow!("❌ No files matched glob pattern: '{}'", input));
+                                return Err(anyhow!(
+                                    "❌ No files matched glob pattern: '{}'",
+                                    input
+                                ));
                             }
                         }
                         Err(e) => {
@@ -614,42 +646,42 @@ pub fn load_files(args: &ArgMatches) -> anyhow::Result<Vec<(String, Value)>> {
     let failures: Vec<_> = collected.iter().filter(|(_, res)| res.is_err()).collect();
     if !failures.is_empty() {
         let errors: Vec<(String, String, String)> = failures
-                .iter()
-                .filter_map(|(src, err)| {
-                    let error_msg = err.as_ref().err().map(|e| e.to_string());
-                    let source_type = if std::path::Path::new(src).is_file() {
-                        "file"
-                    } else if std::path::Path::new(src).is_dir() {
-                        "directory"
-                    } else if src.contains('*') || src.contains('?') || src.contains('[') {
-                        "glob"
-                    } else {
-                        "unknown"
-                    };
-                    error_msg.map(|msg| (src.clone(), source_type.to_string(), msg))
-                })
-                .collect();
+            .iter()
+            .filter_map(|(src, err)| {
+                let error_msg = err.as_ref().err().map(|e| e.to_string());
+                let source_type = if std::path::Path::new(src).is_file() {
+                    "file"
+                } else if std::path::Path::new(src).is_dir() {
+                    "directory"
+                } else if src.contains('*') || src.contains('?') || src.contains('[') {
+                    "glob"
+                } else {
+                    "unknown"
+                };
+                error_msg.map(|msg| (src.clone(), source_type.to_string(), msg))
+            })
+            .collect();
 
-            error!("Failed to load the following pact files:");
-            for (source, source_type, err_msg) in &errors {
-                tracing::error!("    '{}' [{}] - {}", source, source_type, err_msg);
-            }
-
-            let pretty_errors = errors.iter()
-                .map(|(source, source_type, err_msg)| {
-                    format!(
-                        "\n  Source: {}\n  Type: {}\n  Error: {}\n",
-                        source, source_type, err_msg
-                    )
-                })
-                .collect::<String>();
-
-            return Err(anyhow!(format!(
-                "Failed to load one or more pact files:{}",
-                pretty_errors
-            )));
+        error!("Failed to load the following pact files:");
+        for (source, source_type, err_msg) in &errors {
+            tracing::error!("    '{}' [{}] - {}", source, source_type, err_msg);
         }
-    else {
+
+        let pretty_errors = errors
+            .iter()
+            .map(|(source, source_type, err_msg)| {
+                format!(
+                    "\n  Source: {}\n  Type: {}\n  Error: {}\n",
+                    source, source_type, err_msg
+                )
+            })
+            .collect::<String>();
+
+        return Err(anyhow!(format!(
+            "Failed to load one or more pact files:{}",
+            pretty_errors
+        )));
+    } else {
         tracing::info!("Successfully loaded all pact files.");
         Ok(collected
             .into_iter()
@@ -707,7 +739,10 @@ pub fn load_files_from_dir(dir: &str) -> anyhow::Result<Vec<(String, Value)>> {
         let errors: Vec<(String, String)> = sources
             .iter()
             .filter_map(|(source, result)| {
-                result.as_ref().err().map(|e| (source.clone(), e.to_string()))
+                result
+                    .as_ref()
+                    .err()
+                    .map(|e| (source.clone(), e.to_string()))
             })
             .collect();
 
@@ -717,7 +752,10 @@ pub fn load_files_from_dir(dir: &str) -> anyhow::Result<Vec<(String, Value)>> {
         }
         Err(anyhow!(format!(
             "Failed to load one or more pact files: {:?}",
-            errors.iter().map(|(source, err_msg)| format!("{}: {}", source, err_msg)).collect::<Vec<_>>()
+            errors
+                .iter()
+                .map(|(source, err_msg)| format!("{}: {}", source, err_msg))
+                .collect::<Vec<_>>()
         )))
     } else {
         Ok(sources
@@ -907,18 +945,24 @@ mod publish_contracts_tests {
         });
 
         let result = handle_validation_errors(error_response);
-        
+
         match result {
-            crate::cli::pact_broker::main::PactBrokerError::ValidationErrorWithNotices(messages, notices) => {
+            crate::cli::pact_broker::main::PactBrokerError::ValidationErrorWithNotices(
+                messages,
+                notices,
+            ) => {
                 assert_eq!(messages.len(), 1);
                 assert_eq!(messages[0], "Consumer version not found");
                 assert_eq!(notices.len(), 2);
                 assert_eq!(notices[0].text, "Please create the consumer version first");
                 assert_eq!(notices[0].type_field, "error");
-                assert_eq!(notices[1].text, "Visit https://docs.pact.io for more information");
+                assert_eq!(
+                    notices[1].text,
+                    "Visit https://docs.pact.io for more information"
+                );
                 assert_eq!(notices[1].type_field, "info");
             }
-            _ => panic!("Expected ValidationErrorWithNotices variant")
+            _ => panic!("Expected ValidationErrorWithNotices variant"),
         }
     }
 
@@ -933,13 +977,13 @@ mod publish_contracts_tests {
         });
 
         let result = handle_validation_errors(error_response);
-        
+
         match result {
             crate::cli::pact_broker::main::PactBrokerError::ValidationError(messages) => {
                 assert_eq!(messages.len(), 1);
                 assert_eq!(messages[0], "Invalid pact file format");
             }
-            _ => panic!("Expected ValidationError variant")
+            _ => panic!("Expected ValidationError variant"),
         }
     }
 
@@ -963,26 +1007,38 @@ mod publish_contracts_tests {
         });
 
         let result = handle_validation_errors(error_response);
-        
+
         match result {
-            crate::cli::pact_broker::main::PactBrokerError::ValidationErrorWithNotices(messages, notices) => {
+            crate::cli::pact_broker::main::PactBrokerError::ValidationErrorWithNotices(
+                messages,
+                notices,
+            ) => {
                 assert_eq!(messages.len(), 2);
-                assert_eq!(messages[0], "Pact could not be published because version already exists");
+                assert_eq!(
+                    messages[0],
+                    "Pact could not be published because version already exists"
+                );
                 assert_eq!(messages[1], "Use --overwrite flag to replace existing pact");
                 assert_eq!(notices.len(), 2);
-                assert_eq!(notices[0].text, "Pact could not be published because version already exists");
+                assert_eq!(
+                    notices[0].text,
+                    "Pact could not be published because version already exists"
+                );
                 assert_eq!(notices[0].type_field, "error");
-                assert_eq!(notices[1].text, "Use --overwrite flag to replace existing pact");
+                assert_eq!(
+                    notices[1].text,
+                    "Use --overwrite flag to replace existing pact"
+                );
                 assert_eq!(notices[1].type_field, "warning");
             }
-            _ => panic!("Expected ValidationErrorWithNotices variant")
+            _ => panic!("Expected ValidationErrorWithNotices variant"),
         }
     }
 
     #[test]
     fn test_duplicate_interaction_detection() {
-        use serde_json::json;
         use crate::cli::pact_broker::main::pact_publish::merge_interactions_or_messages;
+        use serde_json::json;
 
         // Create two interactions with same description and state but different content
         let interaction1 = json!({
@@ -1000,7 +1056,7 @@ mod publish_contracts_tests {
         });
 
         let interaction2 = json!({
-            "description": "test interaction", 
+            "description": "test interaction",
             "providerState": "test state",
             "request": {
                 "method": "GET",
@@ -1017,19 +1073,24 @@ mod publish_contracts_tests {
         let additional_interactions = vec![interaction2];
 
         // This should fail with a PactMergeError
-        let result = merge_interactions_or_messages(&mut existing_interactions, &additional_interactions);
-        
+        let result =
+            merge_interactions_or_messages(&mut existing_interactions, &additional_interactions);
+
         assert!(result.is_err());
         let error = result.unwrap_err();
-        assert!(error.message.contains("Two interactions have been found with same description"));
+        assert!(
+            error
+                .message
+                .contains("Two interactions have been found with same description")
+        );
         assert!(error.message.contains("test interaction"));
         assert!(error.message.contains("test state"));
     }
 
     #[test]
     fn test_identical_interactions_allowed() {
-        use serde_json::json;
         use crate::cli::pact_broker::main::pact_publish::merge_interactions_or_messages;
+        use serde_json::json;
 
         // Create two identical interactions
         let interaction = json!({
@@ -1049,16 +1110,17 @@ mod publish_contracts_tests {
         let additional_interactions = vec![interaction];
 
         // This should succeed - identical interactions are allowed
-        let result = merge_interactions_or_messages(&mut existing_interactions, &additional_interactions);
-        
+        let result =
+            merge_interactions_or_messages(&mut existing_interactions, &additional_interactions);
+
         assert!(result.is_ok());
         assert_eq!(existing_interactions.len(), 1); // Still only one interaction
     }
 
     #[test]
     fn test_different_interactions_allowed() {
-        use serde_json::json;
         use crate::cli::pact_broker::main::pact_publish::merge_interactions_or_messages;
+        use serde_json::json;
 
         // Create two different interactions (different descriptions)
         let interaction1 = json!({
@@ -1070,7 +1132,7 @@ mod publish_contracts_tests {
 
         let interaction2 = json!({
             "description": "test interaction 2",
-            "providerState": "test state", 
+            "providerState": "test state",
             "request": {"method": "POST", "path": "/"},
             "response": {"status": 201}
         });
@@ -1079,8 +1141,9 @@ mod publish_contracts_tests {
         let additional_interactions = vec![interaction2];
 
         // This should succeed - different descriptions are allowed
-        let result = merge_interactions_or_messages(&mut existing_interactions, &additional_interactions);
-        
+        let result =
+            merge_interactions_or_messages(&mut existing_interactions, &additional_interactions);
+
         assert!(result.is_ok());
         assert_eq!(existing_interactions.len(), 2); // Now we have both interactions
     }

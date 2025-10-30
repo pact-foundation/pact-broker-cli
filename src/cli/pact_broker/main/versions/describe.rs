@@ -1,27 +1,48 @@
 use comfy_table::{Table, presets::UTF8_FULL};
 use maplit::hashmap;
+use serde_json::Value;
 
+use crate::cli::pact_broker::main::HttpAuth;
 use crate::cli::pact_broker::main::{
     HALClient, PactBrokerError,
-    types::OutputType,
+    types::{OutputType, SslOptions},
     utils::{
-        follow_templated_broker_relation, get_auth, get_broker_relation, get_broker_url,
-        get_ssl_options,
+        follow_broker_relation, follow_templated_broker_relation, get_auth, get_broker_relation,
+        get_broker_url, get_custom_headers, get_ssl_options,
     },
 };
 
 pub fn describe_version(args: &clap::ArgMatches) -> Result<String, PactBrokerError> {
     let broker_url = get_broker_url(args).trim_end_matches('/').to_string();
     let auth = get_auth(args);
+    let custom_headers = get_custom_headers(args);
     let ssl_options = get_ssl_options(args);
 
     let version: Option<&String> = args.try_get_one::<String>("version").unwrap();
     let latest: Option<&String> = args.try_get_one::<String>("latest").unwrap();
+    let environment: Option<&String> = args.try_get_one::<String>("environment").unwrap();
+    let deployed_only = args.get_flag("deployed");
+    let released_only = args.get_flag("released");
     let output_type: OutputType = args
         .get_one::<String>("output")
         .and_then(|s| s.parse().ok())
         .unwrap_or(OutputType::Table);
     let pacticipant_name = args.get_one::<String>("pacticipant").unwrap();
+
+    // If environment is specified, use environment-based queries
+    if let Some(env_name) = environment {
+        return describe_version_by_environment(
+            &broker_url,
+            &auth,
+            &custom_headers,
+            &ssl_options,
+            pacticipant_name,
+            env_name,
+            deployed_only,
+            released_only,
+            output_type,
+        );
+    }
 
     let pb_relation_href = if latest.is_some() {
         "pb:latest-tagged-version".to_string()
@@ -30,8 +51,12 @@ pub fn describe_version(args: &clap::ArgMatches) -> Result<String, PactBrokerErr
     };
 
     let res = tokio::runtime::Runtime::new().unwrap().block_on(async {
-        let hal_client: HALClient =
-            HALClient::with_url(&broker_url, Some(auth.clone()), ssl_options.clone());
+        let hal_client: HALClient = HALClient::with_url(
+            &broker_url,
+            Some(auth.clone()),
+            ssl_options.clone(),
+            custom_headers.clone(),
+        );
         let pb_version_href_path =
             get_broker_relation(hal_client.clone(), pb_relation_href, broker_url.to_string()).await;
 
@@ -96,6 +121,213 @@ pub fn describe_version(args: &clap::ArgMatches) -> Result<String, PactBrokerErr
         ))),
 
         Err(err) => Err(err),
+    }
+}
+
+/// Describe versions deployed/released to a specific environment
+fn describe_version_by_environment(
+    broker_url: &str,
+    auth: &HttpAuth,
+    custom_headers: &Option<crate::cli::pact_broker::main::CustomHeaders>,
+    ssl_options: &SslOptions,
+    pacticipant_name: &str,
+    environment_name: &str,
+    deployed_only: bool,
+    released_only: bool,
+    output_type: OutputType,
+) -> Result<String, PactBrokerError> {
+    tokio::runtime::Runtime::new().unwrap().block_on(async {
+        let hal_client: HALClient = HALClient::with_url(
+            broker_url,
+            Some(auth.clone()),
+            ssl_options.clone(),
+            custom_headers.clone(),
+        );
+
+        // First, get the environment UUID
+        let environments_href = get_broker_relation(
+            hal_client.clone(),
+            "pb:environments".to_string(),
+            broker_url.to_string(),
+        )
+        .await?;
+
+        let environments_response = follow_broker_relation(
+            hal_client.clone(),
+            "pb:environments".to_string(),
+            environments_href,
+        )
+        .await?;
+
+        // Find the environment UUID by name
+        let environment_uuid = find_environment_uuid(&environments_response, environment_name)
+            .ok_or_else(|| {
+                PactBrokerError::NotFound(format!("Environment '{}' not found", environment_name))
+            })?;
+
+        // Query endpoints based on flags
+        let mut all_versions = Vec::new();
+
+        if deployed_only || (!deployed_only && !released_only) {
+            // Get currently deployed versions
+            let deployed_path = format!(
+                "/environments/{}/deployed-versions/currently-deployed",
+                environment_uuid
+            );
+
+            if let Ok(deployed_response) = hal_client
+                .clone()
+                .fetch(&format!("{}{}", broker_url, deployed_path))
+                .await
+            {
+                let deployed_versions =
+                    filter_versions_by_pacticipant(&deployed_response, pacticipant_name);
+                all_versions.extend(deployed_versions);
+            }
+        }
+
+        if released_only || (!deployed_only && !released_only) {
+            // Get currently supported released versions
+            let released_path = format!(
+                "/environments/{}/released-versions/currently-supported",
+                environment_uuid
+            );
+
+            if let Ok(released_response) = hal_client
+                .clone()
+                .fetch(&format!("{}{}", broker_url, released_path))
+                .await
+            {
+                let released_versions =
+                    filter_versions_by_pacticipant(&released_response, pacticipant_name);
+                all_versions.extend(released_versions);
+            }
+        }
+
+        format_environment_versions_output(all_versions, environment_name, output_type)
+    })
+}
+
+/// Find environment UUID by name from environments response
+fn find_environment_uuid(environments_response: &Value, environment_name: &str) -> Option<String> {
+    environments_response
+        .get("_embedded")
+        .and_then(|e| e.get("environments"))
+        .and_then(|envs| envs.as_array())
+        .and_then(|envs| {
+            envs.iter().find(|env| {
+                env.get("name")
+                    .and_then(|n| n.as_str())
+                    .map(|n| n == environment_name)
+                    .unwrap_or(false)
+            })
+        })
+        .and_then(|env| env.get("uuid"))
+        .and_then(|uuid| uuid.as_str())
+        .map(|s| s.to_string())
+}
+
+/// Filter versions by pacticipant name
+fn filter_versions_by_pacticipant(versions_response: &Value, pacticipant_name: &str) -> Vec<Value> {
+    versions_response
+        .get("_embedded")
+        .and_then(|e| {
+            e.get("deployedVersions")
+                .or_else(|| e.get("releasedVersions"))
+                .or_else(|| e.get("currentlyDeployedVersions"))
+                .or_else(|| e.get("currentlySupportedVersions"))
+        })
+        .and_then(|versions| versions.as_array())
+        .map(|versions| {
+            versions
+                .iter()
+                .filter(|version| {
+                    version
+                        .get("_embedded")
+                        .and_then(|e| e.get("pacticipant"))
+                        .and_then(|p| p.get("name"))
+                        .and_then(|n| n.as_str())
+                        .map(|n| n == pacticipant_name)
+                        .unwrap_or(false)
+                })
+                .cloned()
+                .collect()
+        })
+        .unwrap_or_default()
+}
+
+/// Format environment versions output
+fn format_environment_versions_output(
+    versions: Vec<Value>,
+    environment_name: &str,
+    output_type: OutputType,
+) -> Result<String, PactBrokerError> {
+    match output_type {
+        OutputType::Json => {
+            let json = serde_json::to_string(&versions)
+                .map_err(|e| PactBrokerError::ContentError(e.to_string()))?;
+            println!("{}", json);
+            Ok(json)
+        }
+        OutputType::Table => {
+            let mut table = Table::new();
+            table.load_preset(UTF8_FULL).set_header(vec![
+                "VERSION",
+                "STATUS",
+                "ENVIRONMENT",
+                "APPLICATION INSTANCE",
+            ]);
+
+            for version in &versions {
+                let version_number = version
+                    .get("_embedded")
+                    .and_then(|e| e.get("version"))
+                    .and_then(|v| v.get("number"))
+                    .and_then(|n| n.as_str())
+                    .unwrap_or("-");
+
+                let status = if version
+                    .get("currentlyDeployed")
+                    .and_then(|v| v.as_bool())
+                    .unwrap_or(false)
+                {
+                    "Deployed"
+                } else if version
+                    .get("currentlyReleased")
+                    .and_then(|v| v.as_bool())
+                    .unwrap_or(false)
+                {
+                    "Released"
+                } else {
+                    "Unknown"
+                };
+
+                let application_instance = version
+                    .get("applicationInstance")
+                    .and_then(|ai| ai.as_str())
+                    .unwrap_or("-");
+
+                table.add_row(vec![
+                    version_number,
+                    status,
+                    environment_name,
+                    application_instance,
+                ]);
+            }
+
+            let table_str = table.to_string();
+            println!("{}", table_str);
+            Ok(table_str)
+        }
+        OutputType::Text => Err(PactBrokerError::NotFound(
+            "Text output is not supported for environment versions".to_string(),
+        )),
+        OutputType::Pretty => {
+            let json = serde_json::to_string_pretty(&versions)
+                .map_err(|e| PactBrokerError::ContentError(e.to_string()))?;
+            println!("{}", json);
+            Ok(json)
+        }
     }
 }
 

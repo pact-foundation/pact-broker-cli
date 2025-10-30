@@ -16,11 +16,16 @@ pub fn list_pacticipants(
     let broker_url = &broker_details.url;
     let auth = &broker_details.auth;
     let ssl_options = &broker_details.ssl_options;
+    let custom_headers = &broker_details.custom_headers;
 
     let res = tokio::runtime::Runtime::new().unwrap().block_on(async {
         // query pact broker index and get hal relation link
-        let hal_client: HALClient =
-            HALClient::with_url(&broker_url, auth.clone(), ssl_options.clone());
+        let hal_client: HALClient = HALClient::with_url(
+            &broker_url,
+            auth.clone(),
+            ssl_options.clone(),
+            custom_headers.clone(),
+        );
         let pb_pacticipants_href_path = get_broker_relation(
             hal_client.clone(),
             "pb:pacticipants".to_string(),
@@ -190,6 +195,7 @@ mod list_pacticipants_tests {
             url: mock_server_url.to_string(),
             auth: None,
             ssl_options: Default::default(),
+            custom_headers: None,
         };
 
         let result = list_pacticipants(&broker_details, OutputType::Json);

@@ -32,6 +32,13 @@ pub fn add_broker_auth_arguments() -> Vec<Arg> {
             .help("Pact Broker bearer token")
             .value_name("PACT_BROKER_TOKEN")
             .env("PACT_BROKER_TOKEN"),
+        Arg::new("custom-header")
+            // .short('H')
+            .long("custom-header")
+            .num_args(1)
+            .action(clap::ArgAction::Append)
+            .help("Custom header(s) to send with requests (format: 'Header-Name: Value', can be used multiple times)")
+            .value_name("HEADER"),
     ]
 }
 pub fn add_publish_pacts_subcommand() -> Command {
@@ -121,6 +128,58 @@ See https://docs.rs/glob/0.3.0/glob/struct.Pattern.html")
 pub fn add_list_latest_pact_versions_subcommand() -> Command {
     Command::new("list-latest-pact-versions")
         .about("List the latest pact for each integration")
+        .args(add_broker_auth_arguments())
+        .args(crate::cli::add_ssl_arguments())
+        .args(crate::cli::add_output_arguments(
+            ["json", "table"].to_vec(),
+            "table",
+        ))
+}
+
+pub fn add_get_pacts_subcommand() -> Command {
+    Command::new("get-pacts")
+        .about("Get pacts for a specified provider, optionally filtered by consumer and/or branch")
+        .arg(
+            Arg::new("provider")
+                .long("provider")
+                // .short('p')
+                .help("The name of the provider")
+                .required(true)
+                .value_name("PROVIDER"),
+        )
+        .arg(
+            Arg::new("consumer")
+                .long("consumer")
+                // .short('c')
+                .help("The name of the consumer (optional)")
+                .value_name("CONSUMER"),
+        )
+        .arg(
+            Arg::new("branch")
+                .long("branch")
+                // .short('b')
+                .help("The branch name (optional, defaults to main branch)")
+                .value_name("BRANCH"),
+        )
+        .arg(
+            Arg::new("latest")
+                .long("latest")
+                .help("Get only the latest pact(s)")
+                .action(clap::ArgAction::SetTrue),
+        )
+        .arg(
+            Arg::new("download")
+                .long("download")
+                .help("Download the pact files to local directory")
+                .action(clap::ArgAction::SetTrue),
+        )
+        .arg(
+            Arg::new("download-dir")
+                .long("download-dir")
+                .help("Directory to download pact files to (defaults to ./pacts)")
+                .value_name("DIR")
+                .default_value("./pacts"),
+        )
         .args(add_broker_auth_arguments())
         .args(crate::cli::add_ssl_arguments())
         .args(crate::cli::add_output_arguments(
@@ -800,6 +859,20 @@ pub fn add_test_webhook_subcommand() -> Command {
         .args(add_broker_auth_arguments())
         .args(crate::cli::add_ssl_arguments())
 }
+pub fn add_delete_webhook_subcommand() -> Command {
+    Command::new("delete-webhook")
+        .about("Delete a webhook")
+        .arg(
+            Arg::new("uuid")
+                .long("uuid")
+                .value_name("UUID")
+                .num_args(1)
+                .required(true)
+                .help("UUID of the webhook to delete"),
+        )
+        .args(add_broker_auth_arguments())
+        .args(crate::cli::add_ssl_arguments())
+}
 pub fn add_delete_branch_subcommand() -> Command {
     Command::new("delete-branch")
     .about("Deletes a pacticipant branch. Does not delete the versions or pacts/verifications associated with the branch, but does make the pacts inaccessible for verification via consumer versions selectors or WIP pacts.")
@@ -872,9 +945,40 @@ pub fn add_create_version_tag_subcommand() -> Command {
         )
         .args(crate::cli::add_ssl_arguments())
 }
+pub fn add_delete_version_tag_subcommand() -> Command {
+    Command::new("delete-version-tag")
+        .about("Delete a tag from a pacticipant version")
+        .args(add_broker_auth_arguments())
+        .arg(
+            Arg::new("pacticipant")
+                .short('a')
+                .long("pacticipant")
+                .value_name("PACTICIPANT")
+                .required(true)
+                .help("The pacticipant name"),
+        )
+        .arg(
+            Arg::new("version")
+                .short('e')
+                .long("version")
+                .value_name("VERSION")
+                .required(true)
+                .help("The pacticipant version"),
+        )
+        .arg(
+            Arg::new("tag")
+                .short('t')
+                .long("tag")
+                .value_name("TAG")
+                .required(true)
+                .value_parser(clap::builder::NonEmptyStringValueParser::new())
+                .help("Tag name to delete from the pacticipant version"),
+        )
+        .args(crate::cli::add_ssl_arguments())
+}
 pub fn add_describe_version_subcommand() -> Command {
     Command::new("describe-version")
-    .about("Describes a pacticipant version. If no version or tag is specified, the latest version is described.")
+    .about("Describes a pacticipant version. If no version or tag is specified, the latest version is described. Use --environment to query versions deployed/released to specific environments.")
     .args(add_broker_auth_arguments())
     .arg(Arg::new("pacticipant")
         .short('a')
@@ -893,6 +997,18 @@ pub fn add_describe_version_subcommand() -> Command {
         .value_name("TAG")
         .num_args(0..=1)
         .help("Describe the latest pacticipant version. Optionally specify a TAG to describe the latest version with the specified tag"))
+    .arg(Arg::new("environment")
+        .long("environment")
+        .value_name("ENVIRONMENT")
+        .help("The environment name to describe versions deployed/released to. Returns all versions deployed or released to this environment"))
+    .arg(Arg::new("deployed")
+        .long("deployed")
+        .action(clap::ArgAction::SetTrue)
+        .help("Show only deployed versions (use with --environment)"))
+    .arg(Arg::new("released")
+        .long("released")
+        .action(clap::ArgAction::SetTrue)
+        .help("Show only released versions (use with --environment)"))
         .args(crate::cli::add_ssl_arguments())
         .args(crate::cli::add_output_arguments(["json", "table"].to_vec(), "table"))
 }
@@ -939,4 +1055,48 @@ pub fn add_create_or_update_version_subcommand() -> Command {
 pub fn add_generate_uuid_subcommand() -> Command {
     Command::new("generate-uuid")
         .about("Generate a UUID for use when calling create-or-update-webhook")
+}
+
+pub fn add_list_provider_states_subcommand() -> Command {
+    Command::new("list")
+        .about("List aggregated provider states for a provider")
+        .long_about("This command retrieves a de-duplicated list of all provider states for a given provider.\n\
+                    Provider states are collected from the latest pact on the main branch for any dependent consumers,\n\
+                    or from a specified branch or environment.")
+        .args(add_broker_auth_arguments())
+        .arg(
+            Arg::new("provider")
+                .short('r')
+                .long("provider")
+                .value_name("PROVIDER")
+                .required(true)
+                .help("The name of the provider"),
+        )
+        .arg(
+            Arg::new("branch")
+                .long("branch")
+                .value_name("BRANCH")
+                .help("The branch name to get provider states from")
+                .conflicts_with("environment"),
+        )
+        .arg(
+            Arg::new("environment")
+                .long("environment")
+                .value_name("ENVIRONMENT")
+                .help("The environment name to get provider states from")
+                .conflicts_with("branch"),
+        )
+        .arg(
+            Arg::new("json")
+                .long("json")
+                .action(clap::ArgAction::SetTrue)
+                .help("Output in JSON format"),
+        )
+        .args(crate::cli::add_ssl_arguments())
+}
+
+pub fn add_provider_states_subcommand() -> Command {
+    Command::new("provider-states")
+        .about("Manage provider states")
+        .subcommand(add_list_provider_states_subcommand())
 }

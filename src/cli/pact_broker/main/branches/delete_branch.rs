@@ -4,13 +4,14 @@ use crate::cli::pact_broker::main::{
     HALClient, PactBrokerError,
     utils::{
         delete_templated_broker_relation, get_auth, get_broker_relation, get_broker_url,
-        get_ssl_options,
+        get_custom_headers, get_ssl_options,
     },
 };
 
 pub fn delete_branch(args: &clap::ArgMatches) -> Result<String, PactBrokerError> {
     let broker_url = get_broker_url(args).trim_end_matches('/').to_string();
     let auth = get_auth(args);
+    let custom_headers = get_custom_headers(args);
     let ssl_options = get_ssl_options(args);
 
     let branch_name = args.get_one::<String>("branch").unwrap();
@@ -22,8 +23,12 @@ pub fn delete_branch(args: &clap::ArgMatches) -> Result<String, PactBrokerError>
         .unwrap_or(true);
 
     let res = tokio::runtime::Runtime::new().unwrap().block_on(async {
-        let hal_client: HALClient =
-            HALClient::with_url(&broker_url, Some(auth.clone()), ssl_options.clone());
+        let hal_client: HALClient = HALClient::with_url(
+            &broker_url,
+            Some(auth.clone()),
+            ssl_options.clone(),
+            custom_headers.clone(),
+        );
         let pb_branch_href_path = get_broker_relation(
             hal_client.clone(),
             "pb:pacticipant-branch".to_string(),

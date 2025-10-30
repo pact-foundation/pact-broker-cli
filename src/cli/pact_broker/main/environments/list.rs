@@ -2,7 +2,8 @@ use crate::cli::{
     pact_broker::main::{
         HALClient, PactBrokerError,
         utils::{
-            follow_broker_relation, get_auth, get_broker_relation, get_broker_url, get_ssl_options,
+            follow_broker_relation, get_auth, get_broker_relation, get_broker_url,
+            get_custom_headers, get_ssl_options,
         },
     },
     utils,
@@ -13,10 +14,15 @@ use comfy_table::presets::UTF8_FULL;
 pub fn list_environments(args: &clap::ArgMatches) -> Result<String, PactBrokerError> {
     let broker_url = get_broker_url(args).trim_end_matches('/').to_string();
     let auth = get_auth(args);
+    let custom_headers = get_custom_headers(args);
     let ssl_options = get_ssl_options(args);
     tokio::runtime::Runtime::new().unwrap().block_on(async {
-        let hal_client: HALClient =
-            HALClient::with_url(&broker_url, Some(auth.clone()), ssl_options.clone());
+        let hal_client: HALClient = HALClient::with_url(
+            &broker_url,
+            Some(auth.clone()),
+            ssl_options.clone(),
+            custom_headers.clone(),
+        );
         let pb_environments_href_path = get_broker_relation(
             hal_client.clone(),
             "pb:environments".to_string(),

@@ -1,11 +1,12 @@
 use crate::cli::pact_broker::main::{
     HALClient, PactBrokerError,
-    utils::{get_auth, get_broker_url, get_ssl_options},
+    utils::{get_auth, get_broker_url, get_custom_headers, get_ssl_options},
 };
 
 pub fn create_version_tag(args: &clap::ArgMatches) -> Result<String, PactBrokerError> {
     let broker_url = get_broker_url(args).trim_end_matches('/').to_string();
     let auth = get_auth(args);
+    let custom_headers = get_custom_headers(args);
     let ssl_options = get_ssl_options(args);
 
     let pacticipant_name = args.get_one::<String>("pacticipant").unwrap();
@@ -19,7 +20,7 @@ pub fn create_version_tag(args: &clap::ArgMatches) -> Result<String, PactBrokerE
     let tag_with_git_branch = args.get_flag("tag-with-git-branch");
     // ensure version exists if auto-create is not set
     let res = tokio::runtime::Runtime::new().unwrap().block_on(async {
-            let hal_client: HALClient = HALClient::with_url(&broker_url, Some(auth.clone()), ssl_options.clone());
+            let hal_client: HALClient = HALClient::with_url(&broker_url, Some(auth.clone()), ssl_options.clone(), custom_headers.clone());
             let version_href = format!("{}/pacticipants/{}/versions/{}", broker_url, pacticipant_name, version_number);
             let version_exists = hal_client.fetch(&version_href).await.is_ok();
             if !auto_create_version {
@@ -38,8 +39,12 @@ pub fn create_version_tag(args: &clap::ArgMatches) -> Result<String, PactBrokerE
     match res {
         Ok(_) => {
             tokio::runtime::Runtime::new().unwrap().block_on(async {
-                let hal_client: HALClient =
-                    HALClient::with_url(&broker_url, Some(auth.clone()), ssl_options.clone());
+                let hal_client: HALClient = HALClient::with_url(
+                    &broker_url,
+                    Some(auth.clone()),
+                    ssl_options.clone(),
+                    custom_headers.clone(),
+                );
                 for tag in tags {
                     print!(
                         "Tagging version '{}' of pacticipant '{}' with tag '{}'",

@@ -2,11 +2,36 @@ use std::str::FromStr;
 
 use pact_models::http_utils::HttpAuth;
 
+use crate::cli::pact_broker::main::CustomHeaders;
+
 #[derive(Clone)]
 pub struct BrokerDetails {
     pub(crate) auth: Option<HttpAuth>,
     pub(crate) url: String,
     pub(crate) ssl_options: SslOptions,
+    pub(crate) custom_headers: Option<CustomHeaders>,
+}
+
+impl BrokerDetails {
+    pub fn from_args(
+        args: &clap::ArgMatches,
+    ) -> Result<Self, crate::cli::pact_broker::main::PactBrokerError> {
+        use crate::cli::pact_broker::main::utils::{
+            get_auth, get_broker_url, get_custom_headers, get_ssl_options,
+        };
+
+        let url = get_broker_url(args).trim_end_matches('/').to_string();
+        let auth = get_auth(args);
+        let custom_headers = get_custom_headers(args);
+        let ssl_options = get_ssl_options(args);
+
+        Ok(BrokerDetails {
+            auth: Some(auth),
+            url,
+            ssl_options,
+            custom_headers,
+        })
+    }
 }
 #[derive(Clone)]
 pub enum OutputType {
