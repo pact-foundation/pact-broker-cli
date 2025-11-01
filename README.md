@@ -1,4 +1,4 @@
-# Pact Broker Client (Rust)
+# Pact Broker Client
 
 A client for the [Pact Broker](https://docs.pact.io/pact_broker/) and [PactFlow](https://pactflow.io/?utm_source=ossdocs&utm_campaign=pact-broker-client_readme) application.
 
@@ -6,7 +6,7 @@ Publishes and retrieves pacts, pacticipants, pacticipant versions, environments,
 
 It is designed as a replacement for the [pact_broker-client](https://github.com/pact-foundation/pact_broker-client) application, written in Ruby.
 
-![Build status](https://github.com/pact-foundation/pact_broker-client/workflows/Test/badge.svg)
+[![Test and Release](https://github.com/pact-foundation/pact-broker-cli/actions/workflows/test.yml/badge.svg)](https://github.com/pact-foundation/pact-broker-cli/actions/workflows/test.yml)
 
 ## Installation
 
