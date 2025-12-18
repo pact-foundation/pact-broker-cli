@@ -123,7 +123,7 @@ echo "-------------------"
 echo "available commands:"
 echo "-------------------"
 PACT_BROKER_CLI_BIN_PATH=${PWD}
-if [[ "$filename" == *.exe ]]; then
+if [ "$filename" == *.exe ]; then
   mv "$filename" "$PROJECT_NAME.exe"
   chmod +x "$PROJECT_NAME.exe"
 else
