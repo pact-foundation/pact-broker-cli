@@ -1,4 +1,7 @@
 #!/bin/sh -e
+
+set -euo pipefail
+
 ## Tested with https://www.shellcheck.net/
 # Usage: (install latest)
 #   $ curl -fsSL https://raw.githubusercontent.com/pact-foundation/pact-broker-cli/main/install.sh | sh
