@@ -4,7 +4,11 @@ $pactDir = $pwd.Path
 
 Write-Host "--> Downloading Latest Pact broker Client binary)"
 
-$latestRelease = Invoke-WebRequest https://github.com/pact-foundation/pact-broker-cli/releases/latest -Headers @{"Accept"="application/json"}
+$headers = @{
+    'Content-Type' = 'application/json'
+    Accept = 'application/json'
+}
+$latestRelease = Invoke-WebRequest -Uri https://github.com/pact-foundation/pact-broker-cli/releases/latest -Method Get -UseBasicParsing -Headers $headers
 $json = $latestRelease.Content | ConvertFrom-Json
 $tag = $json.tag_name
 $architecture = [System.Runtime.InteropServices.RuntimeInformation,mscorlib]::OSArchitecture.ToString().ToLower()
