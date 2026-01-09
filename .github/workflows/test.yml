@@ -65,7 +65,7 @@ jobs:
       version: ${{ steps.get_next_version.outputs.version }}
       hasNextVersion: ${{ steps.get_next_version.outputs.hasNextVersion }}
     steps:
-    - uses: actions/checkout@v4
+    - uses: actions/checkout@v6
       with:
         lfs: true
         fetch-depth: 0
@@ -74,9 +74,12 @@ jobs:
       id: get_next_version
       uses: thenativeweb/get-next-version@main
     - name: print
+      env:
+        VERSION: ${{ steps.get_next_version.outputs.version }}
+        HAS_NEXT_VERSION: ${{ steps.get_next_version.outputs.hasNextVersion }}
       run: |
-        echo "version: ${{ steps.get_next_version.outputs.version }}"
-        echo "has_next_version: ${{ steps.get_next_version.outputs.hasNextVersion }}"
+        echo "version: ${VERSION}"
+        echo "has_next_version: ${HAS_NEXT_VERSION}"
 
   changelog:
     # if: needs.version.outputs.hasNextVersion == 'true'
@@ -88,7 +91,7 @@ jobs:
       content: ${{steps.git-cliff.outputs.content}}
       release_body: ${{ steps.git-cliff-changes.outputs.content }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
         with:
           lfs: true
           fetch-depth: 0
@@ -101,7 +104,9 @@ jobs:
         env:
           OUTPUT: CHANGELOG.md
       - name: Print the changelog
-        run: echo "${{ steps.git-cliff.outputs.content }}"
+        env:
+          CONTENT: ${{ steps.git-cliff.outputs.content }}
+        run: echo "${CONTENT}"
       - name: Generate a changelog
         uses: orhun/git-cliff-action@v4
         id: git-cliff-changes
@@ -111,7 +116,9 @@ jobs:
         env:
           OUTPUT: CHANGES.md
       - name: Print the changelog
-        run: echo "${{ steps.git-cliff-changes.outputs.content }}"
+        env:
+          CONTENT: ${{ steps.git-cliff-changes.outputs.content }}
+        run: echo "${CONTENT}"
 
   build-single:
     needs: [version, changelog]
@@ -172,16 +179,17 @@ jobs:
       PACTICIPANT: "pact-broker-cli"
       BRANCH: feat/pact-broker-cli-rewrite-rust
     steps:
-      - uses: actions/checkout@v4
-      - uses: pactflow/actions@main
+      - uses: actions/checkout@v6
+      - uses: ./
       - run: |
-          pact-broker can-i-deploy \
-            --pacticipant ${{ env.PACTICIPANT }} --version ${{ github.sha }} \
-            --pacticipant "Pact Broker" --branch ${{ env.BRANCH }} \
+          pact-broker-cli can-i-deploy \
+            --pacticipant ${PACTICIPANT} --version ${GITHUB_SHA} \
+            --pacticipant "Pact Broker" --branch ${BRANCH} \
             --retry-while-unknown 30 --retry-interval 10
         env:
           PACT_BROKER_BASE_URL: ${{ vars.PACT_BROKER_BASE_URL }}
           PACT_BROKER_TOKEN: ${{ secrets.PACTFLOW_PACT_OSS_TOKEN }}
+
   pact-record-release:
     needs: [version, pact-can-i-deploy, release]
     if: ${{ startsWith(github.ref, 'refs/tags/') }}
@@ -190,17 +198,18 @@ jobs:
     env: 
       PACTICIPANT: "pact-broker-cli"
     steps:
-      - uses: actions/checkout@v4
-      - uses: pactflow/actions@main
+      - uses: actions/checkout@v6
+      - uses: ./
       - run: |
-          pact-broker record-deployment \
-            --pacticipant ${{ env.PACTICIPANT }} \
-            --version ${{ github.sha }} \
-            --application-instance v${{ needs.version.outputs.version }} \
+          pact-broker-cli record-deployment \
+            --pacticipant ${PACTICIPANT} \
+            --version ${GITHUB_SHA} \
+            --application-instance v${VERSION} \
             --environment production
         env:
           PACT_BROKER_BASE_URL: ${{ vars.PACT_BROKER_BASE_URL }}
           PACT_BROKER_TOKEN: ${{ secrets.PACTFLOW_PACT_OSS_TOKEN }}
+          VERSION: ${{ needs.version.outputs.version }}
 
   release:
     needs: ["build", changelog, version ]
@@ -212,6 +221,7 @@ jobs:
     with:
       version: ${{ needs.version.outputs.version }}
       release_notes: ${{ needs.changelog.outputs.release_body }}
+
   release-single:
     needs: ["build-single", changelog, version]
     name: '📦 Github release - single'

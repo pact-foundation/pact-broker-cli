@@ -1,4 +1,5 @@
 #!/bin/sh -e
+
 ## Tested with https://www.shellcheck.net/
 # Usage: (install latest)
 #   $ curl -fsSL https://raw.githubusercontent.com/pact-foundation/pact-broker-cli/main/install.sh | sh
@@ -112,39 +113,69 @@ case $os in
 esac
 
 PROJECT_NAME=pact-broker-cli
+CACHE_ROOT=${TOOL_CACHE_DIR:-${RUNNER_TOOL_CACHE:-}}
+PACT_BROKER_CLI_BIN_PATH=${PWD}
+if [ -n "${GITHUB_ACTIONS:-}" ] && [ -n "${CACHE_ROOT}" ]; then
+  PACT_BROKER_CLI_BIN_PATH="${CACHE_ROOT}/${PROJECT_NAME}/${PACT_BROKER_CLI_VERSION_WITHOUT_V}/${os}"
+  mkdir -p "${PACT_BROKER_CLI_BIN_PATH}"
+  echo "Using GitHub Actions tool cache at ${PACT_BROKER_CLI_BIN_PATH}"
+fi
+PACT_BROKER_CLI_BIN="${PACT_BROKER_CLI_BIN_PATH}/${PROJECT_NAME}"
+case "$filename" in
+  *.exe)
+    PACT_BROKER_CLI_BIN="${PACT_BROKER_CLI_BIN}.exe"
+    ;;
+esac
+
 echo 
 echo "-------------"
 echo "Downloading ${filename} - version ${PACT_BROKER_CLI_VERSION}"
 echo "-------------"
 echo "Url: https://github.com/pact-foundation/pact-broker-cli/releases/download/${PACT_BROKER_CLI_VERSION}/${filename}"
-($downloader https://github.com/pact-foundation/pact-broker-cli/releases/download/"${PACT_BROKER_CLI_VERSION}"/"${filename}" && echo downloaded "${filename}") || (echo "Failed to download pact-broker-cli, check the version and url." && exit 1)
-echo "$PROJECT_NAME ${PACT_BROKER_CLI_VERSION} installed to $(pwd)"
+
+if [ -x "${PACT_BROKER_CLI_BIN}" ]; then
+  echo "Found existing ${PROJECT_NAME} at ${PACT_BROKER_CLI_BIN_PATH}, skipping download."
+else
+  (
+    cd "${PACT_BROKER_CLI_BIN_PATH}"
+    ($downloader https://github.com/pact-foundation/pact-broker-cli/releases/download/"${PACT_BROKER_CLI_VERSION}"/"${filename}" && echo downloaded "${filename}") || (echo "Failed to download pact-broker-cli, check the version and url." && exit 1)
+    case "$filename" in
+      *.exe)
+        mv "$filename" "${PROJECT_NAME}.exe"
+        chmod +x "${PROJECT_NAME}.exe"
+        ;;
+      *)
+        mv "$filename" "${PROJECT_NAME}"
+        chmod +x "${PROJECT_NAME}"
+        ;;
+    esac
+  )
+fi
+
+echo "$PROJECT_NAME ${PACT_BROKER_CLI_VERSION} installed to ${PACT_BROKER_CLI_BIN_PATH}"
 echo "-------------------"
 echo "available commands:"
 echo "-------------------"
-PACT_BROKER_CLI_BIN_PATH=${PWD}
-if [[ "$filename" == *.exe ]]; then
-  mv "$filename" "$PROJECT_NAME.exe"
-  chmod +x "$PROJECT_NAME.exe"
-else
-  mv "$filename" "$PROJECT_NAME"
-  chmod +x "$PROJECT_NAME"
-fi
-./pact-broker-cli --help
+"${PACT_BROKER_CLI_BIN}" --help
 echo "-------------------"
-if [ "$GITHUB_ENV" ]; then
+if [ -n "${GITHUB_PATH:-}" ]; then
 echo "Added the following to your path to make ${PROJECT_NAME} available:"
 echo ""
-echo "PATH=$PACT_BROKER_CLI_BIN_PATH:\${PATH}"
-echo "PATH=$PACT_BROKER_CLI_BIN_PATH:${PATH}" >>"$GITHUB_ENV"
-elif [ "$CIRRUS_CI" ]; then
+echo "${PACT_BROKER_CLI_BIN_PATH}"
+echo "${PACT_BROKER_CLI_BIN_PATH}" >>"${GITHUB_PATH}"
+elif [ -n "${GITHUB_ENV:-}" ]; then
 echo "Added the following to your path to make ${PROJECT_NAME} available:"
 echo ""
-echo "PATH=$PACT_BROKER_CLI_BIN_PATH:\${PATH}"
-echo "PATH=$PACT_BROKER_CLI_BIN_PATH:${PATH}" >>"$CIRRUS_ENV"
+echo "PATH=${PACT_BROKER_CLI_BIN_PATH}:\${PATH}"
+echo "PATH=${PACT_BROKER_CLI_BIN_PATH}:${PATH}" >>"${GITHUB_ENV}"
+elif [ -n "${CIRRUS_CI:-}" ]; then
+echo "Added the following to your path to make ${PROJECT_NAME} available:"
+echo ""
+echo "PATH=${PACT_BROKER_CLI_BIN_PATH}:\${PATH}"
+echo "PATH=${PACT_BROKER_CLI_BIN_PATH}:${PATH}" >>"${CIRRUS_ENV}"
 else
 echo "Add the following to your path to make ${PROJECT_NAME} available:"
 echo "--- Linux/MacOS/Windows Bash Users --------"
 echo ""
-echo "  PATH=$PACT_BROKER_CLI_BIN_PATH:\${PATH}"
+echo "  PATH=${PACT_BROKER_CLI_BIN_PATH}:\${PATH}"
 fi
