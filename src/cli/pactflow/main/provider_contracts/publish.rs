@@ -193,7 +193,15 @@ pub fn publish(args: &ArgMatches) -> Result<Value, PactBrokerError> {
                 false
             };
 
-            let verification_results = args.get_one::<String>("verification-results");
+            let verification_results_path = args.get_one::<String>("verification-results");
+            let verification_results_content = if let Some(file_path) = verification_results_path {
+                Some(std::fs::read_to_string(file_path).map_err(|e| {
+                    eprintln!("❌ Failed to read verification results file '{}': {}", file_path, e);
+                    PactBrokerError::IoError(e.to_string())
+                })?)
+            } else {
+                None
+            };
             let verification_results_content_type =
                 args.get_one::<String>("verification-results-content-type");
             let verification_results_format = args.get_one::<String>("verification-results-format");
@@ -208,11 +216,11 @@ pub fn publish(args: &ArgMatches) -> Result<Value, PactBrokerError> {
             });
 
             // Add selfVerificationResults if provided
-            if verification_results.is_some() || verifier.is_some() || verifier_version.is_some() {
+            if verification_results_content.is_some() || verifier.is_some() || verifier_version.is_some() {
                 let mut verification_results_params = serde_json::Map::new();
                 verification_results_params
                     .insert("success".to_string(), Value::Bool(verification_success));
-                if let Some(content) = verification_results {
+                if let Some(content) = verification_results_content {
                     verification_results_params
                         .insert("content".to_string(), Value::String(Base64.encode(content)));
                 }
@@ -496,7 +504,7 @@ mod publish_provider_contract_tests {
             "application/yaml",
             "--verification-success",
             "--verification-results",
-            verification_results_content,
+            "tests/fixtures/verification-results.txt",
             "--verification-results-content-type",
             "text/plain",
             "--verification-results-format",
@@ -522,5 +530,37 @@ mod publish_provider_contract_tests {
         let embedded = value.get("_embedded").unwrap();
         let version = embedded.get("version").unwrap();
         assert_eq!(version.get("number").unwrap(), provider_version_number);
+    }
+
+    // Note: Windows is excluded because the test relies on a pact mock server that may have path-related issues
+    #[cfg(not(target_os = "windows"))]
+    #[test]
+    fn publish_provider_contract_with_missing_verification_results_file() {
+        // Arrange - set up the command line arguments with a non-existent file
+        let matches = add_publish_provider_contract_subcommand().get_matches_from(vec![
+            "publish-provider-contract",
+            "tests/fixtures/provider-contract.yaml",
+            "-b",
+            "http://localhost:1234",
+            "--provider",
+            "Bar",
+            "--provider-app-version",
+            "1",
+            "--verification-results",
+            "tests/fixtures/non-existent-file.txt",
+        ]);
+
+        // Act
+        let result = publish(&matches);
+
+        // Assert
+        assert!(result.is_err());
+        let error = result.unwrap_err();
+        match error {
+            crate::cli::pact_broker::main::PactBrokerError::IoError(_) => {
+                // Expected IoError when verification results file does not exist
+            }
+            _ => panic!("Expected IoError but got: {:?}", error),
+        }
     }
 }

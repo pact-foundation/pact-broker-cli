@@ -1,0 +1,8 @@
+Test Suite: MyTestSuite
+Total Tests: 10
+Passed: 8
+Failed: 2
+
+Failed Tests:
+1. test_authentication - Expected 200, got 401
+2. test_validation - Field 'email' is required
