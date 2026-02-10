@@ -193,10 +193,10 @@ pub fn publish(args: &ArgMatches) -> Result<Value, PactBrokerError> {
                 false
             };
 
-            let verification_results_file = args.get_one::<String>("verification-results");
-            let verification_results_content = if let Some(file_path) = verification_results_file {
+            let verification_results_path = args.get_one::<String>("verification-results");
+            let verification_results_content = if let Some(file_path) = verification_results_path {
                 Some(std::fs::read_to_string(file_path).map_err(|e| {
-                    println!("❌ Failed to read verification results file: {}", e);
+                    eprintln!("❌ Failed to read verification results file: {}", e);
                     PactBrokerError::IoError(e.to_string())
                 })?)
             } else {
