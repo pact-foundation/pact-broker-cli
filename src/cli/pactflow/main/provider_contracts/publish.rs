@@ -196,7 +196,7 @@ pub fn publish(args: &ArgMatches) -> Result<Value, PactBrokerError> {
             let verification_results_path = args.get_one::<String>("verification-results");
             let verification_results_content = if let Some(file_path) = verification_results_path {
                 Some(std::fs::read_to_string(file_path).map_err(|e| {
-                    eprintln!("❌ Failed to read verification results file: {}", e);
+                    eprintln!("❌ Failed to read verification results file '{}': {}", file_path, e);
                     PactBrokerError::IoError(e.to_string())
                 })?)
             } else {
@@ -532,6 +532,7 @@ mod publish_provider_contract_tests {
         assert_eq!(version.get("number").unwrap(), provider_version_number);
     }
 
+    // Note: Windows is excluded because the test relies on a pact mock server that may have path-related issues
     #[cfg(not(target_os = "windows"))]
     #[test]
     fn publish_provider_contract_with_missing_verification_results_file() {
@@ -557,7 +558,7 @@ mod publish_provider_contract_tests {
         let error = result.unwrap_err();
         match error {
             crate::cli::pact_broker::main::PactBrokerError::IoError(_) => {
-                // Expected error
+                // Expected IoError when verification results file does not exist
             }
             _ => panic!("Expected IoError but got: {:?}", error),
         }
