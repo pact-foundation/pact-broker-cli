@@ -531,4 +531,35 @@ mod publish_provider_contract_tests {
         let version = embedded.get("version").unwrap();
         assert_eq!(version.get("number").unwrap(), provider_version_number);
     }
+
+    #[cfg(not(target_os = "windows"))]
+    #[test]
+    fn publish_provider_contract_with_missing_verification_results_file() {
+        // Arrange - set up the command line arguments with a non-existent file
+        let matches = add_publish_provider_contract_subcommand().get_matches_from(vec![
+            "publish-provider-contract",
+            "tests/fixtures/provider-contract.yaml",
+            "-b",
+            "http://localhost:1234",
+            "--provider",
+            "Bar",
+            "--provider-app-version",
+            "1",
+            "--verification-results",
+            "tests/fixtures/non-existent-file.txt",
+        ]);
+
+        // Act
+        let result = publish(&matches);
+
+        // Assert
+        assert!(result.is_err());
+        let error = result.unwrap_err();
+        match error {
+            crate::cli::pact_broker::main::PactBrokerError::IoError(_) => {
+                // Expected error
+            }
+            _ => panic!("Expected IoError but got: {:?}", error),
+        }
+    }
 }
