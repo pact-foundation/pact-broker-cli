@@ -193,7 +193,15 @@ pub fn publish(args: &ArgMatches) -> Result<Value, PactBrokerError> {
                 false
             };
 
-            let verification_results = args.get_one::<String>("verification-results");
+            let verification_results_file = args.get_one::<String>("verification-results");
+            let verification_results_content = if let Some(file_path) = verification_results_file {
+                Some(std::fs::read_to_string(file_path).map_err(|e| {
+                    println!("❌ Failed to read verification results file: {}", e);
+                    PactBrokerError::IoError(e.to_string())
+                })?)
+            } else {
+                None
+            };
             let verification_results_content_type =
                 args.get_one::<String>("verification-results-content-type");
             let verification_results_format = args.get_one::<String>("verification-results-format");
@@ -208,11 +216,11 @@ pub fn publish(args: &ArgMatches) -> Result<Value, PactBrokerError> {
             });
 
             // Add selfVerificationResults if provided
-            if verification_results.is_some() || verifier.is_some() || verifier_version.is_some() {
+            if verification_results_content.is_some() || verifier.is_some() || verifier_version.is_some() {
                 let mut verification_results_params = serde_json::Map::new();
                 verification_results_params
                     .insert("success".to_string(), Value::Bool(verification_success));
-                if let Some(content) = verification_results {
+                if let Some(content) = verification_results_content {
                     verification_results_params
                         .insert("content".to_string(), Value::String(Base64.encode(content)));
                 }
@@ -496,7 +504,7 @@ mod publish_provider_contract_tests {
             "application/yaml",
             "--verification-success",
             "--verification-results",
-            verification_results_content,
+            "tests/fixtures/verification-results.txt",
             "--verification-results-content-type",
             "text/plain",
             "--verification-results-format",
