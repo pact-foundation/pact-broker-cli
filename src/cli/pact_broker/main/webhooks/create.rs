@@ -96,31 +96,20 @@ pub fn create_webhook(args: &clap::ArgMatches) -> Result<String, PactBrokerError
             }
             Err(PactBrokerError::NotFound(_)) => {
                 // Webhook doesn't exist, fall back to creating it via POST to pb:webhooks
-                let pb_webhooks_href_path = get_broker_relation(
+                get_broker_relation(
                     hal_client.clone(),
                     "pb:webhooks".to_string(),
                     broker_url.to_string(),
-                ).await;
-                match pb_webhooks_href_path {
-                    Ok(s) => Ok((s, WebhookOperation::Create)),
-                    Err(err) => Err(err),
-                }
+                ).await.map(|s| (s, WebhookOperation::Create))
             }
             Err(err) => Err(err),
         }
     } else {
-        let pb_webhooks_href_path = get_broker_relation(
+        get_broker_relation(
             hal_client.clone(),
             "pb:webhooks".to_string(),
             broker_url.to_string(),
-        ).await;
-        match pb_webhooks_href_path {
-            Ok(s) => {
-                // println!("Using webhook endpoint: {}", s);
-                Ok((s, WebhookOperation::Create))
-            }
-            Err(err) => Err(err),
-        }
+        ).await.map(|s| (s, WebhookOperation::Create))
     };
     let (webhook_endpoint_url, operation) = webhook_endpoint_info?;
         let request_params = serde_json::json!({
