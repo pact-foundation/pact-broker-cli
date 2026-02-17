@@ -8,6 +8,14 @@ use crate::cli::pact_broker::main::{
     },
 };
 
+/// Represents the operation to perform on a webhook
+enum WebhookOperation {
+    /// Create a new webhook (use POST)
+    Create,
+    /// Update an existing webhook (use PUT)
+    Update,
+}
+
 pub fn create_webhook(args: &clap::ArgMatches) -> Result<String, PactBrokerError> {
     let broker_url = get_broker_url(args).trim_end_matches('/').to_string();
     let auth = get_auth(args);
@@ -62,7 +70,7 @@ pub fn create_webhook(args: &clap::ArgMatches) -> Result<String, PactBrokerError
                 return Err(err);
             }
         };
-    let pb_webhooks_href_path: Result<(String, bool), PactBrokerError> = if webhook_uuid.is_some() {
+    let webhook_endpoint_info: Result<(String, WebhookOperation), PactBrokerError> = if webhook_uuid.is_some() {
         // use the pb:webhook relation, and template it with webhook uuid and perform a put
         let template_values =
             hashmap! { "uuid".to_string() => webhook_uuid.clone().unwrap().to_string() };
@@ -84,7 +92,7 @@ pub fn create_webhook(args: &clap::ArgMatches) -> Result<String, PactBrokerError
                     .unwrap()
                     .to_string()
                     .replace("\"", "");
-                Ok((href, true)) // true = webhook exists, use PUT
+                Ok((href, WebhookOperation::Update))
             }
             Err(PactBrokerError::NotFound(_)) => {
                 // Webhook doesn't exist, fall back to creating it via POST to pb:webhooks
@@ -94,7 +102,7 @@ pub fn create_webhook(args: &clap::ArgMatches) -> Result<String, PactBrokerError
                     broker_url.to_string(),
                 ).await;
                 match pb_webhooks_href_path {
-                    Ok(s) => Ok((s, false)), // false = webhook doesn't exist, use POST
+                    Ok(s) => Ok((s, WebhookOperation::Create)),
                     Err(err) => Err(err),
                 }
             }
@@ -109,12 +117,12 @@ pub fn create_webhook(args: &clap::ArgMatches) -> Result<String, PactBrokerError
         match pb_webhooks_href_path {
             Ok(s) => {
                 // println!("Using webhook endpoint: {}", s);
-                Ok((s, false)) // false = no uuid provided, use POST
+                Ok((s, WebhookOperation::Create))
             }
             Err(err) => Err(err),
         }
     };
-    let (pb_webhooks_href_path, webhook_exists) = pb_webhooks_href_path?;
+    let (webhook_endpoint_url, operation) = webhook_endpoint_info?;
         let request_params = serde_json::json!({
             "method": http_method,
             "headers": headers,
@@ -196,10 +204,13 @@ pub fn create_webhook(args: &clap::ArgMatches) -> Result<String, PactBrokerError
             }
         }
         let webhook_data_str = webhook_data.to_string();
-        if webhook_exists {
-            hal_client.put_json(&pb_webhooks_href_path, &webhook_data_str,None).await
-        }else {
-            hal_client.post_json(&pb_webhooks_href_path, &webhook_data_str,None).await
+        match operation {
+            WebhookOperation::Update => {
+                hal_client.put_json(&webhook_endpoint_url, &webhook_data_str, None).await
+            }
+            WebhookOperation::Create => {
+                hal_client.post_json(&webhook_endpoint_url, &webhook_data_str, None).await
+            }
         }
     });
 
