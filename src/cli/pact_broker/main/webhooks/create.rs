@@ -62,7 +62,7 @@ pub fn create_webhook(args: &clap::ArgMatches) -> Result<String, PactBrokerError
                 return Err(err);
             }
         };
-    let pb_webhooks_href_path: Result<String, PactBrokerError> = if webhook_uuid.is_some() {
+    let pb_webhooks_href_path: Result<(String, bool), PactBrokerError> = if webhook_uuid.is_some() {
         // use the pb:webhook relation, and template it with webhook uuid and perform a put
         let template_values =
             hashmap! { "uuid".to_string() => webhook_uuid.clone().unwrap().to_string() };
@@ -84,7 +84,19 @@ pub fn create_webhook(args: &clap::ArgMatches) -> Result<String, PactBrokerError
                     .unwrap()
                     .to_string()
                     .replace("\"", "");
-                Ok(href)
+                Ok((href, true)) // true = webhook exists, use PUT
+            }
+            Err(PactBrokerError::NotFound(_)) => {
+                // Webhook doesn't exist, fall back to creating it via POST to pb:webhooks
+                let pb_webhooks_href_path = get_broker_relation(
+                    hal_client.clone(),
+                    "pb:webhooks".to_string(),
+                    broker_url.to_string(),
+                ).await;
+                match pb_webhooks_href_path {
+                    Ok(s) => Ok((s, false)), // false = webhook doesn't exist, use POST
+                    Err(err) => Err(err),
+                }
             }
             Err(err) => Err(err),
         }
@@ -97,12 +109,12 @@ pub fn create_webhook(args: &clap::ArgMatches) -> Result<String, PactBrokerError
         match pb_webhooks_href_path {
             Ok(s) => {
                 // println!("Using webhook endpoint: {}", s);
-                Ok(s)
+                Ok((s, false)) // false = no uuid provided, use POST
             }
             Err(err) => Err(err),
         }
     };
-    let pb_webhooks_href_path = pb_webhooks_href_path?;
+    let (pb_webhooks_href_path, webhook_exists) = pb_webhooks_href_path?;
         let request_params = serde_json::json!({
             "method": http_method,
             "headers": headers,
@@ -184,7 +196,7 @@ pub fn create_webhook(args: &clap::ArgMatches) -> Result<String, PactBrokerError
             }
         }
         let webhook_data_str = webhook_data.to_string();
-        if webhook_uuid.is_some(){
+        if webhook_exists {
             hal_client.put_json(&pb_webhooks_href_path, &webhook_data_str,None).await
         }else {
             hal_client.post_json(&pb_webhooks_href_path, &webhook_data_str,None).await
@@ -914,6 +926,97 @@ mod create_webhook_tests {
             )),
             interaction_post(InteractionBuilder::new(
                 "a request to create a webhook with a JSON body and a uuid",
+                "",
+            )),
+        ]);
+        let mock_server_url = mock_server.url();
+        let mut args = base_args(mock_server_url.as_str());
+        args.push("--uuid");
+        args.push(uuid);
+        let matches = add_create_or_update_webhook_subcommand()
+            .get_matches_from(args.iter().map(|s| *s).collect::<Vec<_>>());
+
+        let result = create_webhook(&matches);
+
+        assert!(result.is_ok());
+        let json = result.unwrap();
+        assert!(json.contains("a webhook"));
+    }
+
+    #[test]
+    fn create_webhook_with_uuid_when_webhook_does_not_exist() {
+        // This test verifies the fix for the issue where create-or-update-webhook
+        // fails with 404 when the webhook doesn't exist yet
+        let uuid = "new-webhook-uuid-12345";
+
+        let request_body = json!({
+            "description": "a webhook",
+            "events": [ { "name": "contract_content_changed" } ],
+            "request": {
+                "url": "https://webhook",
+                "method": "POST",
+                "headers": ["Foo:bar", "Bar:foo"],
+                "body": "{\"some\":\"body\"}",
+                "username": "username",
+                "password": "password"
+            },
+            "consumer": { "name": "Condor" },
+            "provider": { "name": "Pricing Service" }
+        });
+
+        let response_body = json_pattern!({
+            "description": "a webhook",
+            "request": {
+                "body": json!({ "some": "body" }).to_string()
+            },
+            "events": [ { "name": "contract_content_changed" } ],
+            "_links": {
+                "self": {
+                    "href": term!(r"http://.*","http://localhost:1234/some-url"),
+                    "title": like!("A title")
+                }
+            }
+        });
+
+        let interaction_get_404 = |mut i: InteractionBuilder| {
+            i.given(format!("a webhook with the uuid {} does not exist", uuid));
+            i.request
+                .get()
+                .path(format!("/webhooks/{}", uuid))
+                .header("Accept", "application/hal+json")
+                .header("Accept", "application/json");
+            i.response
+                .status(404)
+                .header("Content-Type", "application/hal+json;charset=utf-8");
+            i
+        };
+
+        let interaction_post = |mut i: InteractionBuilder| {
+            i.given("the 'Pricing Service' and 'Condor' already exist in the pact-broker");
+            i.request
+                .post()
+                .path("/webhooks")
+                .header("Accept", "application/hal+json")
+                .header("Content-Type", "application/json")
+                .json_body(request_body.clone());
+            i.response
+                .status(201)
+                .header("Content-Type", "application/hal+json;charset=utf-8")
+                .json_body(response_body);
+            i
+        };
+
+        let mock_server = setup_mock_server(vec![
+            index_interaction_with_webhook_relation(&uuid.to_string())(InteractionBuilder::new(
+                "a request for the index resource with the webhook relation",
+                "",
+            )),
+            interaction_get_404(InteractionBuilder::new(
+                "a request to get a webhook with a uuid that does not exist",
+                "",
+            )),
+            interaction_post(InteractionBuilder::new(
+                "a request to create a new webhook with a JSON body",
                 "",
             )),
         ]);
