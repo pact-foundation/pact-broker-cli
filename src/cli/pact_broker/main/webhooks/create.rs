@@ -192,6 +192,10 @@ pub fn create_webhook(args: &clap::ArgMatches) -> Result<String, PactBrokerError
             webhook_data["teamUuid"] = serde_json::json!(team_uuid);
             }
         }
+        // When creating a new webhook with a UUID, include it in the request body
+        if matches!(operation, WebhookOperation::Create) && webhook_uuid.is_some() {
+            webhook_data["uuid"] = serde_json::json!(webhook_uuid.unwrap());
+        }
         let webhook_data_str = webhook_data.to_string();
         match operation {
             WebhookOperation::Update => {
@@ -950,6 +954,7 @@ mod create_webhook_tests {
         let uuid = "new-webhook-uuid-12345";
 
         let request_body = json!({
+            "uuid": uuid,
             "description": "a webhook",
             "events": [ { "name": "contract_content_changed" } ],
             "request": {
