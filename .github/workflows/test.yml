@@ -177,14 +177,14 @@ jobs:
     runs-on: ubuntu-latest
     env: 
       PACTICIPANT: "pact-broker-cli"
-      BRANCH: feat/pact-broker-cli-rewrite-rust
+      BRANCH: master
     steps:
       - uses: actions/checkout@v6
       - uses: ./
       - run: |
           pact-broker-cli can-i-deploy \
             --pacticipant ${PACTICIPANT} --version ${GITHUB_SHA} \
-            --pacticipant "Pact Broker" --branch ${BRANCH} \
+            --pacticipant "Pact Broker" --branch master \
             --retry-while-unknown 30 --retry-interval 10
         env:
           PACT_BROKER_BASE_URL: ${{ vars.PACT_BROKER_BASE_URL }}

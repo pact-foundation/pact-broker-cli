@@ -955,7 +955,7 @@ mod create_webhook_tests {
     fn create_webhook_with_uuid_when_webhook_does_not_exist() {
         // This test verifies the fix for the issue where create-or-update-webhook
         // fails with 404 when the webhook doesn't exist yet
-        let uuid = "new-webhook-uuid-12345";
+        let uuid = "non-existent-uuid";
 
         let request_body = json!({
             "description": "a webhook",
@@ -987,7 +987,7 @@ mod create_webhook_tests {
         });
 
         let interaction_get_404 = |mut i: InteractionBuilder| {
-            i.given(format!("a webhook with the uuid {} does not exist", uuid));
+            i.given(format!("a webhook with uuid {} does not exist", uuid));
             i.request
                 .get()
                 .path(format!("/webhooks/{}", uuid))
