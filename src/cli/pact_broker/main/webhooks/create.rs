@@ -995,7 +995,7 @@ mod create_webhook_tests {
                 .header("Accept", "application/json");
             i.response
                 .status(404)
-                .header("Content-Type", "application/hal+json;charset=utf-8");
+                .header("Content-Type", "application/json;charset=utf-8");
             i
         };
 
