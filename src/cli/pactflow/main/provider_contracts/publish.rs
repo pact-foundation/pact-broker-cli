@@ -196,7 +196,10 @@ pub fn publish(args: &ArgMatches) -> Result<Value, PactBrokerError> {
             let verification_results_path = args.get_one::<String>("verification-results");
             let verification_results_content = if let Some(file_path) = verification_results_path {
                 Some(std::fs::read_to_string(file_path).map_err(|e| {
-                    eprintln!("❌ Failed to read verification results file '{}': {}", file_path, e);
+                    eprintln!(
+                        "❌ Failed to read verification results file '{}': {}",
+                        file_path, e
+                    );
                     PactBrokerError::IoError(e.to_string())
                 })?)
             } else {
@@ -216,7 +219,10 @@ pub fn publish(args: &ArgMatches) -> Result<Value, PactBrokerError> {
             });
 
             // Add selfVerificationResults if provided
-            if verification_results_content.is_some() || verifier.is_some() || verifier_version.is_some() {
+            if verification_results_content.is_some()
+                || verifier.is_some()
+                || verifier_version.is_some()
+            {
                 let mut verification_results_params = serde_json::Map::new();
                 verification_results_params
                     .insert("success".to_string(), Value::Bool(verification_success));
