@@ -19,35 +19,35 @@ include = [
 ]
 
 [dependencies]
-console = "0.16.0"
-anyhow = "1.0.40"
+console = "0.16.2"
+anyhow = "1.0.102"
 base64 = "0.22.1"
-clap = { version = "4.5.2", features = ["derive", "env", "cargo"] }
-clap_complete = { version = "4.5.1", features = [] }
-comfy-table = "7.1.0"
-futures = { version = "0.3.29", features = [] }
-glob = "0.3.0"
+clap = { version = "4.5.60", features = ["derive", "env", "cargo"] }
+clap_complete = { version = "4.5.66", features = [] }
+comfy-table = "7.2.2"
+futures = { version = "0.3.32", features = [] }
+glob = "0.3.3"
 itertools = "0.14.0"
-log = "0.4.14"
+log = "0.4.29"
 maplit = "1.0.2"
 mime = "0.3.17"
-pact_models = { version = "~1.3.6" }
-regex = "1.10.2"
-serde = "1.0.219"
-serde_json = "1.0.142"
-thiserror = "2.0.12"
-tokio = { version = "1.35.1", features = ['rt-multi-thread'] }
-tracing-appender = "0.2.3"
-tracing-core = "0.1.32"
+pact_models = { version = "~1.3.8" }
+regex = "1.12.3"
+serde = "1.0.228"
+serde_json = "1.0.149"
+thiserror = "2.0.18"
+tokio = { version = "1.49.0", features = ['rt-multi-thread'] }
+tracing-appender = "0.2.4"
+tracing-core = "0.1.36"
 tracing-log = "0.2.0"
-url = "2.5.0"
+url = "2.5.8"
 urlencoding = "2.1.3"
-uuid = { version = "1.6.1", features = ["v4"] }
+uuid = { version = "1.21.0", features = ["v4"] }
 
 
 # OpenTelemetry dependencies
-async-trait = "0.1.51"
-http = "1.3.1"
+async-trait = "0.1.89"
+http = "1.4.0"
 reqwest-middleware = "0.4.2"
 reqwest-tracing = { version = "0.5.8", features = ["tracing-opentelemetry_0_31_pkg", "opentelemetry_0_30"] }
 opentelemetry = "0.31.0"
@@ -56,25 +56,24 @@ opentelemetry_sdk = "0.31.0"
 opentelemetry-stdout = { version = "0.31.0", features = ["trace", "logs"] }
 opentelemetry-otlp = { version = "0.31.0", features = ["trace", "logs", "tls", "tls-roots", "grpc-tonic"] }
 opentelemetry-semantic-conventions = "0.31.0"
-opentelemetry-appender-tracing = "0.31.0"
-tracing = { version= "0.1.41", features = ["std"]}
-tracing-subscriber = { version = "0.3.20", features = ["env-filter","registry", "std", "fmt"] }
-tracing-opentelemetry = "0.32.0"
+opentelemetry-appender-tracing = "0.31.1"
+tracing = { version= "0.1.44", features = ["std"]}
+tracing-subscriber = { version = "0.3.22", features = ["env-filter","registry", "std", "fmt"] }
+tracing-opentelemetry = "0.32.1"
 
 
 [dependencies.reqwest]
-version = "0.12.24"
+version = "0.12.28"
 default-features = false
 features = ["rustls-tls-native-roots","native-tls-vendored", "blocking", "json", "stream"]
-
 [dependencies.serde_with]
-version = "3.15.0"
+version = "3.17.0"
 features = ["json"]
 
 
 [dev-dependencies]
 expectest = "0.12.0"
-trycmd = "0.15.0"
+trycmd = "1.0.0"
 pact_consumer = "~1.4.2"
 
 [profile.release]
