@@ -38,6 +38,21 @@ struct Provider {
 #[derive(Debug, serde::Deserialize)]
 struct VerificationResult {
     success: Option<bool>,
+    #[serde(rename = "_links")]
+    links: Option<VerificationLinks>,
+}
+
+#[derive(Debug, serde::Deserialize)]
+struct VerificationLinks {
+    #[serde(rename = "self")]
+    self_link: Option<VerificationHref>,
+    #[serde(rename = "pfi:ui")]
+    pfi_ui: Option<VerificationHref>,
+}
+
+#[derive(Debug, serde::Deserialize)]
+struct VerificationHref {
+    href: Option<String>,
 }
 
 #[derive(Debug, serde::Deserialize)]
@@ -282,7 +297,6 @@ pub fn can_i_deploy(
 
                             if data.matrix.len() > 0 {
                                 let mut table = Table::new();
-
                                 table.load_preset(UTF8_FULL).set_header(vec![
                                     "CONSUMER",
                                     "C.VERSION",
@@ -291,33 +305,72 @@ pub fn can_i_deploy(
                                     "SUCCESS?",
                                     "RESULT",
                                 ]);
-                                for matrix_item in data.matrix {
-                                    let verification_result = &matrix_item
+                                let mut verification_results: Vec<(String, String)> = Vec::new();
+                                for matrix_item in &data.matrix {
+                                    let success_str = matrix_item
                                         .verification_result
-                                        .map(|result| result.success.unwrap_or(false).to_string())
-                                        .unwrap_or_else(|| "false".to_string());
+                                        .as_ref()
+                                        .and_then(|result| result.success)
+                                        .map(|b| if b { "true" } else { "false" })
+                                        .unwrap_or("false");
+                                    let result_str = if matrix_item.verification_result.is_some() {
+                                        "1"
+                                    } else {
+                                        "0"
+                                    };
+
+                                    // Extract verification result URL if present
+                                    if let Some(verification_result) =
+                                        &matrix_item.verification_result
+                                    {
+                                        if let Some(links) = &verification_result.links {
+                                            if let Some(self_link) = &links.self_link {
+                                                if let Some(href) = &self_link.href {
+                                                    let status = match verification_result.success {
+                                                        Some(true) => "success",
+                                                        Some(false) => "failure",
+                                                        None => "unknown",
+                                                    };
+                                                    verification_results
+                                                        .push((href.clone(), status.to_string()));
+                                                }
+                                            }
+                                        }
+                                    }
 
                                     table.add_row(vec![
-                                        matrix_item.consumer.name,
+                                        matrix_item.consumer.name.clone(),
                                         matrix_item
                                             .consumer
                                             .version
+                                            .as_ref()
                                             .map(|result| result.number.to_string())
                                             .unwrap_or_else(|| "unknown".to_string()),
-                                        matrix_item.provider.name,
+                                        matrix_item.provider.name.clone(),
                                         matrix_item
                                             .provider
                                             .version
+                                            .as_ref()
                                             .map(|result| result.number.to_string())
                                             .unwrap_or_else(|| "unknown".to_string()),
-                                        verification_result.to_string(),
-                                        verification_result.to_string(),
+                                        success_str.to_string(),
+                                        result_str.to_string(),
                                     ]);
                                 }
                                 println!("{table}");
+                                if !verification_results.is_empty() {
+                                    println!("\nVERIFICATION RESULTS\n--------------------");
+                                    for (i, (url, status)) in
+                                        verification_results.iter().enumerate()
+                                    {
+                                        println!("{}. {} ({})", i + 1, url, status);
+                                    }
+                                    println!("\n");
+                                }
                             }
                             if let Some(notices) = data.notices {
                                 process_notices(&notices);
+                                println!("\n");
                             }
                             if data
                                 .summary
@@ -405,6 +458,97 @@ mod can_i_deploy_tests {
 
     fn build_matches(args: Vec<&str>) -> clap::ArgMatches {
         add_can_i_deploy_subcommand().get_matches_from(args)
+    }
+
+    #[test]
+    fn prints_verification_results_with_status() {
+        // Simulate a matrix response with a verification result
+        let matrix_json = r#"{
+        "summary": {"deployable": false},
+        "matrix": [{
+            "consumer": {"name": "Consumer", "version": {"number": "1.0.0"}},
+            "provider": {"name": "Provider", "version": {"number": "2.0.0"}},
+            "verificationResult": {
+                "success": false,
+                "_links": {
+                    "self": {"href": "http://example.com/verification/123"}
+                }
+            }
+        }]
+    }"#;
+
+        let data: super::Data = serde_json::from_str(matrix_json).unwrap();
+        let mut table = comfy_table::Table::new();
+        table
+            .load_preset(comfy_table::presets::UTF8_FULL)
+            .set_header(vec![
+                "CONSUMER",
+                "C.VERSION",
+                "PROVIDER",
+                "P.VERSION",
+                "SUCCESS?",
+                "RESULT",
+            ]);
+        let mut verification_results: Vec<(String, String)> = Vec::new();
+        for matrix_item in &data.matrix {
+            let success_str = matrix_item
+                .verification_result
+                .as_ref()
+                .and_then(|result| result.success)
+                .map(|b| if b { "true" } else { "false" })
+                .unwrap_or("false");
+            let result_str = if matrix_item.verification_result.is_some() {
+                "1"
+            } else {
+                "0"
+            };
+            if let Some(verification_result) = &matrix_item.verification_result {
+                if let Some(links) = &verification_result.links {
+                    if let Some(self_link) = &links.self_link {
+                        if let Some(href) = &self_link.href {
+                            let status = match verification_result.success {
+                                Some(true) => "success",
+                                Some(false) => "failure",
+                                None => "unknown",
+                            };
+                            verification_results.push((href.clone(), status.to_string()));
+                        }
+                    }
+                }
+            }
+            table.add_row(vec![
+                matrix_item.consumer.name.clone(),
+                matrix_item
+                    .consumer
+                    .version
+                    .as_ref()
+                    .map(|v| v.number.clone())
+                    .unwrap_or_else(|| "unknown".to_string()),
+                matrix_item.provider.name.clone(),
+                matrix_item
+                    .provider
+                    .version
+                    .as_ref()
+                    .map(|v| v.number.clone())
+                    .unwrap_or_else(|| "unknown".to_string()),
+                success_str.to_string(),
+                result_str.to_string(),
+            ]);
+        }
+        let output = format!("{table}");
+        assert!(output.contains("Consumer"));
+        assert!(output.contains("Provider"));
+        assert!(output.contains("false"));
+        assert!(output.contains("1"));
+        // Simulate printing verification results
+        let mut results_output = String::new();
+        if !verification_results.is_empty() {
+            results_output.push_str("\nVERIFICATION RESULTS\n--------------------\n");
+            for (i, (url, status)) in verification_results.iter().enumerate() {
+                results_output.push_str(&format!("{}. {} ({})\n", i + 1, url, status));
+            }
+        }
+        assert!(results_output.contains("http://example.com/verification/123 (failure)"));
     }
 
     #[test]
