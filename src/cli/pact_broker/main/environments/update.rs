@@ -31,7 +31,7 @@ pub fn update_environment(args: &clap::ArgMatches) -> Result<String, PactBrokerE
 
         // check if the uuid url exists, if not return an error, otherwise continue
 
-        let get_uuid_result = hal_client.clone().fetch(&environments_href);
+        let get_uuid_result = hal_client.fetch(&environments_href);
 
         match get_uuid_result.await {
             Ok(_) => {}
