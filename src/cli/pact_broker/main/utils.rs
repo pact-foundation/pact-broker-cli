@@ -401,7 +401,7 @@ pub async fn get_broker_relation(
     relation: String,
     _broker_url: String,
 ) -> Result<String, PactBrokerError> {
-    let index_res: Result<Value, PactBrokerError> = hal_client.clone().fetch("/").await;
+    let index_res: Result<Value, PactBrokerError> = hal_client.fetch("").await;
     match index_res {
         Ok(_) => {
             let index_res_clone = index_res.clone().unwrap();
