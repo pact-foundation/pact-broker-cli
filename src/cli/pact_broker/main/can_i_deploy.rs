@@ -1,6 +1,15 @@
 use clap::{ArgMatches, Id};
 use comfy_table::{Table, presets::UTF8_FULL};
+use serde::Deserialize;
 use tracing::debug;
+
+fn deserialize_optional_field<'de, T, D>(deserializer: D) -> Result<Option<Option<T>>, D::Error>
+where
+    D: serde::Deserializer<'de>,
+    T: Deserialize<'de>,
+{
+    Ok(Some(Option::deserialize(deserializer)?))
+}
 
 use crate::cli::{
     pact_broker::main::{
@@ -61,8 +70,8 @@ struct MatrixItem {
     provider: Provider,
     #[serde(rename = "verificationResult")]
     verification_result: Option<VerificationResult>,
-    #[serde(rename = "verificationType")]
-    verification_type: Option<String>,
+    #[serde(rename = "verificationType", default, deserialize_with = "deserialize_optional_field")]
+    verification_type: Option<Option<String>>,
 }
 
 #[derive(Debug, serde::Deserialize)]
@@ -145,16 +154,13 @@ fn parse_args_from_matches(raw_args: Vec<String>) -> Vec<PacticipantArgs> {
 }
 
 fn build_matrix_table(data: &Data) -> (String, Vec<(String, String)>) {
+    let show_verification_type = data.matrix.iter().any(|item| item.verification_type.is_some());
     let mut table = Table::new();
-    table.load_preset(UTF8_FULL).set_header(vec![
-        "CONSUMER",
-        "C.VERSION",
-        "PROVIDER",
-        "P.VERSION",
-        "SUCCESS?",
-        "RESULT",
-        "VERIFICATION TYPE",
-    ]);
+    let mut header = vec!["CONSUMER", "C.VERSION", "PROVIDER", "P.VERSION", "SUCCESS?", "RESULT"];
+    if show_verification_type {
+        header.push("VERIFICATION TYPE");
+    }
+    table.load_preset(UTF8_FULL).set_header(header);
     let mut verification_results: Vec<(String, String)> = Vec::new();
     for matrix_item in &data.matrix {
         let success_str = matrix_item
@@ -182,7 +188,7 @@ fn build_matrix_table(data: &Data) -> (String, Vec<(String, String)>) {
                 }
             }
         }
-        table.add_row(vec![
+        let mut row = vec![
             matrix_item.consumer.name.clone(),
             matrix_item
                 .consumer
@@ -199,11 +205,18 @@ fn build_matrix_table(data: &Data) -> (String, Vec<(String, String)>) {
                 .unwrap_or_else(|| "unknown".to_string()),
             success_str.to_string(),
             result_str.to_string(),
-            matrix_item
-                .verification_type
-                .clone()
-                .unwrap_or("unknown".to_string()),
-        ]);
+        ];
+        if show_verification_type {
+            row.push(
+                matrix_item
+                    .verification_type
+                    .as_ref()
+                    .and_then(|v| v.as_deref())
+                    .unwrap_or("")
+                    .to_string(),
+            );
+        }
+        table.add_row(row);
     }
     (format!("{table}"), verification_results)
 }
@@ -484,7 +497,7 @@ mod can_i_deploy_tests {
                     "self": {"href": "http://example.com/verification/123"}
                 }
             },
-            "verificationType": "Pact"
+            "verificationType": "CDCT"
         }]
     }"#;
 
@@ -493,7 +506,7 @@ mod can_i_deploy_tests {
         assert!(output.contains("Provider"));
         assert!(output.contains("false"));
         assert!(output.contains("1"));
-        assert!(output.contains("Pact"));
+        assert!(output.contains("CDCT"));
         assert!(output.contains("VERIFICATION TYPE"));
 
         let mut results_output = String::new();
@@ -525,7 +538,7 @@ mod can_i_deploy_tests {
 
         let (output, _) = table_from_json(matrix_json);
         assert!(output.contains("BDCT"));
-        assert!(!output.contains("Pact"));
+        assert!(!output.contains("CDCT"));
     }
 
     #[test]
@@ -546,7 +559,8 @@ mod can_i_deploy_tests {
     }
 
     #[test]
-    fn shows_unknown_verification_type_when_null() {
+    fn shows_verification_type_column_when_key_present_but_null() {
+        // verificationType key present (Pactflow) but null (no verification result)
         let matrix_json = r#"{
         "summary": {"deployable": null},
         "matrix": [{
@@ -558,10 +572,25 @@ mod can_i_deploy_tests {
     }"#;
 
         let (output, _) = table_from_json(matrix_json);
-        assert!(output.contains("VERIFICATION TYPE"));
-        assert!(output.contains("unknown"));
-        assert!(!output.contains("Pact"));
+        assert!(output.contains("VERIFICATION TYPE"), "column should be shown when key is present");
+        assert!(!output.contains("CDCT"));
         assert!(!output.contains("BDCT"));
+    }
+
+    #[test]
+    fn hides_verification_type_column_when_key_absent() {
+        // verificationType key absent entirely (PactBroker response)
+        let matrix_json = r#"{
+        "summary": {"deployable": true},
+        "matrix": [{
+            "consumer": {"name": "Consumer", "version": {"number": "1.0.0"}},
+            "provider": {"name": "Provider", "version": {"number": "2.0.0"}},
+            "verificationResult": {"success": true, "_links": {"self": {"href": "http://result"}}}
+        }]
+    }"#;
+
+        let (output, _) = table_from_json(matrix_json);
+        assert!(!output.contains("VERIFICATION TYPE"), "column should be hidden when key is absent");
     }
 
     #[test]
