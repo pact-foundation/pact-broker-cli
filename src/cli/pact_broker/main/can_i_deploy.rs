@@ -212,7 +212,7 @@ fn build_matrix_table(data: &Data) -> (String, Vec<(String, String)>) {
                     .verification_type
                     .as_ref()
                     .and_then(|v| v.as_deref())
-                    .unwrap_or("")
+                    .unwrap_or("unknown")
                     .to_string(),
             );
         }
@@ -573,8 +573,7 @@ mod can_i_deploy_tests {
 
         let (output, _) = table_from_json(matrix_json);
         assert!(output.contains("VERIFICATION TYPE"), "column should be shown when key is present");
-        assert!(!output.contains("CDCT"));
-        assert!(!output.contains("BDCT"));
+        assert!(output.contains("unknown"), "should show 'unknown' when verificationType is null");
     }
 
     #[test]
