@@ -466,7 +466,7 @@ mod can_i_deploy_tests {
     use pact_models::PactSpecification;
     use serde_json::json;
 
-    fn matrix_response_body() -> JsonPattern {
+    fn pact_broker_matrix_response_body() -> JsonPattern {
         let path = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
             .join("tests/fixtures/pact_broker_matrix.json");
         let data = std::fs::read_to_string(path).expect("Failed to read pact_broker_matrix.json fixture");
@@ -641,7 +641,7 @@ mod can_i_deploy_tests {
                 i.response
                     .status(200)
                     .header("Content-Type", "application/hal+json;charset=utf-8")
-                    .json_body(matrix_response_body());
+                    .json_body(pact_broker_matrix_response_body());
                 i
             })
             .start_mock_server(None, Some(config));
@@ -689,7 +689,7 @@ mod can_i_deploy_tests {
                 i.response
                     .status(200)
                     .header("Content-Type", "application/hal+json;charset=utf-8")
-                    .json_body(matrix_response_body());
+                    .json_body(pact_broker_matrix_response_body());
                 i
             })
             .start_mock_server(None, Some(config));
@@ -732,7 +732,7 @@ mod can_i_deploy_tests {
                 i.response
                     .status(200)
                     .header("Content-Type", "application/hal+json;charset=utf-8")
-                    .json_body(matrix_response_body());
+                    .json_body(pact_broker_matrix_response_body());
                 i
             })
             .start_mock_server(None, Some(config));
@@ -946,7 +946,7 @@ mod can_i_deploy_tests {
     //             i.response
     //                 .status(200)
     //                 .header("Content-Type", "application/hal+json;charset=utf-8")
-    //                 .json_body(matrix_response_body());
+    //                 .json_body(pact_broker_matrix_response_body());
     //             i
     //         })
     //         .start_mock_server(None, Some(config));
@@ -1043,7 +1043,7 @@ mod can_i_deploy_tests {
                     i.response
                         .status(200)
                         .header("Content-Type", "application/hal+json;charset=utf-8")
-                        .json_body(matrix_response_body());
+                        .json_body(pact_broker_matrix_response_body());
                     i
                 }
             )
@@ -1099,7 +1099,7 @@ mod can_i_deploy_tests {
                     i.response
                         .status(200)
                         .header("Content-Type", "application/hal+json;charset=utf-8")
-                        .json_body(matrix_response_body());
+                        .json_body(pact_broker_matrix_response_body());
                     i
                 }
             )
