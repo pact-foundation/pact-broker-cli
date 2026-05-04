@@ -520,7 +520,7 @@ mod can_i_deploy_tests {
     }
 
     #[test]
-    fn shows_cross_contract_verification_type() {
+    fn shows_bdct_verification_type() {
         let matrix_json = r#"{
         "summary": {"deployable": true},
         "matrix": [{
@@ -539,6 +539,28 @@ mod can_i_deploy_tests {
         let (output, _) = table_from_json(matrix_json);
         assert!(output.contains("BDCT"));
         assert!(!output.contains("CDCT"));
+    }
+
+    #[test]
+    fn shows_cdct_verification_type() {
+        let matrix_json = r#"{
+        "summary": {"deployable": true},
+        "matrix": [{
+            "consumer": {"name": "Consumer", "version": {"number": "1.0.0"}},
+            "provider": {"name": "Provider", "version": {"number": "2.0.0"}},
+            "verificationResult": {
+                "success": true,
+                "_links": {
+                    "self": {"href": "http://example.com/verification/123"}
+                }
+            },
+            "verificationType": "CDCT"
+        }]
+    }"#;
+
+        let (output, _) = table_from_json(matrix_json);
+        assert!(output.contains("CDCT"));
+        assert!(!output.contains("BDCT"));
     }
 
     #[test]
