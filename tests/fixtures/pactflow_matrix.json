@@ -1,0 +1,80 @@
+{
+  "summary": {
+    "deployable": true,
+    "reason": "some text",
+    "unknown": 1
+  },
+  "matrix": [
+    {
+      "consumer": {
+        "name": "Foo",
+        "version": {
+          "number": "4"
+        }
+      },
+      "provider": {
+        "name": "Bar",
+        "version": {
+          "number": "5"
+        }
+      },
+      "verificationResult": {
+        "verifiedAt": "2017-10-10T12:49:04+11:00",
+        "success": true,
+        "_links": {
+          "self": {
+            "href": "http://result"
+          }
+        }
+      },
+      "verificationType": "CDCT",
+      "pact": {
+        "createdAt": "2017-10-10T12:49:04+11:00"
+      }
+    },
+    {
+      "consumer": {
+        "name": "Foo",
+        "version": {
+          "number": "4"
+        }
+      },
+      "provider": {
+        "name": "Baz",
+        "version": {
+          "number": "6"
+        }
+      },
+      "verificationResult": {
+        "verifiedAt": "2017-10-10T12:49:04+11:00",
+        "success": true,
+        "_links": {
+          "self": {
+            "href": "http://result2"
+          }
+        }
+      },
+      "verificationType": "BDCT",
+      "pact": {
+        "createdAt": "2017-10-10T12:49:04+11:00"
+      }
+    },
+    {
+      "consumer": {
+        "name": "Foo",
+        "version": {
+          "number": "4"
+        }
+      },
+      "provider": {
+        "name": "Qux",
+        "version": null
+      },
+      "verificationResult": null,
+      "verificationType": null,
+      "pact": {
+        "createdAt": "2017-10-10T12:49:04+11:00"
+      }
+    }
+  ]
+}

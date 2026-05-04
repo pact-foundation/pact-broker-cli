@@ -467,12 +467,19 @@ mod can_i_deploy_tests {
     use serde_json::json;
 
     fn matrix_response_body() -> JsonPattern {
-        let path =
-            std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("tests/fixtures/matrix.json");
-        let data = std::fs::read_to_string(path).expect("Failed to read matrix.json fixture");
+        let path = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+            .join("tests/fixtures/pact_broker_matrix.json");
+        let data = std::fs::read_to_string(path).expect("Failed to read pact_broker_matrix.json fixture");
         let json: serde_json::Value = serde_json::from_str(&data).unwrap();
-        let json_pattern = json_pattern!(like!(json));
-        json_pattern
+        json_pattern!(like!(json))
+    }
+
+    fn pactflow_matrix_response_body() -> JsonPattern {
+        let path = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+            .join("tests/fixtures/pactflow_matrix.json");
+        let data = std::fs::read_to_string(path).expect("Failed to read pactflow_matrix.json fixture");
+        let json: serde_json::Value = serde_json::from_str(&data).unwrap();
+        json_pattern!(like!(json))
     }
 
     fn build_matches(args: Vec<&str>) -> clap::ArgMatches {
@@ -1098,6 +1105,56 @@ mod can_i_deploy_tests {
             )
             .start_mock_server(None, Some(config));
         let mock_server_url = pact_broker_service.url();
+
+        let raw_args = vec![
+            "can-i-deploy",
+            "-b",
+            mock_server_url.as_str(),
+            "--pacticipant",
+            "Foo",
+            "--version",
+            "1.2.4",
+            "--pacticipant",
+            "Bar",
+            "--latest",
+        ];
+        let matches = build_matches(raw_args.clone());
+        let raw_args: Vec<String> = raw_args.into_iter().map(|s| s.to_string()).collect();
+        let result = can_i_deploy(&matches, raw_args, false);
+        assert!(result.is_ok());
+        let output = result.unwrap();
+        assert!(output.contains("Computer says"));
+    }
+
+    #[test]
+    fn returns_matrix_with_verification_type_from_pactflow() {
+        let config = MockServerConfig {
+            pact_specification: PactSpecification::V2,
+            ..Default::default()
+        };
+        let pactflow_service = PactBuilder::new("pact-broker-cli", "PactFlow")
+            .interaction(
+                "a request for the compatibility matrix for Foo version 1.2.4 and the latest version of Bar from PactFlow",
+                "",
+                |mut i| {
+                    i.given("the pact for Foo version 1.2.4 has been verified by Bar (PactFlow)");
+                    i.request
+                        .get()
+                        .path("/matrix")
+                        .query_param("q[][pacticipant]", "Foo")
+                        .query_param("q[][version]", "1.2.4")
+                        .query_param("q[][pacticipant]", "Bar")
+                        .query_param("q[][latest]", "true")
+                        .query_param("latestby", "cvpv");
+                    i.response
+                        .status(200)
+                        .header("Content-Type", "application/hal+json;charset=utf-8")
+                        .json_body(pactflow_matrix_response_body());
+                    i
+                },
+            )
+            .start_mock_server(None, Some(config));
+        let mock_server_url = pactflow_service.url();
 
         let raw_args = vec![
             "can-i-deploy",
