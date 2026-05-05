@@ -1,6 +1,15 @@
 use clap::{ArgMatches, Id};
 use comfy_table::{Table, presets::UTF8_FULL};
+use serde::Deserialize;
 use tracing::debug;
+
+fn deserialize_optional_field<'de, T, D>(deserializer: D) -> Result<Option<Option<T>>, D::Error>
+where
+    D: serde::Deserializer<'de>,
+    T: Deserialize<'de>,
+{
+    Ok(Some(Option::deserialize(deserializer)?))
+}
 
 use crate::cli::{
     pact_broker::main::{
@@ -61,6 +70,8 @@ struct MatrixItem {
     provider: Provider,
     #[serde(rename = "verificationResult")]
     verification_result: Option<VerificationResult>,
+    #[serde(rename = "verificationType", default, deserialize_with = "deserialize_optional_field")]
+    verification_type: Option<Option<String>>,
 }
 
 #[derive(Debug, serde::Deserialize)]
@@ -140,6 +151,74 @@ fn parse_args_from_matches(raw_args: Vec<String>) -> Vec<PacticipantArgs> {
         }
     }
     result
+}
+
+fn build_matrix_table(data: &Data) -> (String, Vec<(String, String)>) {
+    let show_verification_type = data.matrix.iter().any(|item| item.verification_type.is_some());
+    let mut table = Table::new();
+    let mut header = vec!["CONSUMER", "C.VERSION", "PROVIDER", "P.VERSION", "SUCCESS?", "RESULT"];
+    if show_verification_type {
+        header.push("VERIFICATION TYPE");
+    }
+    table.load_preset(UTF8_FULL).set_header(header);
+    let mut verification_results: Vec<(String, String)> = Vec::new();
+    for matrix_item in &data.matrix {
+        let success_str = matrix_item
+            .verification_result
+            .as_ref()
+            .and_then(|result| result.success)
+            .map(|b| if b { "true" } else { "false" })
+            .unwrap_or("unknown");
+        let result_str = if matrix_item.verification_result.is_some() {
+            "1"
+        } else {
+            "0"
+        };
+        if let Some(verification_result) = &matrix_item.verification_result {
+            if let Some(links) = &verification_result.links {
+                if let Some(self_link) = &links.self_link {
+                    if let Some(href) = &self_link.href {
+                        let status = match verification_result.success {
+                            Some(true) => "success",
+                            Some(false) => "failure",
+                            None => "unknown",
+                        };
+                        verification_results.push((href.clone(), status.to_string()));
+                    }
+                }
+            }
+        }
+        let mut row = vec![
+            matrix_item.consumer.name.clone(),
+            matrix_item
+                .consumer
+                .version
+                .as_ref()
+                .map(|v| v.number.to_string())
+                .unwrap_or_else(|| "unknown".to_string()),
+            matrix_item.provider.name.clone(),
+            matrix_item
+                .provider
+                .version
+                .as_ref()
+                .map(|v| v.number.to_string())
+                .unwrap_or_else(|| "unknown".to_string()),
+            success_str.to_string(),
+            result_str.to_string(),
+        ];
+        if show_verification_type {
+            row.push(
+                matrix_item
+                    .verification_type
+                    .as_ref()
+                    .and_then(|v| v.as_deref())
+                    .unwrap_or("unknown")
+                    .to_string(),
+            );
+        }
+        table.add_row(row);
+    }
+    (format!("{table}"), verification_results)
 }
 
 pub fn can_i_deploy(
@@ -296,68 +375,8 @@ pub fn can_i_deploy(
                             };
 
                             if data.matrix.len() > 0 {
-                                let mut table = Table::new();
-                                table.load_preset(UTF8_FULL).set_header(vec![
-                                    "CONSUMER",
-                                    "C.VERSION",
-                                    "PROVIDER",
-                                    "P.VERSION",
-                                    "SUCCESS?",
-                                    "RESULT",
-                                ]);
-                                let mut verification_results: Vec<(String, String)> = Vec::new();
-                                for matrix_item in &data.matrix {
-                                    let success_str = matrix_item
-                                        .verification_result
-                                        .as_ref()
-                                        .and_then(|result| result.success)
-                                        .map(|b| if b { "true" } else { "false" })
-                                        .unwrap_or("false");
-                                    let result_str = if matrix_item.verification_result.is_some() {
-                                        "1"
-                                    } else {
-                                        "0"
-                                    };
-
-                                    // Extract verification result URL if present
-                                    if let Some(verification_result) =
-                                        &matrix_item.verification_result
-                                    {
-                                        if let Some(links) = &verification_result.links {
-                                            if let Some(self_link) = &links.self_link {
-                                                if let Some(href) = &self_link.href {
-                                                    let status = match verification_result.success {
-                                                        Some(true) => "success",
-                                                        Some(false) => "failure",
-                                                        None => "unknown",
-                                                    };
-                                                    verification_results
-                                                        .push((href.clone(), status.to_string()));
-                                                }
-                                            }
-                                        }
-                                    }
-
-                                    table.add_row(vec![
-                                        matrix_item.consumer.name.clone(),
-                                        matrix_item
-                                            .consumer
-                                            .version
-                                            .as_ref()
-                                            .map(|result| result.number.to_string())
-                                            .unwrap_or_else(|| "unknown".to_string()),
-                                        matrix_item.provider.name.clone(),
-                                        matrix_item
-                                            .provider
-                                            .version
-                                            .as_ref()
-                                            .map(|result| result.number.to_string())
-                                            .unwrap_or_else(|| "unknown".to_string()),
-                                        success_str.to_string(),
-                                        result_str.to_string(),
-                                    ]);
-                                }
-                                println!("{table}");
+                                let (table_str, verification_results) = build_matrix_table(&data);
+                                println!("{table_str}");
                                 if !verification_results.is_empty() {
                                     println!("\nVERIFICATION RESULTS\n--------------------");
                                     for (i, (url, status)) in
@@ -447,22 +466,33 @@ mod can_i_deploy_tests {
     use pact_models::PactSpecification;
     use serde_json::json;
 
-    fn matrix_response_body() -> JsonPattern {
-        let path =
-            std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("tests/fixtures/matrix.json");
-        let data = std::fs::read_to_string(path).expect("Failed to read matrix.json fixture");
+    fn pact_broker_matrix_response_body() -> JsonPattern {
+        let path = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+            .join("tests/fixtures/pact_broker_matrix.json");
+        let data = std::fs::read_to_string(path).expect("Failed to read pact_broker_matrix.json fixture");
         let json: serde_json::Value = serde_json::from_str(&data).unwrap();
-        let json_pattern = json_pattern!(like!(json));
-        json_pattern
+        json_pattern!(like!(json))
+    }
+
+    fn pactflow_matrix_response_body() -> JsonPattern {
+        let path = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+            .join("tests/fixtures/pactflow_matrix.json");
+        let data = std::fs::read_to_string(path).expect("Failed to read pactflow_matrix.json fixture");
+        let json: serde_json::Value = serde_json::from_str(&data).unwrap();
+        json_pattern!(like!(json))
     }
 
     fn build_matches(args: Vec<&str>) -> clap::ArgMatches {
         add_can_i_deploy_subcommand().get_matches_from(args)
     }
 
+    fn table_from_json(matrix_json: &str) -> (String, Vec<(String, String)>) {
+        let data: super::Data = serde_json::from_str(matrix_json).unwrap();
+        super::build_matrix_table(&data)
+    }
+
     #[test]
     fn prints_verification_results_with_status() {
-        // Simulate a matrix response with a verification result
         let matrix_json = r#"{
         "summary": {"deployable": false},
         "matrix": [{
@@ -473,74 +503,19 @@ mod can_i_deploy_tests {
                 "_links": {
                     "self": {"href": "http://example.com/verification/123"}
                 }
-            }
+            },
+            "verificationType": "CDCT"
         }]
     }"#;
 
-        let data: super::Data = serde_json::from_str(matrix_json).unwrap();
-        let mut table = comfy_table::Table::new();
-        table
-            .load_preset(comfy_table::presets::UTF8_FULL)
-            .set_header(vec![
-                "CONSUMER",
-                "C.VERSION",
-                "PROVIDER",
-                "P.VERSION",
-                "SUCCESS?",
-                "RESULT",
-            ]);
-        let mut verification_results: Vec<(String, String)> = Vec::new();
-        for matrix_item in &data.matrix {
-            let success_str = matrix_item
-                .verification_result
-                .as_ref()
-                .and_then(|result| result.success)
-                .map(|b| if b { "true" } else { "false" })
-                .unwrap_or("false");
-            let result_str = if matrix_item.verification_result.is_some() {
-                "1"
-            } else {
-                "0"
-            };
-            if let Some(verification_result) = &matrix_item.verification_result {
-                if let Some(links) = &verification_result.links {
-                    if let Some(self_link) = &links.self_link {
-                        if let Some(href) = &self_link.href {
-                            let status = match verification_result.success {
-                                Some(true) => "success",
-                                Some(false) => "failure",
-                                None => "unknown",
-                            };
-                            verification_results.push((href.clone(), status.to_string()));
-                        }
-                    }
-                }
-            }
-            table.add_row(vec![
-                matrix_item.consumer.name.clone(),
-                matrix_item
-                    .consumer
-                    .version
-                    .as_ref()
-                    .map(|v| v.number.clone())
-                    .unwrap_or_else(|| "unknown".to_string()),
-                matrix_item.provider.name.clone(),
-                matrix_item
-                    .provider
-                    .version
-                    .as_ref()
-                    .map(|v| v.number.clone())
-                    .unwrap_or_else(|| "unknown".to_string()),
-                success_str.to_string(),
-                result_str.to_string(),
-            ]);
-        }
-        let output = format!("{table}");
+        let (output, verification_results) = table_from_json(matrix_json);
         assert!(output.contains("Consumer"));
         assert!(output.contains("Provider"));
         assert!(output.contains("false"));
         assert!(output.contains("1"));
-        // Simulate printing verification results
+        assert!(output.contains("CDCT"));
+        assert!(output.contains("VERIFICATION TYPE"));
+
         let mut results_output = String::new();
         if !verification_results.is_empty() {
             results_output.push_str("\nVERIFICATION RESULTS\n--------------------\n");
@@ -549,6 +524,101 @@ mod can_i_deploy_tests {
             }
         }
         assert!(results_output.contains("http://example.com/verification/123 (failure)"));
+    }
+
+    #[test]
+    fn shows_bdct_verification_type() {
+        let matrix_json = r#"{
+        "summary": {"deployable": true},
+        "matrix": [{
+            "consumer": {"name": "Consumer", "version": {"number": "1.0.0"}},
+            "provider": {"name": "Provider", "version": {"number": "2.0.0"}},
+            "verificationResult": {
+                "success": true,
+                "_links": {
+                    "self": {"href": "http://example.com/cross-contract/123"}
+                }
+            },
+            "verificationType": "BDCT"
+        }]
+    }"#;
+
+        let (output, _) = table_from_json(matrix_json);
+        assert!(output.contains("BDCT"));
+        assert!(!output.contains("CDCT"));
+    }
+
+    #[test]
+    fn shows_cdct_verification_type() {
+        let matrix_json = r#"{
+        "summary": {"deployable": true},
+        "matrix": [{
+            "consumer": {"name": "Consumer", "version": {"number": "1.0.0"}},
+            "provider": {"name": "Provider", "version": {"number": "2.0.0"}},
+            "verificationResult": {
+                "success": true,
+                "_links": {
+                    "self": {"href": "http://example.com/verification/123"}
+                }
+            },
+            "verificationType": "CDCT"
+        }]
+    }"#;
+
+        let (output, _) = table_from_json(matrix_json);
+        assert!(output.contains("CDCT"));
+        assert!(!output.contains("BDCT"));
+    }
+
+    #[test]
+    fn shows_unknown_success_when_verification_result_is_null() {
+        let matrix_json = r#"{
+        "summary": {"deployable": null},
+        "matrix": [{
+            "consumer": {"name": "Consumer", "version": {"number": "1.0.0"}},
+            "provider": {"name": "Provider", "version": null},
+            "verificationResult": null,
+            "verificationType": null
+        }]
+    }"#;
+
+        let (output, _) = table_from_json(matrix_json);
+        assert!(output.contains("unknown"), "expected 'unknown' in: {}", output);
+        assert!(!output.contains("false"), "should not show 'false' when no verification result");
+    }
+
+    #[test]
+    fn shows_verification_type_column_when_key_present_but_null() {
+        // verificationType key present (Pactflow) but null (no verification result)
+        let matrix_json = r#"{
+        "summary": {"deployable": null},
+        "matrix": [{
+            "consumer": {"name": "Consumer", "version": {"number": "1.0.0"}},
+            "provider": {"name": "Provider", "version": null},
+            "verificationResult": null,
+            "verificationType": null
+        }]
+    }"#;
+
+        let (output, _) = table_from_json(matrix_json);
+        assert!(output.contains("VERIFICATION TYPE"), "column should be shown when key is present");
+        assert!(output.contains("unknown"), "should show 'unknown' when verificationType is null");
+    }
+
+    #[test]
+    fn hides_verification_type_column_when_key_absent() {
+        // verificationType key absent entirely (PactBroker response)
+        let matrix_json = r#"{
+        "summary": {"deployable": true},
+        "matrix": [{
+            "consumer": {"name": "Consumer", "version": {"number": "1.0.0"}},
+            "provider": {"name": "Provider", "version": {"number": "2.0.0"}},
+            "verificationResult": {"success": true, "_links": {"self": {"href": "http://result"}}}
+        }]
+    }"#;
+
+        let (output, _) = table_from_json(matrix_json);
+        assert!(!output.contains("VERIFICATION TYPE"), "column should be hidden when key is absent");
     }
 
     #[test]
@@ -571,7 +641,7 @@ mod can_i_deploy_tests {
                 i.response
                     .status(200)
                     .header("Content-Type", "application/hal+json;charset=utf-8")
-                    .json_body(matrix_response_body());
+                    .json_body(pact_broker_matrix_response_body());
                 i
             })
             .start_mock_server(None, Some(config));
@@ -619,7 +689,7 @@ mod can_i_deploy_tests {
                 i.response
                     .status(200)
                     .header("Content-Type", "application/hal+json;charset=utf-8")
-                    .json_body(matrix_response_body());
+                    .json_body(pact_broker_matrix_response_body());
                 i
             })
             .start_mock_server(None, Some(config));
@@ -662,7 +732,7 @@ mod can_i_deploy_tests {
                 i.response
                     .status(200)
                     .header("Content-Type", "application/hal+json;charset=utf-8")
-                    .json_body(matrix_response_body());
+                    .json_body(pact_broker_matrix_response_body());
                 i
             })
             .start_mock_server(None, Some(config));
@@ -876,7 +946,7 @@ mod can_i_deploy_tests {
     //             i.response
     //                 .status(200)
     //                 .header("Content-Type", "application/hal+json;charset=utf-8")
-    //                 .json_body(matrix_response_body());
+    //                 .json_body(pact_broker_matrix_response_body());
     //             i
     //         })
     //         .start_mock_server(None, Some(config));
@@ -973,7 +1043,7 @@ mod can_i_deploy_tests {
                     i.response
                         .status(200)
                         .header("Content-Type", "application/hal+json;charset=utf-8")
-                        .json_body(matrix_response_body());
+                        .json_body(pact_broker_matrix_response_body());
                     i
                 }
             )
@@ -1029,12 +1099,62 @@ mod can_i_deploy_tests {
                     i.response
                         .status(200)
                         .header("Content-Type", "application/hal+json;charset=utf-8")
-                        .json_body(matrix_response_body());
+                        .json_body(pact_broker_matrix_response_body());
                     i
                 }
             )
             .start_mock_server(None, Some(config));
         let mock_server_url = pact_broker_service.url();
+
+        let raw_args = vec![
+            "can-i-deploy",
+            "-b",
+            mock_server_url.as_str(),
+            "--pacticipant",
+            "Foo",
+            "--version",
+            "1.2.4",
+            "--pacticipant",
+            "Bar",
+            "--latest",
+        ];
+        let matches = build_matches(raw_args.clone());
+        let raw_args: Vec<String> = raw_args.into_iter().map(|s| s.to_string()).collect();
+        let result = can_i_deploy(&matches, raw_args, false);
+        assert!(result.is_ok());
+        let output = result.unwrap();
+        assert!(output.contains("Computer says"));
+    }
+
+    #[test]
+    fn returns_matrix_with_verification_type_from_pactflow() {
+        let config = MockServerConfig {
+            pact_specification: PactSpecification::V2,
+            ..Default::default()
+        };
+        let pactflow_service = PactBuilder::new("pact-broker-cli", "PactFlow")
+            .interaction(
+                "a request for the compatibility matrix for Foo version 1.2.4 and the latest version of Bar from PactFlow",
+                "",
+                |mut i| {
+                    i.given("the pact for Foo version 1.2.4 has been verified by Bar (PactFlow)");
+                    i.request
+                        .get()
+                        .path("/matrix")
+                        .query_param("q[][pacticipant]", "Foo")
+                        .query_param("q[][version]", "1.2.4")
+                        .query_param("q[][pacticipant]", "Bar")
+                        .query_param("q[][latest]", "true")
+                        .query_param("latestby", "cvpv");
+                    i.response
+                        .status(200)
+                        .header("Content-Type", "application/hal+json;charset=utf-8")
+                        .json_body(pactflow_matrix_response_body());
+                    i
+                },
+            )
+            .start_mock_server(None, Some(config));
+        let mock_server_url = pactflow_service.url();
 
         let raw_args = vec![
             "can-i-deploy",
