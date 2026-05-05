@@ -60,7 +60,7 @@ jobs:
           dev_tag: vlatest
       - name: Publish archives and packages
         if: ${{ github.ref == 'refs/heads/main' }}
-        uses: softprops/action-gh-release@master
+        uses: softprops/action-gh-release@v2.5.0
         with:
           tag_name: ${{ env.dev_tag }}
           name: 'Release ${{ env.dev_tag }}'
@@ -74,7 +74,7 @@ jobs:
           dev_tag: vlatest
       - name: Publish archives and packages
         if: ${{ inputs.force_release == true || startsWith(github.ref, 'refs/tags/') }}
-        uses: softprops/action-gh-release@master
+        uses: softprops/action-gh-release@v2.5.0
         with:
           tag_name: v${{ inputs.version }}
           name: 'Release v${{ inputs.version }}'
