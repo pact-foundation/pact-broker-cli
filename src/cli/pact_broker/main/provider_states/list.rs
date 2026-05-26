@@ -46,7 +46,8 @@ pub fn list_provider_states(
             broker_details.auth.clone(),
             broker_details.ssl_options.clone(),
             broker_details.custom_headers.clone(),
-        );
+        )
+        .with_retry_count(broker_details.retries);
 
         // Build the path based on provided parameters
         let path = build_provider_states_path(provider, branch, environment);

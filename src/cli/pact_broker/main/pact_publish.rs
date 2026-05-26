@@ -19,7 +19,7 @@ use serde_json::{Value, json};
 use crate::cli::pact_broker::main::utils::{
     get_auth, get_broker_relation, get_broker_url, get_custom_headers,
 };
-use crate::cli::pact_broker::main::utils::{get_ssl_options, handle_error};
+use crate::cli::pact_broker::main::utils::{get_retries, get_ssl_options, handle_error};
 use crate::cli::pact_broker::main::{HALClient, Notice, process_notices};
 use crate::cli::utils::git_info;
 use std::collections::HashMap;
@@ -274,7 +274,8 @@ pub fn publish_pacts(args: &ArgMatches) -> Result<Value, i32> {
         Some(auth.clone()),
         ssl_options.clone(),
         custom_headers.clone(),
-    );
+    )
+    .with_retry_count(get_retries(args));
 
     let publish_pact_href_path = tokio::runtime::Runtime::new().unwrap().block_on(async {
         get_broker_relation(

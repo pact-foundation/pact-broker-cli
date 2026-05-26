@@ -23,7 +23,8 @@ pub fn list_latest_pact_versions(
             auth.clone(),
             ssl_options.clone(),
             custom_headers.clone(),
-        );
+        )
+        .with_retry_count(broker_details.retries);
         let pb_latest_pact_versions_href_path = get_broker_relation(
             hal_client.clone(),
             "pb:latest-pact-versions".to_string(),
@@ -189,6 +190,7 @@ mod lists_latest_pact_versions_tests {
             auth: None,
             ssl_options: SslOptions::default(),
             custom_headers: None,
+            retries: 0,
         };
 
         // act

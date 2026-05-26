@@ -27,7 +27,8 @@ pub fn describe_pacticipant(
             auth.clone(),
             ssl_options.clone(),
             custom_headers.clone(),
-        );
+        )
+        .with_retry_count(broker_details.retries);
         let pb_pacticipant_href_path = get_broker_relation(
             hal_client.clone(),
             "pb:pacticipant".to_string(),
@@ -224,6 +225,7 @@ mod describe_pacticipant_tests {
             auth: None,
             ssl_options: Default::default(),
             custom_headers: None,
+            retries: 0,
         };
 
         let result = describe_pacticipant(
@@ -289,6 +291,7 @@ mod describe_pacticipant_tests {
             auth: None,
             ssl_options: Default::default(),
             custom_headers: None,
+            retries: 0,
         };
 
         let result = describe_pacticipant(

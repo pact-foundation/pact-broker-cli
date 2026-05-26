@@ -4,97 +4,50 @@ use std::collections::HashMap;
 use std::time::Duration;
 
 use comfy_table::{Table, presets::UTF8_FULL};
-use futures::StreamExt;
 use maplit::hashmap;
 use pact_models::http_utils::HttpAuth;
-use reqwest_middleware::RequestBuilder;
+use reqwest::StatusCode;
 use serde_json::Value;
-use tokio::time::sleep;
-use tracing::{trace, warn};
 
-use crate::{cli::pact_broker::main::types::SslOptions, dbg_as_curl};
+use crate::cli::pact_broker::main::types::SslOptions;
 
 use super::{CustomHeaders, HALClient, Link, PactBrokerError};
 
-/// Retries a request on failure
-pub(crate) async fn with_retries(
-    retries: u8,
-    request: RequestBuilder,
-) -> Result<reqwest::Response, reqwest_middleware::Error> {
-    match &request.try_clone() {
-        None => {
-            warn!("with_retries: Could not retry the request as it is not cloneable");
-            request.send().await
+/// Computes how long to wait before the next retry attempt.
+///
+/// For `429 Too Many Requests` responses the server may include a `Retry-After`
+/// header.  When the parsed delay is present, the delay is that value plus up to
+/// 20 % extra, capped so the additional buffer never exceeds 60 seconds.  This
+/// spreads retries out across the new rate-limit window instead of hammering the
+/// server the instant it opens.
+///
+/// For all other retryable status codes (and for 429 without a `Retry-After`
+/// header) exponential back-off is used: `500 × 2^(attempt − 1)` milliseconds,
+/// giving 500 ms, 1 s, 2 s, 4 s, 8 s, … on successive retries.
+///
+/// # Arguments
+///
+/// * `status` - The HTTP status code of the failed response.
+/// * `retry_after` - Duration parsed from the `Retry-After` header, if present.
+///   Supports both the integer-seconds form and the HTTP-date form.
+/// * `attempt` - The current attempt number (1-based), used for exponential back-off.
+///
+/// # Returns
+///
+/// The [`Duration`] to sleep before the next attempt.
+pub(crate) fn compute_retry_delay(
+    status: StatusCode,
+    retry_after: Option<Duration>,
+    attempt: u32,
+) -> Duration {
+    if status == StatusCode::TOO_MANY_REQUESTS {
+        if let Some(base) = retry_after {
+            let secs = base.as_secs();
+            let extra = (secs / 5).min(60); // ≈ 20 % of secs, capped at 60 s
+            return Duration::from_secs(secs + extra);
         }
-        Some(rb) => futures::stream::iter((1..=retries).step_by(1))
-            .fold(
-                (
-                    None::<Result<reqwest::Response, reqwest_middleware::Error>>,
-                    rb.try_clone(),
-                ),
-                |(response, request), attempt| async move {
-                    match request {
-                        Some(request_builder) => match response {
-                            None => {
-                                let next = request_builder.try_clone();
-                                (Some(dbg_as_curl!(request_builder).send().await), next)
-                            }
-                            Some(response) => {
-                                trace!(
-                                    "with_retries: attempt {}/{} is {:?}",
-                                    attempt, retries, response
-                                );
-                                match response {
-                                    Ok(ref res) => {
-                                        if res.status().is_server_error() {
-                                            match request_builder.try_clone() {
-                                                None => (Some(response), None),
-                                                Some(rb) => {
-                                                    sleep(Duration::from_millis(
-                                                        10_u64.pow(attempt as u32),
-                                                    ))
-                                                    .await;
-                                                    (Some(request_builder.send().await), Some(rb))
-                                                }
-                                            }
-                                        } else {
-                                            (Some(response), None)
-                                        }
-                                    }
-                                    Err(ref err) => {
-                                        if err.is_status() {
-                                            if err.status().unwrap_or_default().is_server_error() {
-                                                match request_builder.try_clone() {
-                                                    None => (Some(response), None),
-                                                    Some(rb) => {
-                                                        sleep(Duration::from_millis(
-                                                            10_u64.pow(attempt as u32),
-                                                        ))
-                                                        .await;
-                                                        (
-                                                            Some(request_builder.send().await),
-                                                            Some(rb),
-                                                        )
-                                                    }
-                                                }
-                                            } else {
-                                                (Some(response), None)
-                                            }
-                                        } else {
-                                            (Some(response), None)
-                                        }
-                                    }
-                                }
-                            }
-                        },
-                        None => (response, None),
-                    }
-                },
-            )
-            .await
-            .0
-            .unwrap(),
     }
+    Duration::from_millis(500 * 2_u64.pow(attempt.saturating_sub(1)))
 }
 
 // pub(crate) fn as_safe_ref(
@@ -134,6 +87,14 @@ pub(crate) fn get_broker_url(args: &clap::ArgMatches) -> String {
     args.get_one::<String>("broker-base-url")
         .expect("url is required")
         .to_string()
+}
+
+/// Reads the `--retries` / `PACT_BROKER_HTTP_RETRIES` value from parsed CLI arguments.
+///
+/// Falls back to `8` if the argument is absent (which should not happen in practice
+/// because the flag carries a `default_value`).
+pub(crate) fn get_retries(args: &clap::ArgMatches) -> u8 {
+    args.get_one::<u8>("retries").copied().unwrap_or(8)
 }
 pub(crate) fn get_ssl_options(args: &clap::ArgMatches) -> SslOptions {
     SslOptions {
@@ -207,6 +168,94 @@ pub(crate) fn get_custom_headers(args: &clap::ArgMatches) -> Option<CustomHeader
     }
 
     None
+}
+
+#[cfg(test)]
+mod retry_tests {
+    use std::time::Duration;
+
+    use reqwest::StatusCode;
+
+    use super::compute_retry_delay;
+
+    // MARK: compute_retry_delay unit tests
+
+    #[test]
+    fn delay_for_429_without_retry_after_uses_exponential_backoff() {
+        // attempt=2: 500 * 2^(2-1) = 1000 ms
+        let delay = compute_retry_delay(StatusCode::TOO_MANY_REQUESTS, None, 2);
+        assert_eq!(delay, Duration::from_millis(1000));
+    }
+
+    #[test]
+    fn delay_for_5xx_uses_exponential_backoff() {
+        // attempt=3: 500 * 2^(3-1) = 2000 ms
+        let delay = compute_retry_delay(StatusCode::INTERNAL_SERVER_ERROR, None, 3);
+        assert_eq!(delay, Duration::from_millis(2000));
+    }
+
+    #[test]
+    fn delay_starts_at_500ms_on_first_attempt() {
+        // attempt=1: 500 * 2^0 = 500 ms
+        let delay = compute_retry_delay(StatusCode::INTERNAL_SERVER_ERROR, None, 1);
+        assert_eq!(delay, Duration::from_millis(500));
+    }
+
+    #[test]
+    fn delay_for_429_with_retry_after_applies_1_2x_multiplier() {
+        // Retry-After: 10 s → 10 + min(10/5, 60) = 10 + 2 = 12
+        let delay = compute_retry_delay(
+            StatusCode::TOO_MANY_REQUESTS,
+            Some(Duration::from_secs(10)),
+            1,
+        );
+        assert_eq!(delay, Duration::from_secs(12));
+    }
+
+    #[test]
+    fn delay_for_429_with_large_retry_after_caps_extra_at_60_seconds() {
+        // Retry-After: 400 s → 400 + min(80, 60) = 460
+        let delay = compute_retry_delay(
+            StatusCode::TOO_MANY_REQUESTS,
+            Some(Duration::from_secs(400)),
+            1,
+        );
+        assert_eq!(delay, Duration::from_secs(460));
+    }
+
+    #[test]
+    fn delay_for_429_with_retry_after_at_cap_boundary() {
+        // Retry-After: 300 s → 300 + min(60, 60) = 360
+        let delay = compute_retry_delay(
+            StatusCode::TOO_MANY_REQUESTS,
+            Some(Duration::from_secs(300)),
+            1,
+        );
+        assert_eq!(delay, Duration::from_secs(360));
+    }
+
+    #[test]
+    fn delay_for_5xx_ignores_retry_after_value() {
+        // Retry-After is irrelevant for non-429 status codes.
+        let delay_with = compute_retry_delay(
+            StatusCode::INTERNAL_SERVER_ERROR,
+            Some(Duration::from_secs(999)),
+            2,
+        );
+        let delay_without = compute_retry_delay(StatusCode::INTERNAL_SERVER_ERROR, None, 2);
+        assert_eq!(delay_with, delay_without);
+    }
+
+    #[test]
+    fn delay_for_429_with_zero_retry_after_adds_no_extra() {
+        // Retry-After: 0 s → 0 + min(0, 60) = 0
+        let delay = compute_retry_delay(
+            StatusCode::TOO_MANY_REQUESTS,
+            Some(Duration::ZERO),
+            1,
+        );
+        assert_eq!(delay, Duration::from_secs(0));
+    }
 }
 
 #[cfg(test)]

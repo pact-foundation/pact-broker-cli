@@ -43,7 +43,6 @@ pub mod utils;
 pub mod verification;
 pub mod versions;
 pub mod webhooks;
-use utils::with_retries;
 // for otel
 use crate::cli::utils::{CYAN, GREEN, RED, YELLOW};
 use http::Extensions;
@@ -54,6 +53,7 @@ use reqwest::Request;
 use reqwest::Response;
 use reqwest_middleware::{ClientBuilder, ClientWithMiddleware};
 use reqwest_middleware::{Middleware, Next};
+use reqwest_retry::{DefaultRetryableStrategy, Retryable, RetryableStrategy};
 use reqwest_tracing::TracingMiddleware;
 
 use crate::cli::pact_broker::main::types::SslOptions;
@@ -303,6 +303,120 @@ impl Middleware for OtelPropagatorMiddleware {
     }
 }
 
+/// Parses the value of a `Retry-After` response header into a [`Duration`].
+///
+/// The header may be either:
+/// - an integer number of seconds (`Retry-After: 120`), or
+/// - an HTTP-date (`Retry-After: Fri, 31 Dec 1999 23:59:59 GMT`).
+///
+/// For a date in the past the returned duration is [`Duration::ZERO`].
+/// Returns `None` if the header is absent or unparseable.
+///
+/// # Arguments
+///
+/// * `response` - The HTTP response to inspect.
+///
+/// # Returns
+///
+/// The wait duration indicated by the header, or `None` if absent/unparseable.
+fn parse_retry_after(response: &Response) -> Option<std::time::Duration> {
+    let header_value = response
+        .headers()
+        .get(reqwest::header::RETRY_AFTER)?
+        .to_str()
+        .ok()?;
+
+    // Try the decimal-seconds form first (e.g. "120").
+    if let Ok(secs) = header_value.trim().parse::<u64>() {
+        return Some(std::time::Duration::from_secs(secs));
+    }
+
+    // Fall back to the HTTP-date form (e.g. "Fri, 31 Dec 1999 23:59:59 GMT").
+    if let Ok(system_time) = httpdate::parse_http_date(header_value) {
+        let delay = system_time
+            .duration_since(std::time::SystemTime::now())
+            .unwrap_or_default();
+        return Some(delay);
+    }
+
+    None
+}
+
+/// Middleware that retries transient HTTP failures and honours `Retry-After` headers.
+///
+/// Uses [`DefaultRetryableStrategy`] to classify responses: 5xx, 408, and 429 are
+/// treated as transient and retried.
+///
+/// For `429 Too Many Requests` responses the `Retry-After` header is read when
+/// present; both the decimal-seconds form (`Retry-After: 120`) and the HTTP-date
+/// form (`Retry-After: Fri, 31 Dec 1999 23:59:59 GMT`) are supported.  The parsed
+/// delay is passed to [`utils::compute_retry_delay`], which adds a ≈20 % jitter
+/// (capped at 60 s) to spread simultaneous retries across the new rate-limit window.
+///
+/// All other transient failures use exponential back-off (`10^attempt` ms).
+///
+/// Requests with streaming bodies that cannot be cloned produce an error on the first
+/// transient failure without retrying.
+struct RetryMiddleware {
+    /// Maximum number of total attempts, including the initial send.  `0` means
+    /// one attempt with no retries (same as `1`).
+    max_attempts: u8,
+}
+
+#[async_trait::async_trait]
+impl Middleware for RetryMiddleware {
+    async fn handle(
+        &self,
+        req: Request,
+        extensions: &mut Extensions,
+        next: Next<'_>,
+    ) -> reqwest_middleware::Result<Response> {
+        let max_retries = self.max_attempts.saturating_sub(1) as u32;
+        let mut n_past_retries: u32 = 0;
+
+        loop {
+            // Clone the request so we still hold it for subsequent retry iterations.
+            let cloned = req.try_clone().ok_or_else(|| {
+                reqwest_middleware::Error::Middleware(anyhow::anyhow!(
+                    "Request object is not cloneable. Are you passing a streaming body?"
+                ))
+            })?;
+
+            let result = next.clone().run(cloned, extensions).await;
+
+            // Classify the response using reqwest-retry's built-in strategy.
+            if let Some(Retryable::Transient) = DefaultRetryableStrategy.handle(&result) {
+                if n_past_retries < max_retries {
+                    let delay = if let Ok(ref resp) = result {
+                        utils::compute_retry_delay(
+                            resp.status(),
+                            parse_retry_after(resp),
+                            n_past_retries + 1,
+                        )
+                    } else {
+                        utils::compute_retry_delay(
+                            reqwest::StatusCode::INTERNAL_SERVER_ERROR,
+                            None,
+                            n_past_retries + 1,
+                        )
+                    };
+                    trace!(
+                        attempt = n_past_retries + 1,
+                        max_attempts = self.max_attempts,
+                        delay_ms = delay.as_millis(),
+                        "retrying transient HTTP failure"
+                    );
+                    tokio::time::sleep(delay).await;
+                    n_past_retries += 1;
+                    continue;
+                }
+            }
+
+            break result;
+        }
+    }
+}
+
 pub trait WithCurrentSpan {
     fn with_current_span<F, R>(&self, f: F) -> R
     where
@@ -498,14 +612,12 @@ impl HALClient {
         // Apply custom headers if present
         request_builder = self.apply_custom_headers(request_builder);
 
-        let response = utils::with_retries(self.retries, request_builder)
-            .await
-            .map_err(|err| {
-                PactBrokerError::IoError(format!(
-                    "Failed to access pact broker path '{}' - {}. URL: '{}'",
-                    &path, err, &self.url,
-                ))
-            })?;
+        let response = request_builder.send().await.map_err(|err| {
+            PactBrokerError::IoError(format!(
+                "Failed to access pact broker path '{}' - {}. URL: '{}'",
+                &path, err, &self.url,
+            ))
+        })?;
 
         self.parse_broker_response(path.to_string(), response).await
     }
@@ -566,14 +678,12 @@ impl HALClient {
         }
         .header("Accept", "application/hal+json");
 
-        let response = utils::with_retries(self.retries, request_builder)
-            .await
-            .map_err(|err| {
-                PactBrokerError::IoError(format!(
-                    "Failed to delete pact broker path '{}' - {}. URL: '{}'",
-                    &path, err, &self.url,
-                ))
-            })?;
+        let response = request_builder.send().await.map_err(|err| {
+            PactBrokerError::IoError(format!(
+                "Failed to delete pact broker path '{}' - {}. URL: '{}'",
+                &path, err, &self.url,
+            ))
+        })?;
 
         self.parse_broker_response(path.to_string(), response).await
     }
@@ -800,8 +910,7 @@ impl HALClient {
         } else {
             request_builder.header("Content-Type", "application/json")
         };
-        let response = with_retries(self.retries, request_builder).await;
-        match response {
+        match request_builder.send().await {
             Ok(res) => {
                 self.parse_broker_response(url.path().to_string(), res)
                     .await
@@ -878,7 +987,24 @@ fn handle_validation_errors(body: Value) -> PactBrokerError {
 }
 
 impl HALClient {
-    pub fn setup(url: &str, auth: Option<HttpAuth>, ssl_options: SslOptions) -> HALClient {
+    /// Builds the reqwest-middleware client stack for a given retry count and SSL
+    /// configuration.
+    ///
+    /// The middleware chain is (outermost → innermost):
+    /// 1. [`TracingMiddleware`] — adds OpenTelemetry trace context to every request.
+    /// 2. [`OtelPropagatorMiddleware`] — injects baggage / W3C trace propagation headers.
+    /// 3. [`RetryMiddleware`] — retries transient 5xx / 408 / 429 failures, honouring
+    ///    any `Retry-After` header present on the response.
+    ///
+    /// # Arguments
+    ///
+    /// * `retries` - Maximum number of total attempts (including the first send).
+    /// * `ssl_options` - TLS configuration (custom CA cert, skip-verify, …).
+    ///
+    /// # Returns
+    ///
+    /// A fully configured [`ClientWithMiddleware`] ready for use.
+    fn build_middleware_client(retries: u8, ssl_options: &SslOptions) -> ClientWithMiddleware {
         let mut builder = reqwest::Client::builder().user_agent(format!(
             "{}/{}",
             env!("CARGO_PKG_NAME"),
@@ -888,10 +1014,23 @@ impl HALClient {
         debug!("Using ssl_options: {:?}", ssl_options);
         if let Some(ref path) = ssl_options.ssl_cert_path {
             if let Ok(cert_bytes) = std::fs::read(path) {
-                if let Ok(cert) = reqwest::Certificate::from_pem_bundle(&cert_bytes) {
-                    debug!("Adding SSL certificate from path: {}", path);
-                    for c in cert {
-                        builder = builder.add_root_certificate(c.clone());
+                match reqwest::Certificate::from_pem_bundle(&cert_bytes) {
+                    Ok(certs) => {
+                        debug!("Adding SSL certificate from path: {}", path);
+                        if ssl_options.use_root_trust_store {
+                            // Merge custom cert into the native root store.
+                            builder = builder.tls_certs_merge(certs);
+                        } else {
+                            // Use ONLY the provided certificate; bypass all built-in roots.
+                            debug!("Disabling root trust store for SSL — using only the provided certificate");
+                            builder = builder.tls_certs_only(certs);
+                        }
+                    }
+                    Err(err) => {
+                        debug!(
+                            "Could not parse SSL certificate from path {}: {}",
+                            path, err
+                        );
                     }
                 }
             } else {
@@ -900,21 +1039,29 @@ impl HALClient {
                     path
                 );
             }
+        } else if !ssl_options.use_root_trust_store {
+            debug!("ssl-trust-store disabled but no custom certificate provided; proceeding with system roots");
         }
         if ssl_options.skip_ssl {
             builder = builder.danger_accept_invalid_certs(true);
             debug!("Skipping SSL certificate validation");
         }
-        if !ssl_options.use_root_trust_store {
-            builder = builder.tls_built_in_root_certs(false);
-            debug!("Disabling root trust store for SSL");
-        }
 
-        let built_client = builder.build().unwrap();
-        let client = ClientBuilder::new(built_client)
+        let built_client = builder.build().expect("failed to build reqwest client");
+        ClientBuilder::new(built_client)
             .with(TracingMiddleware::default())
             .with(OtelPropagatorMiddleware)
-            .build();
+            .with(RetryMiddleware { max_attempts: retries })
+            .build()
+    }
+
+    pub fn setup(url: &str, auth: Option<HttpAuth>, ssl_options: SslOptions) -> HALClient {
+        let retries = std::env::var("PACT_BROKER_HTTP_RETRIES")
+            .ok()
+            .and_then(|v| v.parse::<u8>().ok())
+            .unwrap_or(8);
+
+        let client = Self::build_middleware_client(retries, &ssl_options);
 
         HALClient {
             client,
@@ -922,9 +1069,20 @@ impl HALClient {
             path_info: None,
             auth,
             custom_headers: None,
-            retries: 3,
+            retries,
             ssl_options,
         }
+    }
+
+    /// Sets the number of HTTP request retry attempts, overriding the default (3) or any
+    /// value read from the `PACT_BROKER_HTTP_RETRIES` environment variable.
+    ///
+    /// CLI command handlers call this after construction to apply the `--retries` flag value.
+    /// This rebuilds the internal HTTP client so the new retry count takes effect immediately.
+    pub fn with_retry_count(mut self, retries: u8) -> Self {
+        self.retries = retries;
+        self.client = Self::build_middleware_client(retries, &self.ssl_options);
+        self
     }
 }
 
@@ -1735,4 +1893,257 @@ mod tests
     let result = client.navigate("next", &hashmap!{}).await.unwrap();
     expect!(result.path_info).to(be_some().value(serde_json::Value::String("Yay! You found your way here".to_string())));
   }
+}
+
+// MARK: RetryMiddleware integration tests
+
+#[cfg(test)]
+mod retry_middleware_tests {
+    use std::sync::Arc;
+    use std::sync::atomic::{AtomicUsize, Ordering};
+
+    use axum::{Router, body::Body, http::StatusCode, response::Response, routing::get};
+    use tokio::net::TcpListener;
+
+    use super::{HALClient, SslOptions};
+
+    async fn spawn_test_server(router: Router) -> String {
+        let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
+        let addr = listener.local_addr().unwrap();
+        tokio::spawn(async move {
+            axum::serve(listener, router).await.unwrap();
+        });
+        format!("http://{}", addr)
+    }
+
+    fn hal_client(base_url: &str, retries: u8) -> HALClient {
+        HALClient::with_url(base_url, None, SslOptions::default(), None)
+            .with_retry_count(retries)
+    }
+
+    #[tokio::test]
+    async fn retries_on_429_too_many_requests() {
+        let request_count = Arc::new(AtomicUsize::new(0));
+        let count = request_count.clone();
+
+        let router = Router::new().route(
+            "/",
+            get(move || {
+                let count = count.clone();
+                async move {
+                    let n = count.fetch_add(1, Ordering::SeqCst);
+                    if n < 2 {
+                        Response::builder()
+                            .status(StatusCode::TOO_MANY_REQUESTS)
+                            .body(Body::from("{\"_links\":{}}"))
+                            .unwrap()
+                    } else {
+                        Response::builder()
+                            .status(StatusCode::OK)
+                            .header("content-type", "application/hal+json")
+                            .body(Body::from("{\"_links\":{}}"))
+                            .unwrap()
+                    }
+                }
+            }),
+        );
+
+        let base_url = spawn_test_server(router).await;
+        let client = hal_client(&base_url, 3);
+        let result = client.fetch("").await;
+
+        assert!(result.is_ok(), "expected OK but got: {:?}", result.err());
+        assert_eq!(request_count.load(Ordering::SeqCst), 3);
+    }
+
+    #[tokio::test]
+    async fn does_not_retry_404_not_found() {
+        let request_count = Arc::new(AtomicUsize::new(0));
+        let count = request_count.clone();
+
+        let router = Router::new().route(
+            "/",
+            get(move || {
+                let count = count.clone();
+                async move {
+                    count.fetch_add(1, Ordering::SeqCst);
+                    StatusCode::NOT_FOUND
+                }
+            }),
+        );
+
+        let base_url = spawn_test_server(router).await;
+        let client = hal_client(&base_url, 3);
+        let _ = client.fetch("").await;
+
+        assert_eq!(
+            request_count.load(Ordering::SeqCst),
+            1,
+            "404 should not be retried"
+        );
+    }
+
+    #[tokio::test]
+    async fn retries_on_500_internal_server_error() {
+        let request_count = Arc::new(AtomicUsize::new(0));
+        let count = request_count.clone();
+
+        let router = Router::new().route(
+            "/",
+            get(move || {
+                let count = count.clone();
+                async move {
+                    let n = count.fetch_add(1, Ordering::SeqCst);
+                    if n == 0 {
+                        StatusCode::INTERNAL_SERVER_ERROR
+                    } else {
+                        StatusCode::OK
+                    }
+                }
+            }),
+        );
+
+        let base_url = spawn_test_server(router).await;
+        let client = hal_client(&base_url, 3);
+        let _ = client.fetch("").await;
+
+        assert_eq!(
+            request_count.load(Ordering::SeqCst),
+            2,
+            "500 should be retried once"
+        );
+    }
+
+    #[tokio::test]
+    async fn honours_integer_retry_after_header() {
+        // Retry-After: 0 exercises the header path without real delay.
+        let request_count = Arc::new(AtomicUsize::new(0));
+        let count = request_count.clone();
+
+        let router = Router::new().route(
+            "/",
+            get(move || {
+                let count = count.clone();
+                async move {
+                    let n = count.fetch_add(1, Ordering::SeqCst);
+                    if n == 0 {
+                        Response::builder()
+                            .status(StatusCode::TOO_MANY_REQUESTS)
+                            .header("Retry-After", "0")
+                            .body(Body::from("{\"_links\":{}}"))
+                            .unwrap()
+                    } else {
+                        Response::builder()
+                            .status(StatusCode::OK)
+                            .header("content-type", "application/hal+json")
+                            .body(Body::from("{\"_links\":{}}"))
+                            .unwrap()
+                    }
+                }
+            }),
+        );
+
+        let base_url = spawn_test_server(router).await;
+        let client = hal_client(&base_url, 3);
+        let result = client.fetch("").await;
+
+        assert!(result.is_ok());
+        assert_eq!(request_count.load(Ordering::SeqCst), 2);
+    }
+
+    #[tokio::test]
+    async fn honours_http_date_retry_after_header() {
+        // An HTTP-date Retry-After in the past should result in a zero delay,
+        // confirming that the date form is parsed rather than silently ignored.
+        let request_count = Arc::new(AtomicUsize::new(0));
+        let count = request_count.clone();
+
+        let router = Router::new().route(
+            "/",
+            get(move || {
+                let count = count.clone();
+                async move {
+                    let n = count.fetch_add(1, Ordering::SeqCst);
+                    if n == 0 {
+                        Response::builder()
+                            .status(StatusCode::TOO_MANY_REQUESTS)
+                            // A date well in the past → delay is immediately 0.
+                            .header("Retry-After", "Thu, 01 Jan 1970 00:00:00 GMT")
+                            .body(Body::from("{\"_links\":{}}"))
+                            .unwrap()
+                    } else {
+                        Response::builder()
+                            .status(StatusCode::OK)
+                            .header("content-type", "application/hal+json")
+                            .body(Body::from("{\"_links\":{}}"))
+                            .unwrap()
+                    }
+                }
+            }),
+        );
+
+        let base_url = spawn_test_server(router).await;
+        let client = hal_client(&base_url, 3);
+        let result = client.fetch("").await;
+
+        assert!(result.is_ok());
+        assert_eq!(
+            request_count.load(Ordering::SeqCst),
+            2,
+            "HTTP-date Retry-After should be parsed and retry should happen"
+        );
+    }
+
+    #[tokio::test]
+    async fn sends_one_request_when_retries_is_zero() {
+        let request_count = Arc::new(AtomicUsize::new(0));
+        let count = request_count.clone();
+
+        let router = Router::new().route(
+            "/",
+            get(move || {
+                let count = count.clone();
+                async move {
+                    count.fetch_add(1, Ordering::SeqCst);
+                    Response::builder()
+                        .status(StatusCode::TOO_MANY_REQUESTS)
+                        .body(Body::empty())
+                        .unwrap()
+                }
+            }),
+        );
+
+        let base_url = spawn_test_server(router).await;
+        let client = hal_client(&base_url, 0);
+        let _ = client.fetch("").await;
+
+        assert_eq!(
+            request_count.load(Ordering::SeqCst),
+            1,
+            "retries=0 should send exactly one request"
+        );
+    }
+
+    #[tokio::test]
+    async fn returns_last_failure_when_all_retries_exhausted() {
+        let router = Router::new().route(
+            "/",
+            get(|| async {
+                Response::builder()
+                    .status(StatusCode::TOO_MANY_REQUESTS)
+                    .body(Body::empty())
+                    .unwrap()
+            }),
+        );
+
+        let base_url = spawn_test_server(router).await;
+        let client = hal_client(&base_url, 2);
+        let result = client.fetch("").await;
+
+        assert!(
+            result.is_err(),
+            "all retries exhausted should return error, got: {:?}",
+            result
+        );
+    }
 }

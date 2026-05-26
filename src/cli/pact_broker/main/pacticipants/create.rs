@@ -1,6 +1,6 @@
 use crate::cli::pact_broker::main::{
     HALClient, Link, PactBrokerError,
-    utils::{get_auth, get_broker_relation, get_broker_url, get_custom_headers, get_ssl_options},
+    utils::{get_auth, get_broker_relation, get_broker_url, get_custom_headers, get_retries, get_ssl_options},
 };
 use maplit::hashmap;
 use std::result::Result::Ok;
@@ -22,7 +22,8 @@ pub fn create_or_update_pacticipant(args: &clap::ArgMatches) -> Result<String, P
             Some(auth.clone()),
             ssl_options.clone(),
             custom_headers.clone(),
-        );
+        )
+        .with_retry_count(get_retries(args));
 
         let template_values = hashmap! {
             "pacticipant".to_string() => pacticipant_name.to_string(),

@@ -1,7 +1,7 @@
 use crate::cli::{
     pact_broker::main::{
         HALClient, PactBrokerError,
-        utils::{get_auth, get_broker_url, get_custom_headers, get_ssl_options},
+        utils::{get_auth, get_broker_url, get_custom_headers, get_retries, get_ssl_options},
     },
     utils,
 };
@@ -18,7 +18,8 @@ pub fn delete_environment(args: &clap::ArgMatches) -> Result<String, PactBrokerE
             Some(auth.clone()),
             ssl_options.clone(),
             custom_headers.clone(),
-        );
+        )
+        .with_retry_count(get_retries(args));
         let res = hal_client
             .clone()
             .fetch(&(broker_url.clone() + "/environments/" + &uuid))
