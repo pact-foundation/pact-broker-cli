@@ -151,3 +151,17 @@ create_or_update_github_webhook:
 
 test_github_webhook:
 	@curl -v -X POST ${PACT_BROKER_BASE_URL}/webhooks/${GITHUB_WEBHOOK_UUID}/execute -H "Authorization: Bearer ${PACT_BROKER_TOKEN}"
+
+## ========================
+## README maintenance tasks
+## ========================
+
+# Refresh all ```console help blocks in README.md.
+# Uses TRYCMD=overwrite so the README exactly matches what the snapshot tests expect.
+update_readme_help:
+	TRYCMD=overwrite cargo test cli_tests
+
+# Check that README.md is up to date with the current binary's --help output.
+# Runs the snapshot tests; exits non-zero if any block would change. Useful in CI.
+check_readme_help:
+	cargo test cli_tests
