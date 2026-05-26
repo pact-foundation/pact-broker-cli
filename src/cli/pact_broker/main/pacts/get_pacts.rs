@@ -26,7 +26,8 @@ pub fn get_pacts(
             broker_details.auth.clone(),
             broker_details.ssl_options.clone(),
             broker_details.custom_headers.clone(),
-        );
+        )
+        .with_retry_count(broker_details.retries);
 
         // Build the appropriate HAL relation and template parameters
         let (relation, path) = build_pacts_path(provider, consumer, branch, latest);
@@ -409,6 +410,7 @@ mod get_pacts_tests {
             auth: None,
             ssl_options: SslOptions::default(),
             custom_headers: None,
+            retries: 0,
         };
 
         // act
@@ -531,6 +533,7 @@ mod get_pacts_tests {
             auth: None,
             ssl_options: SslOptions::default(),
             custom_headers: None,
+            retries: 0,
         };
 
         // act
@@ -619,6 +622,7 @@ mod get_pacts_tests {
             auth: None,
             ssl_options: SslOptions::default(),
             custom_headers: None,
+            retries: 0,
         };
 
         // act

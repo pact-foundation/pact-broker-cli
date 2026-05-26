@@ -25,7 +25,8 @@ pub fn list_pacticipants(
             auth.clone(),
             ssl_options.clone(),
             custom_headers.clone(),
-        );
+        )
+        .with_retry_count(broker_details.retries);
         let pb_pacticipants_href_path = get_broker_relation(
             hal_client.clone(),
             "pb:pacticipants".to_string(),
@@ -196,6 +197,7 @@ mod list_pacticipants_tests {
             auth: None,
             ssl_options: Default::default(),
             custom_headers: None,
+            retries: 0,
         };
 
         let result = list_pacticipants(&broker_details, OutputType::Json);

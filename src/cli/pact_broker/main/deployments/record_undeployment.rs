@@ -5,7 +5,7 @@ use crate::cli::{
         HALClient, PactBrokerError,
         utils::{
             follow_broker_relation, get_auth, get_broker_relation, get_broker_url,
-            get_custom_headers, get_ssl_options,
+            get_custom_headers, get_retries, get_ssl_options,
         },
     },
     utils,
@@ -37,7 +37,8 @@ pub fn record_undeployment(args: &clap::ArgMatches) -> Result<String, PactBroker
     let ssl_options = get_ssl_options(args);
 
     tokio::runtime::Runtime::new().unwrap().block_on(async {
-        let hal_client: HALClient = HALClient::with_url(&broker_url, Some(auth.clone()),ssl_options.clone(), custom_headers.clone());
+        let hal_client: HALClient = HALClient::with_url(&broker_url, Some(auth.clone()),ssl_options.clone(), custom_headers.clone())
+            .with_retry_count(get_retries(args));
 
             #[derive(Debug, serde::Deserialize)]
             struct Environment {

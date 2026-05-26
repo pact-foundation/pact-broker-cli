@@ -14,7 +14,7 @@ where
 use crate::cli::{
     pact_broker::main::{
         HALClient, Notice, PactBrokerError, process_notices,
-        utils::{get_auth, get_broker_url, get_custom_headers, get_ssl_options},
+        utils::{get_auth, get_broker_url, get_custom_headers, get_retries, get_ssl_options},
     },
     utils,
 };
@@ -248,7 +248,8 @@ pub fn can_i_deploy(
             Some(auth.clone()),
             ssl_options.clone(),
             custom_headers.clone(),
-        );
+        )
+        .with_retry_count(get_retries(args));
 
         // Build matrix_href_path using selectors
         let mut matrix_href_path = String::from("/matrix?");

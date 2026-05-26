@@ -4,7 +4,7 @@ use serde_json::{Value, json};
 use crate::cli::{
     pact_broker::main::{
         HALClient, PactBrokerError,
-        utils::{get_auth, get_broker_url, get_custom_headers, get_ssl_options},
+        utils::{get_auth, get_broker_url, get_custom_headers, get_retries, get_ssl_options},
     },
     utils,
 };
@@ -19,7 +19,8 @@ pub fn record_deployment(args: &clap::ArgMatches) -> Result<String, PactBrokerEr
     let custom_headers = get_custom_headers(args);
     let ssl_options = get_ssl_options(args);
     tokio::runtime::Runtime::new().unwrap().block_on(async {
-                let hal_client: HALClient = HALClient::with_url(&broker_url, Some(auth.clone()), ssl_options.clone(), custom_headers.clone());
+                let hal_client: HALClient = HALClient::with_url(&broker_url, Some(auth.clone()), ssl_options.clone(), custom_headers.clone())
+                    .with_retry_count(get_retries(args));
 
                 let res = hal_client.clone()
                     .fetch(

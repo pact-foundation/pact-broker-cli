@@ -8,7 +8,7 @@ use crate::cli::pact_broker::main::{
     types::{OutputType, SslOptions},
     utils::{
         follow_broker_relation, follow_templated_broker_relation, get_auth, get_broker_relation,
-        get_broker_url, get_custom_headers, get_ssl_options,
+        get_broker_url, get_custom_headers, get_retries, get_ssl_options,
     },
 };
 
@@ -36,6 +36,7 @@ pub fn describe_version(args: &clap::ArgMatches) -> Result<String, PactBrokerErr
             &auth,
             &custom_headers,
             &ssl_options,
+            get_retries(args),
             pacticipant_name,
             env_name,
             deployed_only,
@@ -56,7 +57,8 @@ pub fn describe_version(args: &clap::ArgMatches) -> Result<String, PactBrokerErr
             Some(auth.clone()),
             ssl_options.clone(),
             custom_headers.clone(),
-        );
+        )
+        .with_retry_count(get_retries(args));
         let pb_version_href_path =
             get_broker_relation(hal_client.clone(), pb_relation_href, broker_url.to_string()).await;
 
@@ -130,6 +132,7 @@ fn describe_version_by_environment(
     auth: &HttpAuth,
     custom_headers: &Option<crate::cli::pact_broker::main::CustomHeaders>,
     ssl_options: &SslOptions,
+    retries: u8,
     pacticipant_name: &str,
     environment_name: &str,
     deployed_only: bool,
@@ -142,7 +145,8 @@ fn describe_version_by_environment(
             Some(auth.clone()),
             ssl_options.clone(),
             custom_headers.clone(),
-        );
+        )
+        .with_retry_count(retries);
 
         // First, get the environment UUID
         let environments_href = get_broker_relation(

@@ -39,6 +39,14 @@ pub fn add_broker_auth_arguments() -> Vec<Arg> {
             .action(clap::ArgAction::Append)
             .help("Custom header(s) to send with requests (format: 'Header-Name: Value', can be used multiple times)")
             .value_name("HEADER"),
+        Arg::new("retries")
+            .long("retries")
+            .num_args(1)
+            .default_value("8")
+            .value_parser(clap::value_parser!(u8))
+            .help("The number of times to retry failed HTTP requests to the Pact Broker (retries on 5xx, 408, and 429). Delays use exponential back-off starting at 500 ms and doubling each attempt (0.5 s, 1 s, 2 s, 4 s, 8 s, …). 429 responses honour the Retry-After header when present.")
+            .value_name("PACT_BROKER_HTTP_RETRIES")
+            .env("PACT_BROKER_HTTP_RETRIES"),
     ]
 }
 pub fn add_publish_pacts_subcommand() -> Command {

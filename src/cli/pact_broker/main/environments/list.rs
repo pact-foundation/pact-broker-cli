@@ -3,7 +3,7 @@ use crate::cli::{
         HALClient, PactBrokerError,
         utils::{
             follow_broker_relation, get_auth, get_broker_relation, get_broker_url,
-            get_custom_headers, get_ssl_options,
+            get_custom_headers, get_retries, get_ssl_options,
         },
     },
     utils,
@@ -22,7 +22,8 @@ pub fn list_environments(args: &clap::ArgMatches) -> Result<String, PactBrokerEr
             Some(auth.clone()),
             ssl_options.clone(),
             custom_headers.clone(),
-        );
+        )
+        .with_retry_count(get_retries(args));
         let pb_environments_href_path = get_broker_relation(
             hal_client.clone(),
             "pb:environments".to_string(),

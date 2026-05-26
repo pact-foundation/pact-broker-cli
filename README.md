@@ -186,6 +186,12 @@ Options:
       --custom-header <HEADER>
           Custom header(s) to send with requests (format: 'Header-Name: Value', can be used multiple times)
 
+      --retries <PACT_BROKER_HTTP_RETRIES>
+          The number of times to retry failed HTTP requests to the Pact Broker (retries on 5xx, 408, and 429). Delays use exponential back-off starting at 500 ms and doubling each attempt (0.5 s, 1 s, 2 s, 4 s, 8 s, …). 429 responses honour the Retry-After header when present.
+          
+          [env: PACT_BROKER_HTTP_RETRIES=]
+          [default: 8]
+
       --validate
           Validate the Pact files before publishing.
 
@@ -294,6 +300,8 @@ Options:
           Pact Broker bearer token [env: PACT_BROKER_TOKEN=]
       --custom-header <HEADER>
           Custom header(s) to send with requests (format: 'Header-Name: Value', can be used multiple times)
+      --retries <PACT_BROKER_HTTP_RETRIES>
+          The number of times to retry failed HTTP requests to the Pact Broker (retries on 5xx, 408, and 429). Delays use exponential back-off starting at 500 ms and doubling each attempt (0.5 s, 1 s, 2 s, 4 s, 8 s, …). 429 responses honour the Retry-After header when present. [env: PACT_BROKER_HTTP_RETRIES=] [default: 8]
   -c, --ssl-certificate <SSL_CERT_FILE>
           The path to a valid SSL certificate file [env: SSL_CERT_FILE=]
       --skip-ssl-verification
@@ -354,6 +362,8 @@ Options:
           Pact Broker bearer token [env: PACT_BROKER_TOKEN=]
       --custom-header <HEADER>
           Custom header(s) to send with requests (format: 'Header-Name: Value', can be used multiple times)
+      --retries <PACT_BROKER_HTTP_RETRIES>
+          The number of times to retry failed HTTP requests to the Pact Broker (retries on 5xx, 408, and 429). Delays use exponential back-off starting at 500 ms and doubling each attempt (0.5 s, 1 s, 2 s, 4 s, 8 s, …). 429 responses honour the Retry-After header when present. [env: PACT_BROKER_HTTP_RETRIES=] [default: 8]
   -c, --ssl-certificate <SSL_CERT_FILE>
           The path to a valid SSL certificate file [env: SSL_CERT_FILE=]
       --skip-ssl-verification
@@ -438,6 +448,8 @@ Options:
           Pact Broker bearer token [env: PACT_BROKER_TOKEN=]
       --custom-header <HEADER>
           Custom header(s) to send with requests (format: 'Header-Name: Value', can be used multiple times)
+      --retries <PACT_BROKER_HTTP_RETRIES>
+          The number of times to retry failed HTTP requests to the Pact Broker (retries on 5xx, 408, and 429). Delays use exponential back-off starting at 500 ms and doubling each attempt (0.5 s, 1 s, 2 s, 4 s, 8 s, …). 429 responses honour the Retry-After header when present. [env: PACT_BROKER_HTTP_RETRIES=] [default: 8]
   -c, --ssl-certificate <SSL_CERT_FILE>
           The path to a valid SSL certificate file [env: SSL_CERT_FILE=]
       --skip-ssl-verification
@@ -498,6 +510,8 @@ Options:
           Pact Broker bearer token [env: PACT_BROKER_TOKEN=]
       --custom-header <HEADER>
           Custom header(s) to send with requests (format: 'Header-Name: Value', can be used multiple times)
+      --retries <PACT_BROKER_HTTP_RETRIES>
+          The number of times to retry failed HTTP requests to the Pact Broker (retries on 5xx, 408, and 429). Delays use exponential back-off starting at 500 ms and doubling each attempt (0.5 s, 1 s, 2 s, 4 s, 8 s, …). 429 responses honour the Retry-After header when present. [env: PACT_BROKER_HTTP_RETRIES=] [default: 8]
   -c, --ssl-certificate <SSL_CERT_FILE>
           The path to a valid SSL certificate file [env: SSL_CERT_FILE=]
       --skip-ssl-verification
@@ -548,6 +562,8 @@ Options:
           Pact Broker bearer token [env: PACT_BROKER_TOKEN=]
       --custom-header <HEADER>
           Custom header(s) to send with requests (format: 'Header-Name: Value', can be used multiple times)
+      --retries <PACT_BROKER_HTTP_RETRIES>
+          The number of times to retry failed HTTP requests to the Pact Broker (retries on 5xx, 408, and 429). Delays use exponential back-off starting at 500 ms and doubling each attempt (0.5 s, 1 s, 2 s, 4 s, 8 s, …). 429 responses honour the Retry-After header when present. [env: PACT_BROKER_HTTP_RETRIES=] [default: 8]
   -c, --ssl-certificate <SSL_CERT_FILE>
           The path to a valid SSL certificate file [env: SSL_CERT_FILE=]
       --skip-ssl-verification
@@ -596,6 +612,8 @@ Options:
           Pact Broker bearer token [env: PACT_BROKER_TOKEN=]
       --custom-header <HEADER>
           Custom header(s) to send with requests (format: 'Header-Name: Value', can be used multiple times)
+      --retries <PACT_BROKER_HTTP_RETRIES>
+          The number of times to retry failed HTTP requests to the Pact Broker (retries on 5xx, 408, and 429). Delays use exponential back-off starting at 500 ms and doubling each attempt (0.5 s, 1 s, 2 s, 4 s, 8 s, …). 429 responses honour the Retry-After header when present. [env: PACT_BROKER_HTTP_RETRIES=] [default: 8]
   -c, --ssl-certificate <SSL_CERT_FILE>
           The path to a valid SSL certificate file [env: SSL_CERT_FILE=]
       --skip-ssl-verification
@@ -644,6 +662,8 @@ Options:
           Pact Broker bearer token [env: PACT_BROKER_TOKEN=]
       --custom-header <HEADER>
           Custom header(s) to send with requests (format: 'Header-Name: Value', can be used multiple times)
+      --retries <PACT_BROKER_HTTP_RETRIES>
+          The number of times to retry failed HTTP requests to the Pact Broker (retries on 5xx, 408, and 429). Delays use exponential back-off starting at 500 ms and doubling each attempt (0.5 s, 1 s, 2 s, 4 s, 8 s, …). 429 responses honour the Retry-After header when present. [env: PACT_BROKER_HTTP_RETRIES=] [default: 8]
   -c, --ssl-certificate <SSL_CERT_FILE>
           The path to a valid SSL certificate file [env: SSL_CERT_FILE=]
       --skip-ssl-verification
@@ -702,6 +722,8 @@ Options:
           Pact Broker bearer token [env: PACT_BROKER_TOKEN=]
       --custom-header <HEADER>
           Custom header(s) to send with requests (format: 'Header-Name: Value', can be used multiple times)
+      --retries <PACT_BROKER_HTTP_RETRIES>
+          The number of times to retry failed HTTP requests to the Pact Broker (retries on 5xx, 408, and 429). Delays use exponential back-off starting at 500 ms and doubling each attempt (0.5 s, 1 s, 2 s, 4 s, 8 s, …). 429 responses honour the Retry-After header when present. [env: PACT_BROKER_HTTP_RETRIES=] [default: 8]
   -c, --ssl-certificate <SSL_CERT_FILE>
           The path to a valid SSL certificate file [env: SSL_CERT_FILE=]
       --skip-ssl-verification
@@ -771,6 +793,12 @@ Options:
 
       --custom-header <HEADER>
           Custom header(s) to send with requests (format: 'Header-Name: Value', can be used multiple times)
+
+      --retries <PACT_BROKER_HTTP_RETRIES>
+          The number of times to retry failed HTTP requests to the Pact Broker (retries on 5xx, 408, and 429). Delays use exponential back-off starting at 500 ms and doubling each attempt (0.5 s, 1 s, 2 s, 4 s, 8 s, …). 429 responses honour the Retry-After header when present.
+          
+          [env: PACT_BROKER_HTTP_RETRIES=]
+          [default: 8]
 
   -c, --ssl-certificate <SSL_CERT_FILE>
           The path to a valid SSL certificate file
@@ -866,6 +894,8 @@ Options:
           Pact Broker bearer token [env: PACT_BROKER_TOKEN=]
       --custom-header <HEADER>
           Custom header(s) to send with requests (format: 'Header-Name: Value', can be used multiple times)
+      --retries <PACT_BROKER_HTTP_RETRIES>
+          The number of times to retry failed HTTP requests to the Pact Broker (retries on 5xx, 408, and 429). Delays use exponential back-off starting at 500 ms and doubling each attempt (0.5 s, 1 s, 2 s, 4 s, 8 s, …). 429 responses honour the Retry-After header when present. [env: PACT_BROKER_HTTP_RETRIES=] [default: 8]
   -c, --ssl-certificate <SSL_CERT_FILE>
           The path to a valid SSL certificate file [env: SSL_CERT_FILE=]
       --skip-ssl-verification
@@ -920,6 +950,8 @@ Options:
           Pact Broker bearer token [env: PACT_BROKER_TOKEN=]
       --custom-header <HEADER>
           Custom header(s) to send with requests (format: 'Header-Name: Value', can be used multiple times)
+      --retries <PACT_BROKER_HTTP_RETRIES>
+          The number of times to retry failed HTTP requests to the Pact Broker (retries on 5xx, 408, and 429). Delays use exponential back-off starting at 500 ms and doubling each attempt (0.5 s, 1 s, 2 s, 4 s, 8 s, …). 429 responses honour the Retry-After header when present. [env: PACT_BROKER_HTTP_RETRIES=] [default: 8]
   -c, --ssl-certificate <SSL_CERT_FILE>
           The path to a valid SSL certificate file [env: SSL_CERT_FILE=]
       --skip-ssl-verification
@@ -1071,6 +1103,12 @@ Options:
       --custom-header <HEADER>
           Custom header(s) to send with requests (format: 'Header-Name: Value', can be used multiple times)
 
+      --retries <PACT_BROKER_HTTP_RETRIES>
+          The number of times to retry failed HTTP requests to the Pact Broker (retries on 5xx, 408, and 429). Delays use exponential back-off starting at 500 ms and doubling each attempt (0.5 s, 1 s, 2 s, 4 s, 8 s, …). 429 responses honour the Retry-After header when present.
+          
+          [env: PACT_BROKER_HTTP_RETRIES=]
+          [default: 8]
+
   -c, --ssl-certificate <SSL_CERT_FILE>
           The path to a valid SSL certificate file
           
@@ -1184,6 +1222,8 @@ Options:
           Pact Broker bearer token [env: PACT_BROKER_TOKEN=]
       --custom-header <HEADER>
           Custom header(s) to send with requests (format: 'Header-Name: Value', can be used multiple times)
+      --retries <PACT_BROKER_HTTP_RETRIES>
+          The number of times to retry failed HTTP requests to the Pact Broker (retries on 5xx, 408, and 429). Delays use exponential back-off starting at 500 ms and doubling each attempt (0.5 s, 1 s, 2 s, 4 s, 8 s, …). 429 responses honour the Retry-After header when present. [env: PACT_BROKER_HTTP_RETRIES=] [default: 8]
   -a, --pacticipant <PACTICIPANT>
           The pacticipant name. Use once for each pacticipant being checked. The following options (--version, --latest, --tag, --branch) must come after each --pacticipant.
   -e, --version <VERSION>
@@ -1259,6 +1299,12 @@ Options:
 
       --custom-header <HEADER>
           Custom header(s) to send with requests (format: 'Header-Name: Value', can be used multiple times)
+
+      --retries <PACT_BROKER_HTTP_RETRIES>
+          The number of times to retry failed HTTP requests to the Pact Broker (retries on 5xx, 408, and 429). Delays use exponential back-off starting at 500 ms and doubling each attempt (0.5 s, 1 s, 2 s, 4 s, 8 s, …). 429 responses honour the Retry-After header when present.
+          
+          [env: PACT_BROKER_HTTP_RETRIES=]
+          [default: 8]
 
   -r, --provider <PROVIDER>
           The name of the provider
@@ -1365,6 +1411,8 @@ Options:
           Pact Broker bearer token [env: PACT_BROKER_TOKEN=]
       --custom-header <HEADER>
           Custom header(s) to send with requests (format: 'Header-Name: Value', can be used multiple times)
+      --retries <PACT_BROKER_HTTP_RETRIES>
+          The number of times to retry failed HTTP requests to the Pact Broker (retries on 5xx, 408, and 429). Delays use exponential back-off starting at 500 ms and doubling each attempt (0.5 s, 1 s, 2 s, 4 s, 8 s, …). 429 responses honour the Retry-After header when present. [env: PACT_BROKER_HTTP_RETRIES=] [default: 8]
       --name <NAME>
           Pacticipant name
       --display-name <DISPLAY_NAME>
@@ -1421,6 +1469,8 @@ Options:
           Pact Broker bearer token [env: PACT_BROKER_TOKEN=]
       --custom-header <HEADER>
           Custom header(s) to send with requests (format: 'Header-Name: Value', can be used multiple times)
+      --retries <PACT_BROKER_HTTP_RETRIES>
+          The number of times to retry failed HTTP requests to the Pact Broker (retries on 5xx, 408, and 429). Delays use exponential back-off starting at 500 ms and doubling each attempt (0.5 s, 1 s, 2 s, 4 s, 8 s, …). 429 responses honour the Retry-After header when present. [env: PACT_BROKER_HTTP_RETRIES=] [default: 8]
       --name <NAME>
           Pacticipant name
   -o, --output <OUTPUT>
@@ -1471,6 +1521,8 @@ Options:
           Pact Broker bearer token [env: PACT_BROKER_TOKEN=]
       --custom-header <HEADER>
           Custom header(s) to send with requests (format: 'Header-Name: Value', can be used multiple times)
+      --retries <PACT_BROKER_HTTP_RETRIES>
+          The number of times to retry failed HTTP requests to the Pact Broker (retries on 5xx, 408, and 429). Delays use exponential back-off starting at 500 ms and doubling each attempt (0.5 s, 1 s, 2 s, 4 s, 8 s, …). 429 responses honour the Retry-After header when present. [env: PACT_BROKER_HTTP_RETRIES=] [default: 8]
   -o, --output <OUTPUT>
           Value must be one of ["json", "table"] [default: table] [possible values: json, table]
   -c, --ssl-certificate <SSL_CERT_FILE>
@@ -1556,6 +1608,8 @@ Options:
           Pact Broker bearer token [env: PACT_BROKER_TOKEN=]
       --custom-header <HEADER>
           Custom header(s) to send with requests (format: 'Header-Name: Value', can be used multiple times)
+      --retries <PACT_BROKER_HTTP_RETRIES>
+          The number of times to retry failed HTTP requests to the Pact Broker (retries on 5xx, 408, and 429). Delays use exponential back-off starting at 500 ms and doubling each attempt (0.5 s, 1 s, 2 s, 4 s, 8 s, …). 429 responses honour the Retry-After header when present. [env: PACT_BROKER_HTTP_RETRIES=] [default: 8]
   -c, --ssl-certificate <SSL_CERT_FILE>
           The path to a valid SSL certificate file [env: SSL_CERT_FILE=]
       --skip-ssl-verification
@@ -1610,6 +1664,8 @@ Options:
           Pact Broker bearer token [env: PACT_BROKER_TOKEN=]
       --custom-header <HEADER>
           Custom header(s) to send with requests (format: 'Header-Name: Value', can be used multiple times)
+      --retries <PACT_BROKER_HTTP_RETRIES>
+          The number of times to retry failed HTTP requests to the Pact Broker (retries on 5xx, 408, and 429). Delays use exponential back-off starting at 500 ms and doubling each attempt (0.5 s, 1 s, 2 s, 4 s, 8 s, …). 429 responses honour the Retry-After header when present. [env: PACT_BROKER_HTTP_RETRIES=] [default: 8]
       --uuid <UUID>
           Specify the uuid for the webhook
   -X, --request <METHOD>
@@ -1698,6 +1754,8 @@ Options:
           Pact Broker bearer token [env: PACT_BROKER_TOKEN=]
       --custom-header <HEADER>
           Custom header(s) to send with requests (format: 'Header-Name: Value', can be used multiple times)
+      --retries <PACT_BROKER_HTTP_RETRIES>
+          The number of times to retry failed HTTP requests to the Pact Broker (retries on 5xx, 408, and 429). Delays use exponential back-off starting at 500 ms and doubling each attempt (0.5 s, 1 s, 2 s, 4 s, 8 s, …). 429 responses honour the Retry-After header when present. [env: PACT_BROKER_HTTP_RETRIES=] [default: 8]
   -c, --ssl-certificate <SSL_CERT_FILE>
           The path to a valid SSL certificate file [env: SSL_CERT_FILE=]
       --skip-ssl-verification
@@ -1746,6 +1804,8 @@ Options:
           Pact Broker bearer token [env: PACT_BROKER_TOKEN=]
       --custom-header <HEADER>
           Custom header(s) to send with requests (format: 'Header-Name: Value', can be used multiple times)
+      --retries <PACT_BROKER_HTTP_RETRIES>
+          The number of times to retry failed HTTP requests to the Pact Broker (retries on 5xx, 408, and 429). Delays use exponential back-off starting at 500 ms and doubling each attempt (0.5 s, 1 s, 2 s, 4 s, 8 s, …). 429 responses honour the Retry-After header when present. [env: PACT_BROKER_HTTP_RETRIES=] [default: 8]
   -c, --ssl-certificate <SSL_CERT_FILE>
           The path to a valid SSL certificate file [env: SSL_CERT_FILE=]
       --skip-ssl-verification
@@ -1794,6 +1854,8 @@ Options:
           Pact Broker bearer token [env: PACT_BROKER_TOKEN=]
       --custom-header <HEADER>
           Custom header(s) to send with requests (format: 'Header-Name: Value', can be used multiple times)
+      --retries <PACT_BROKER_HTTP_RETRIES>
+          The number of times to retry failed HTTP requests to the Pact Broker (retries on 5xx, 408, and 429). Delays use exponential back-off starting at 500 ms and doubling each attempt (0.5 s, 1 s, 2 s, 4 s, 8 s, …). 429 responses honour the Retry-After header when present. [env: PACT_BROKER_HTTP_RETRIES=] [default: 8]
       --branch <BRANCH>
           The pacticipant branch name
   -a, --pacticipant <PACTICIPANT>
@@ -1848,6 +1910,8 @@ Options:
           Pact Broker bearer token [env: PACT_BROKER_TOKEN=]
       --custom-header <HEADER>
           Custom header(s) to send with requests (format: 'Header-Name: Value', can be used multiple times)
+      --retries <PACT_BROKER_HTTP_RETRIES>
+          The number of times to retry failed HTTP requests to the Pact Broker (retries on 5xx, 408, and 429). Delays use exponential back-off starting at 500 ms and doubling each attempt (0.5 s, 1 s, 2 s, 4 s, 8 s, …). 429 responses honour the Retry-After header when present. [env: PACT_BROKER_HTTP_RETRIES=] [default: 8]
   -a, --pacticipant <PACTICIPANT>
           The pacticipant name
   -e, --version <VERSION>
@@ -1904,6 +1968,8 @@ Options:
           Pact Broker bearer token [env: PACT_BROKER_TOKEN=]
       --custom-header <HEADER>
           Custom header(s) to send with requests (format: 'Header-Name: Value', can be used multiple times)
+      --retries <PACT_BROKER_HTTP_RETRIES>
+          The number of times to retry failed HTTP requests to the Pact Broker (retries on 5xx, 408, and 429). Delays use exponential back-off starting at 500 ms and doubling each attempt (0.5 s, 1 s, 2 s, 4 s, 8 s, …). 429 responses honour the Retry-After header when present. [env: PACT_BROKER_HTTP_RETRIES=] [default: 8]
   -a, --pacticipant <PACTICIPANT>
           The pacticipant name
   -e, --version <VERSION>
@@ -1958,6 +2024,8 @@ Options:
           Pact Broker bearer token [env: PACT_BROKER_TOKEN=]
       --custom-header <HEADER>
           Custom header(s) to send with requests (format: 'Header-Name: Value', can be used multiple times)
+      --retries <PACT_BROKER_HTTP_RETRIES>
+          The number of times to retry failed HTTP requests to the Pact Broker (retries on 5xx, 408, and 429). Delays use exponential back-off starting at 500 ms and doubling each attempt (0.5 s, 1 s, 2 s, 4 s, 8 s, …). 429 responses honour the Retry-After header when present. [env: PACT_BROKER_HTTP_RETRIES=] [default: 8]
   -a, --pacticipant <PACTICIPANT>
           The name of the pacticipant that the version belongs to
   -e, --version <VERSION>
@@ -2018,6 +2086,8 @@ Options:
           Pact Broker bearer token [env: PACT_BROKER_TOKEN=]
       --custom-header <HEADER>
           Custom header(s) to send with requests (format: 'Header-Name: Value', can be used multiple times)
+      --retries <PACT_BROKER_HTTP_RETRIES>
+          The number of times to retry failed HTTP requests to the Pact Broker (retries on 5xx, 408, and 429). Delays use exponential back-off starting at 500 ms and doubling each attempt (0.5 s, 1 s, 2 s, 4 s, 8 s, …). 429 responses honour the Retry-After header when present. [env: PACT_BROKER_HTTP_RETRIES=] [default: 8]
   -a, --pacticipant <PACTICIPANT>
           The pacticipant name
   -e, --version <VERSION>
@@ -2111,6 +2181,8 @@ Options:
           Pact Broker bearer token [env: PACT_BROKER_TOKEN=]
       --custom-header <HEADER>
           Custom header(s) to send with requests (format: 'Header-Name: Value', can be used multiple times)
+      --retries <PACT_BROKER_HTTP_RETRIES>
+          The number of times to retry failed HTTP requests to the Pact Broker (retries on 5xx, 408, and 429). Delays use exponential back-off starting at 500 ms and doubling each attempt (0.5 s, 1 s, 2 s, 4 s, 8 s, …). 429 responses honour the Retry-After header when present. [env: PACT_BROKER_HTTP_RETRIES=] [default: 8]
       --provider <PROVIDER>
           The provider name
   -a, --provider-app-version <PROVIDER_APP_VERSION>
