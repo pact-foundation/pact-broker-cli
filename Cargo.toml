@@ -68,7 +68,7 @@ httpdate = "1.0"
 [dependencies.reqwest]
 version = "0.13"
 default-features = false
-features = ["rustls-native-certs", "native-tls-vendored", "blocking", "json", "stream"]
+features = ["rustls-native-certs", "native-tls-vendored", "blocking", "json", "stream", "http2"]
 [dependencies.serde_with]
 version = "3.17.0"
 features = ["json"]
