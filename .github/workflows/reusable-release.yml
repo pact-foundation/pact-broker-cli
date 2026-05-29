@@ -43,7 +43,7 @@ jobs:
       - name: "Write changelog"
         if: ${{ inputs.force_release == true || startsWith(github.ref, 'refs/tags/') || github.ref == 'refs/heads/main' }}
         run: echo "${{ inputs.release_notes }}" >> CHANGELOG.md
-      - uses: stefanzweifel/git-auto-commit-action@v4
+      - uses: stefanzweifel/git-auto-commit-action@04702edda442b2e678b25b537cec683a1493fcb9 # v7
         if: ${{ startsWith(github.ref, 'refs/tags/') }}
         with:
           commit_message: "chore(release): v${{ inputs.version }}"
