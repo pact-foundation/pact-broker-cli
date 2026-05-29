@@ -50,17 +50,17 @@ async-trait = "0.1.89"
 http = "1.4.0"
 reqwest-middleware = "0.5"
 reqwest-retry = "0.9"
-reqwest-tracing = { version = "0.7.0", features = ["opentelemetry_0_31"] }
-opentelemetry = "0.31.0"
-opentelemetry-http = "0.31.0"
-opentelemetry_sdk = "0.31.0"
-opentelemetry-stdout = { version = "0.31.0", features = ["trace", "logs"] }
-opentelemetry-otlp = { version = "0.31.0", features = ["trace", "logs", "tls", "tls-roots", "grpc-tonic"] }
-opentelemetry-semantic-conventions = "0.31.0"
-opentelemetry-appender-tracing = "0.31.1"
+reqwest-tracing = { version = "0.7.0", features = ["opentelemetry_0_32"] }
+opentelemetry = "0.32.0"
+opentelemetry-http = "0.32.0"
+opentelemetry_sdk = "0.32.0"
+opentelemetry-stdout = { version = "0.32.0", features = ["trace", "logs"] }
+opentelemetry-otlp = { version = "0.32.0", features = ["trace", "logs", "tls", "tls-roots", "grpc-tonic"] }
+opentelemetry-semantic-conventions = "0.32.0"
+opentelemetry-appender-tracing = "0.32.0"
 tracing = { version= "0.1.44", features = ["std"]}
 tracing-subscriber = { version = "0.3.22", features = ["env-filter","registry", "std", "fmt"] }
-tracing-opentelemetry = "0.32.1"
+tracing-opentelemetry = "0.33.0"
 
 
 httpdate = "1.0"
