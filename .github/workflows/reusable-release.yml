@@ -20,8 +20,8 @@ jobs:
     permissions:
       contents: write
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/download-artifact@main
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+      - uses: actions/download-artifact@484a0b528fb4d7bd804637ccb632e47a0e638317 # main
         with:
           path: dist
           merge-multiple: true
@@ -43,7 +43,7 @@ jobs:
       - name: "Write changelog"
         if: ${{ inputs.force_release == true || startsWith(github.ref, 'refs/tags/') || github.ref == 'refs/heads/main' }}
         run: echo "${{ inputs.release_notes }}" >> CHANGELOG.md
-      - uses: stefanzweifel/git-auto-commit-action@v4
+      - uses: stefanzweifel/git-auto-commit-action@3ea6ae190baf489ba007f7c92608f33ce20ef04a # v4
         if: ${{ startsWith(github.ref, 'refs/tags/') }}
         with:
           commit_message: "chore(release): v${{ inputs.version }}"
@@ -60,7 +60,7 @@ jobs:
           dev_tag: vlatest
       - name: Publish archives and packages
         if: ${{ github.ref == 'refs/heads/main' }}
-        uses: softprops/action-gh-release@v2.5.0
+        uses: softprops/action-gh-release@a06a81a03ee405af7f2048a818ed3f03bbf83c7b # v2.5.0
         with:
           tag_name: ${{ env.dev_tag }}
           name: 'Release ${{ env.dev_tag }}'
@@ -74,7 +74,7 @@ jobs:
           dev_tag: vlatest
       - name: Publish archives and packages
         if: ${{ inputs.force_release == true || startsWith(github.ref, 'refs/tags/') }}
-        uses: softprops/action-gh-release@v2.5.0
+        uses: softprops/action-gh-release@a06a81a03ee405af7f2048a818ed3f03bbf83c7b # v2.5.0
         with:
           tag_name: v${{ inputs.version }}
           name: 'Release v${{ inputs.version }}'

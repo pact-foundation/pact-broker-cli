@@ -26,8 +26,8 @@ jobs:
         #     shell: cmd
       fail-fast: false
     steps:
-    - uses: actions/checkout@v6 # required for local pact and test command script
-    - uses: you54f/pact-broker-in-a-box@main
+    - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6 # required for local pact and test command script
+    - uses: you54f/pact-broker-in-a-box@32b14f7a159719ef997e651d02e393349ed553ab # main
     - uses: ./
  
     - name: Show help commands

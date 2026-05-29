@@ -75,15 +75,15 @@ features = ["json"]
 
 
 [dev-dependencies]
-expectest = "0.12.0"
-trycmd = "1.0.0"
-pact_consumer = "~1.4.2"
-test-log = { version = "0.2.15", features = ["trace"] }
-pretty_assertions = "1.4.0"
-axum = "0.8"
+expectest = "=0.12.0"
+trycmd = "=1.0.0"
+pact_consumer = "=1.4.2"
+test-log = { version = "=0.2.15", features = ["trace"] }
+pretty_assertions = "=1.4.0"
+axum = "=0.8.8"
 
 [dev-dependencies.tokio]
-version = "1"
+version = "=1.49.0"
 features = ["net", "macros", "rt-multi-thread"]
 
 [profile.release]

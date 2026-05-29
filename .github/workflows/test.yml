@@ -65,14 +65,14 @@ jobs:
       version: ${{ steps.get_next_version.outputs.version }}
       hasNextVersion: ${{ steps.get_next_version.outputs.hasNextVersion }}
     steps:
-    - uses: actions/checkout@v6
+    - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
       with:
         lfs: true
         fetch-depth: 0
         # ref: ${{ github.event.pull_request.head.sha }}
     - name: Get next version
       id: get_next_version
-      uses: thenativeweb/get-next-version@main
+      uses: thenativeweb/get-next-version@6513a490030687e58d737bcf146691a4a04e3d0b # main
     - name: print
       env:
         VERSION: ${{ steps.get_next_version.outputs.version }}
@@ -91,12 +91,12 @@ jobs:
       content: ${{steps.git-cliff.outputs.content}}
       release_body: ${{ steps.git-cliff-changes.outputs.content }}
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
         with:
           lfs: true
           fetch-depth: 0
       - name: Generate a changelog
-        uses: orhun/git-cliff-action@v4
+        uses: orhun/git-cliff-action@f50e11560dce63f7c33227798f90b924471a88b5 # v4
         id: git-cliff
         with:
           config: cliff.toml
@@ -108,7 +108,7 @@ jobs:
           CONTENT: ${{ steps.git-cliff.outputs.content }}
         run: echo "${CONTENT}"
       - name: Generate a changelog
-        uses: orhun/git-cliff-action@v4
+        uses: orhun/git-cliff-action@f50e11560dce63f7c33227798f90b924471a88b5 # v4
         id: git-cliff-changes
         with:
           config: cliff.toml
@@ -179,7 +179,7 @@ jobs:
       PACTICIPANT: "pact-broker-cli"
       BRANCH: master
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
       - uses: ./
       - run: |
           pact-broker-cli can-i-deploy \
@@ -198,7 +198,7 @@ jobs:
     env: 
       PACTICIPANT: "pact-broker-cli"
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
       - uses: ./
       - run: |
           pact-broker-cli record-deployment \
@@ -217,7 +217,7 @@ jobs:
     if: ${{ startsWith(github.ref, 'refs/tags/') || github.ref == 'refs/heads/main' }}
     permissions:
       contents: write
-    uses: pact-foundation/pact-broker-cli/.github/workflows/reusable-release.yml@main
+    uses: pact-foundation/pact-broker-cli/.github/workflows/reusable-release.yml@ace1b70c72924ce46aa18256ffd2beef6aac0da0 # main
     with:
       version: ${{ needs.version.outputs.version }}
       release_notes: ${{ needs.changelog.outputs.release_body }}
@@ -228,7 +228,7 @@ jobs:
     if: ${{ inputs.force_release == true }}
     permissions:
       contents: write
-    uses: pact-foundation/pact-broker-cli/.github/workflows/reusable-release.yml@main
+    uses: pact-foundation/pact-broker-cli/.github/workflows/reusable-release.yml@ace1b70c72924ce46aa18256ffd2beef6aac0da0 # main
     with:
       version: ${{ needs.version.outputs.version }}
       release_notes: ${{ needs.changelog.outputs.release_body }}
