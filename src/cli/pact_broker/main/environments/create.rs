@@ -176,7 +176,7 @@ mod create_environment_tests {
                         .json_body(json_pattern!({
                           "_links": {
                             "pb:environments": {
-                                "href": term!("http:\\/\\/.*","http://localhost/environments"),
+                                "href": term!("http:\\/\\/[^/]+\\/environments","http://localhost/environments"),
                             }
                           }
                         }));

@@ -226,7 +226,7 @@ mod record_undeployment_tests {
                     .json_body(json_pattern!({
                         "_links": {
                             "pb:environments": {
-                                "href": term!("http:\\/\\/.*","http://localhost/environments"),
+                                "href": term!("http:\\/\\/[^/]+\\/environments","http://localhost/environments"),
                             }
                         }
                     }));
@@ -274,7 +274,7 @@ mod record_undeployment_tests {
                     .json_body(json_pattern!({
                         "_links": {
                             "pb:currently-deployed-deployed-versions": {
-                                "href": term!("http:\\/\\/.*",format!("http://localhost/environments/{}/deployed-versions/currently-deployed", environment_uuid)),
+                                "href": term!("http:\\/\\/[^/]+\\/environments\\/[^/]+\\/deployed-versions\\/currently-deployed",format!("http://localhost/environments/{}/deployed-versions/currently-deployed", environment_uuid)),
                             }
                         }
                     }))
@@ -305,7 +305,7 @@ mod record_undeployment_tests {
                                         "applicationInstance": application_instance,
                                         "_links": {
                                             "self": {
-                                                "href": term!("http:\\/\\/.*",format!("http://localhost/deployed-versions/{}", deployed_version_id))
+                                                "href": term!("http:\\/\\/[^/]+\\/deployed-versions\\/[^/]+",format!("http://localhost/deployed-versions/{}", deployed_version_id))
                                             }
                                         },
                                         "_embedded": {
@@ -313,7 +313,7 @@ mod record_undeployment_tests {
                                                 "name": pacticipant_name,
                                                 "_links": {
                                                     "self": {
-                                                        "href": term!("http:\\/\\/.*",format!("http://localhost/deployed-versions/{}", deployed_version_id)),
+                                                        "href": term!("http:\\/\\/[^/]+\\/deployed-versions\\/[^/]+",format!("http://localhost/deployed-versions/{}", deployed_version_id)),
 
                                                     }
                                                 },

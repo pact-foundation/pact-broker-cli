@@ -158,7 +158,7 @@ mod record_release_tests {
                             "pb:record-release": [
                                 {
                                     "name": environment_name,
-                                    "href": term!("http:\\/\\/.*", format!("http://localhost{}", record_release_path))
+                                    "href": term!("http:\\/\\/[^/]+\\/pacticipants\\/[^/]+\\/versions\\/[^/]+\\/released-versions\\/environment\\/[^/]+", format!("http://localhost{}", record_release_path))
                                 }
                             ]
                         }

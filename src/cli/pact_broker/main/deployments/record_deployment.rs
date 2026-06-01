@@ -155,7 +155,7 @@ mod record_deployment_tests {
                             "pb:record-deployment": [
                                 {
                                     "name": environment_name,
-                                    "href": term!("http:\\/\\/.*", format!("http://localhost{}", record_deployment_path))
+                                    "href": term!("http:\\/\\/[^/]+\\/pacticipants\\/[^/]+\\/versions\\/[^/]+\\/deployed-versions\\/environment\\/[^/]+", format!("http://localhost{}", record_deployment_path))
                                 }
                             ]
                         }
@@ -240,7 +240,7 @@ mod record_deployment_tests {
                             "pb:record-deployment": [
                                 {
                                     "name": environment_name,
-                                    "href": term!("http:\\/\\/.*", format!("http://localhost{}", record_deployment_path))
+                                    "href": term!("http:\\/\\/[^/]+\\/pacticipants\\/[^/]+\\/versions\\/[^/]+\\/deployed-versions\\/environment\\/[^/]+", format!("http://localhost{}", record_deployment_path))
                                 }
                             ]
                         }

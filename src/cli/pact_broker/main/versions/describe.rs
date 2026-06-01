@@ -372,13 +372,13 @@ mod describe_version_tests {
                     .json_body(json_pattern!({
                         "_links": {
                             "pb:pacticipant-version": {
-                                "href": term!("http:\\/\\/.*",format!("http://localhost{}",version_path)),
+                                "href": term!("http:\\/\\/[^/]+\\/pacticipants\\/[^/]+\\/versions\\/[^/]+",format!("http://localhost{}",version_path)),
                             },
                             "pb:latest-version": {
-                                "href": term!("http:\\/\\/.*",format!("http://localhost{}",version_path)),
+                                "href": term!("http:\\/\\/[^/]+\\/pacticipants\\/[^/]+\\/latest-version",format!("http://localhost/pacticipants/{}/latest-version",pacticipant_name)),
                             },
                             "pb:latest-tagged-version": {
-                                "href": term!("http:\\/\\/.*",format!("http://localhost{}",version_path)),
+                                "href": term!("http:\\/\\/[^/]+\\/pacticipants\\/[^/]+\\/latest-version\\/[^/]+",format!("http://localhost/pacticipants/{}/latest-version/{}",pacticipant_name,tag_name)),
                             }
                         }
                     }));
@@ -463,13 +463,13 @@ mod describe_version_tests {
                     .json_body(json_pattern!({
                         "_links": {
                             "pb:pacticipant-version": {
-                                "href": term!("http:\\/\\/.*",format!("http://localhost{}",version_path)),
+                                "href": term!("http:\\/\\/[^/]+\\/pacticipants\\/[^/]+\\/versions\\/[^/]+",format!("http://localhost{}",version_path)),
                             },
                             "pb:latest-version": {
-                                "href": term!("http:\\/\\/.*",format!("http://localhost{}",version_path)),
+                                "href": term!("http:\\/\\/[^/]+\\/pacticipants\\/[^/]+\\/latest-version",format!("http://localhost/pacticipants/{}/latest-version",pacticipant_name)),
                             },
                             "pb:latest-tagged-version": {
-                                "href": term!("http:\\/\\/.*",format!("http://localhost{}",version_path)),
+                                "href": term!("http:\\/\\/[^/]+\\/pacticipants\\/[^/]+\\/latest-version\\/[^/]+",format!("http://localhost/pacticipants/{}/latest-version/prod",pacticipant_name)),
                             }
                         }
                     }));
@@ -552,13 +552,13 @@ mod describe_version_tests {
                     .json_body(json_pattern!({
                         "_links": {
                             "pb:pacticipant-version": {
-                                "href": term!("http:\\/\\/.*",format!("http://localhost{}",version_path)),
+                                "href": term!("http:\\/\\/[^/]+\\/pacticipants\\/[^/]+\\/versions\\/[^/]+",format!("http://localhost{}",version_path)),
                             },
                             "pb:latest-version": {
-                                "href": term!("http:\\/\\/.*",format!("http://localhost{}",version_path)),
+                                "href": term!("http:\\/\\/[^/]+\\/pacticipants\\/[^/]+\\/latest-version",format!("http://localhost/pacticipants/{}/latest-version",pacticipant_name)),
                             },
                             "pb:latest-tagged-version": {
-                                "href": term!("http:\\/\\/.*",format!("http://localhost{}",version_path)),
+                                "href": term!("http:\\/\\/[^/]+\\/pacticipants\\/[^/]+\\/latest-version\\/[^/]+",format!("http://localhost/pacticipants/{}/latest-version/prod",pacticipant_name)),
                             }
                         }
                     }));

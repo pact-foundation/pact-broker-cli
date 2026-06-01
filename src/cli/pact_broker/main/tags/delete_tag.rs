@@ -133,7 +133,7 @@ mod delete_version_tag_tests {
                     .json_body(json_pattern!({
                         "_links": {
                             "pb:pacticipant": {
-                                "href": term!("http:\\/\\/.*\\{pacticipant\\}","http://localhost/pacticipants/{pacticipant}"),
+                                "href": term!("http:\\/\\/[^/]+\\/pacticipants\\/[^/]+","http://localhost/pacticipants/{pacticipant}"),
                                 "title": like!("Fetch pacticipant by name"),
                                 "templated": true
                             }
@@ -154,7 +154,7 @@ mod delete_version_tag_tests {
                     .json_body(json_pattern!({
                         "_links": {
                             "pb:version-tag": {
-                                "href": term!("http:\\/\\/.*\\{pacticipants\\}.*\\{versions\\}.*\\{tags\\}.*","http://localhost/pacticipants/{pacticipant}/versions/{version}/tags/{tag}"),
+                                "href": term!("http:\\/\\/[^/]+\\/pacticipants\\/[^/]+\\/versions\\/[^/]+\\/tags\\/[^/]+","http://localhost/pacticipants/{pacticipant}/versions/{version}/tags/{tag}"),
                                 "title": like!("Get, create or delete tag"),
                                 "templated": true
                             }
@@ -214,7 +214,7 @@ mod delete_version_tag_tests {
                     .json_body(json_pattern!({
                         "_links": {
                             "pb:pacticipant": {
-                                "href": term!("http:\\/\\/.*\\{pacticipant\\}","http://localhost/pacticipants/{pacticipant}"),
+                                "href": term!("http:\\/\\/[^/]+\\/pacticipants\\/[^/]+","http://localhost/pacticipants/{pacticipant}"),
                                 "title": like!("Fetch pacticipant by name"),
                                 "templated": true
                             }
@@ -235,7 +235,7 @@ mod delete_version_tag_tests {
                     .json_body(json_pattern!({
                         "_links": {
                             "pb:version-tag": {
-                                "href": term!("http:\\/\\/.*\\/pacticipants\\/.*\\/versions\\/\\{version\\}\\/tags\\/\\{tag\\}","http://localhost/pacticipants/{pacticipant}/versions/{version}/tags/{tag}"),
+                                "href": term!("http:\\/\\/[^/]+\\/pacticipants\\/[^/]+\\/versions\\/[^/]+\\/tags\\/[^/]+","http://localhost/pacticipants/{pacticipant}/versions/{version}/tags/{tag}"),
                                 "title": like!("Get, create or delete tag"),
                                 "templated": true
                             }
