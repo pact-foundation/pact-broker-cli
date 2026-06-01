@@ -45,7 +45,9 @@ pub fn describe_version(args: &clap::ArgMatches) -> Result<String, PactBrokerErr
         );
     }
 
-    let pb_relation_href = if latest.is_some() {
+    let pb_relation_href = if version.is_some() {
+        "pb:pacticipant-version".to_string()
+    } else if latest.is_some() {
         "pb:latest-tagged-version".to_string()
     } else {
         "pb:latest-version".to_string()
@@ -464,12 +466,6 @@ mod describe_version_tests {
                         "_links": {
                             "pb:pacticipant-version": {
                                 "href": term!("http:\\/\\/[^/]+\\/pacticipants\\/[^/]+\\/versions\\/[^/]+",format!("http://localhost{}",version_path)),
-                            },
-                            "pb:latest-version": {
-                                "href": term!("http:\\/\\/[^/]+\\/pacticipants\\/[^/]+\\/latest-version",format!("http://localhost/pacticipants/{}/latest-version",pacticipant_name)),
-                            },
-                            "pb:latest-tagged-version": {
-                                "href": term!("http:\\/\\/[^/]+\\/pacticipants\\/[^/]+\\/latest-version\\/[^/]+",format!("http://localhost/pacticipants/{}/latest-version/prod",pacticipant_name)),
                             }
                         }
                     }));
@@ -553,12 +549,6 @@ mod describe_version_tests {
                         "_links": {
                             "pb:pacticipant-version": {
                                 "href": term!("http:\\/\\/[^/]+\\/pacticipants\\/[^/]+\\/versions\\/[^/]+",format!("http://localhost{}",version_path)),
-                            },
-                            "pb:latest-version": {
-                                "href": term!("http:\\/\\/[^/]+\\/pacticipants\\/[^/]+\\/latest-version",format!("http://localhost/pacticipants/{}/latest-version",pacticipant_name)),
-                            },
-                            "pb:latest-tagged-version": {
-                                "href": term!("http:\\/\\/[^/]+\\/pacticipants\\/[^/]+\\/latest-version\\/[^/]+",format!("http://localhost/pacticipants/{}/latest-version/prod",pacticipant_name)),
                             }
                         }
                     }));
