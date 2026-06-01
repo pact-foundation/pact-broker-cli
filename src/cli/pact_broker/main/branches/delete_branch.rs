@@ -105,7 +105,7 @@ mod delete_branch_tests {
                         json_pattern!({
                         "_links": {
                             "pb:pacticipant-branch": {
-                            "href": term!("http:\\/\\/.*\\{pacticipant\\}.*\\{branch\\}","http://localhost:55926/pacticipants/{pacticipant}/branches/{branch}"),
+                            "href": term!("http:\\/\\/[^/]+\\/pacticipants\\/[^/]+\\/branches\\/[^/]+","http://localhost:55926/pacticipants/{pacticipant}/branches/{branch}"),
                             "title": "Get or delete a pacticipant branch",
                             "templated": true
                             }

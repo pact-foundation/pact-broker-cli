@@ -149,7 +149,7 @@ mod list_pacticipants_tests {
                 .json_body(json_pattern!({
                     "_links": {
                         "pb:pacticipants": {
-                            "href": term!("http:\\/\\/.*/pacticipants", "http://localhost/pacticipants")
+                            "href": term!("http:\\/\\/[^/]+\\/pacticipants", "http://localhost/pacticipants")
                         }
                     }
                 }));

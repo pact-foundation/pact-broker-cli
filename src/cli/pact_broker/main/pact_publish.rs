@@ -855,7 +855,7 @@ mod publish_contracts_tests {
                     .json_body(json_pattern!({
                         "_links": {
                             "pb:publish-contracts": {
-                                "href": term!("http:\\/\\/.*\\/contracts\\/publish", "http://localhost:1234/contracts/publish"),
+                                "href": term!("http:\\/\\/[^/]+\\/contracts\\/publish", "http://localhost:1234/contracts/publish"),
                                 "title": "Publish contracts",
                                 "templated": false
                             }

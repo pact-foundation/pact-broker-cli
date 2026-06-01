@@ -166,7 +166,7 @@ mod lists_latest_pact_versions_tests {
                     .json_body(json_pattern!({
                         "_links": {
                             "pb:latest-pact-versions": {
-                                "href": term!("http:\\/\\/.*","http://localhost/pacts/latest"),
+                                "href": term!("http:\\/\\/[^/]+\\/pacts\\/latest","http://localhost/pacts/latest"),
                             }
                         }
                     }));

@@ -228,7 +228,7 @@ mod record_support_ended_tests {
                     .json_body(json_pattern!({
                         "_links": {
                             "pb:environments": {
-                                "href": term!("http:\\/\\/.*","http://localhost/environments"),
+                                "href": term!("http:\\/\\/[^/]+\\/environments","http://localhost/environments"),
                             }
                         }
                     }));
@@ -276,7 +276,7 @@ mod record_support_ended_tests {
                     .json_body(json_pattern!({
                         "_links": {
                             "pb:currently-supported-released-versions": {
-                                "href": term!("http:\\/\\/.*",format!("http://localhost/environments/{}/released-versions/currently-supported", environment_uuid)),
+                                "href": term!("http:\\/\\/[^/]+\\/environments\\/[^/]+\\/released-versions\\/currently-supported",format!("http://localhost/environments/{}/released-versions/currently-supported", environment_uuid)),
                             }
                         }
                     }))
@@ -303,7 +303,7 @@ mod record_support_ended_tests {
                                     {
                                         "_links": {
                                             "self": {
-                                                "href": term!("http:\\/\\/.*",format!("http://localhost/released-versions/{}", released_version_id))
+                                                "href": term!("http:\\/\\/[^/]+\\/released-versions\\/[^/]+",format!("http://localhost/released-versions/{}", released_version_id))
                                             }
                                         },
                                         "_embedded": {
@@ -311,7 +311,7 @@ mod record_support_ended_tests {
                                                 "name": pacticipant_name,
                                                 "_links": {
                                                     "self": {
-                                                        "href": term!("http:\\/\\/.*",format!("http://localhost/released-versions/{}", released_version_id)),
+                                                        "href": term!("http:\\/\\/[^/]+\\/released-versions\\/[^/]+",format!("http://localhost/released-versions/{}", released_version_id)),
                                                     }
                                                 },
                                             },

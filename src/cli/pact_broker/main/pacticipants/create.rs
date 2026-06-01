@@ -190,10 +190,10 @@ mod create_or_update_pacticipant_tests {
                 .json_body(json_pattern!({
                     "_links": {
                         "pb:pacticipants": {
-                            "href": term!("http:\\/\\/.*", "http://localhost/pacticipants")
+                            "href": term!("http:\\/\\/[^/]+\\/pacticipants", "http://localhost/pacticipants")
                         },
                         "pb:pacticipant": {
-                            "href": term!("http:\\/\\/.*/pacticipants/\\{pacticipant\\}", "http://localhost/pacticipants/{pacticipant}")
+                            "href": term!("http:\\/\\/[^/]+\\/pacticipants\\/[^/]+", "http://localhost/pacticipants/{pacticipant}")
                         }
                     }
                 }));
@@ -228,7 +228,7 @@ mod create_or_update_pacticipant_tests {
                     "repositoryUrl": repository_url,
                     "_links": {
                         "self": {
-                            "href": term!( "http://.*","http://localhost/pacticipants/Condor")
+                            "href": term!( "http:\\/\\/[^/]+\\/pacticipants\\/[^/]+","http://localhost/pacticipants/Condor")
                         }
                     }
                 }));
@@ -288,10 +288,10 @@ mod create_or_update_pacticipant_tests {
                 .json_body(json_pattern!({
                     "_links": {
                         "pb:pacticipants": {
-                            "href": term!( "http://.*", "http://localhost/pacticipants")
+                            "href": term!( "http:\\/\\/[^/]+\\/pacticipants", "http://localhost/pacticipants")
                         },
                         "pb:pacticipant": {
-                            "href": term!("http:\\/\\/.*/pacticipants/\\{pacticipant\\}", "http://localhost/pacticipants/{pacticipant}")
+                            "href": term!("http:\\/\\/[^/]+\\/pacticipants\\/[^/]+", "http://localhost/pacticipants/{pacticipant}")
                         }
                     }
                 }));
@@ -312,7 +312,7 @@ mod create_or_update_pacticipant_tests {
                 .json_body(json_pattern!({
                     "_links": {
                         "self": {
-                            "href": term!("http:\\/\\/.*", "http://localhost/pacticipants/Foo")
+                            "href": term!("http:\\/\\/[^/]+\\/pacticipants\\/[^/]+", "http://localhost/pacticipants/Foo")
                         }
                     }
                 }));
@@ -336,7 +336,7 @@ mod create_or_update_pacticipant_tests {
                     "repositoryUrl": repository_url,
                     "_links": {
                         "self": {
-                            "href": term!("http:\\/\\/.*", "http://localhost/pacticipants/Foo")
+                            "href": term!("http:\\/\\/[^/]+\\/pacticipants\\/[^/]+", "http://localhost/pacticipants/Foo")
                         }
                     }
                 }));

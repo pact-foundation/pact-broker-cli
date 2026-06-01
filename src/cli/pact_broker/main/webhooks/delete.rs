@@ -122,7 +122,7 @@ mod delete_webhook_tests {
                 .json_body(json_pattern!({
                 "_links": {
                     "pb:webhook": {
-                    "href": term!("http:\\/\\/.*\\/webhooks\\/.*", "http://localhost/webhooks/{uuid}")
+                    "href": term!("http:\\/\\/[^/]+\\/webhooks\\/[^/]+", "http://localhost/webhooks/{uuid}")
                     }
                 }
                 }));
@@ -149,7 +149,7 @@ mod delete_webhook_tests {
                     "description": like!("an example webhook"),
                     "_links": {
                         "self": {
-                            "href": term!("http:\\/\\/.*\\/webhooks\\/.*", "http://localhost/webhooks/{uuid}")
+                            "href": term!("http:\\/\\/[^/]+\\/webhooks\\/[^/]+", "http://localhost/webhooks/{uuid}")
                         }
                     }
                 }));

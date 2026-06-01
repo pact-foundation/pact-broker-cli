@@ -129,7 +129,7 @@ mod create_version_tag_tests {
             json_pattern!({
                 "_links": {
                     "self": {
-                        "href": term!(r"http:\/\/.*(pacticipants).*(versions).*(tags).*","http://localhost:1234/pacticipants/Condor/versions/1.3.0/tags/prod"),
+                        "href": term!("http:\\/\\/[^/]+\\/pacticipants\\/[^/]+\\/versions\\/[^/]+\\/tags\\/[^/]+","http://localhost:1234/pacticipants/Condor/versions/1.3.0/tags/prod"),
                     }
                 }
             }),

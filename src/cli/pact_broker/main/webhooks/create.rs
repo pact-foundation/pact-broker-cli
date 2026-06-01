@@ -285,16 +285,16 @@ mod create_webhook_tests {
                 .json_body(json_pattern!({
                 "_links": {
                     "pb:webhooks": {
-                    "href": term!("http:\\/\\/.*\\/webhooks", "http://localhost/webhooks")
+                    "href": term!("http:\\/\\/[^/]+\\/webhooks", "http://localhost/webhooks")
                     },
                     "pb:webhook": {
-                    "href": term!("http:\\/\\/.*\\/webhooks\\/.*", "http://localhost/webhooks/{uuid}")
+                    "href": term!("http:\\/\\/[^/]+\\/webhooks\\/[^/]+", "http://localhost/webhooks/{uuid}")
                     },
                     "pb:pacticipants": {
-                    "href": term!("http:\\/\\/.*\\/pacticipants", "http://localhost/pacticipants")
+                    "href": term!("http:\\/\\/[^/]+\\/pacticipants", "http://localhost/pacticipants")
                     },
                     "pb:pacticipant": {
-                    "href": term!("http:\\/\\/.*\\/pacticipants\\/\\{pacticipant\\}", "http://localhost/pacticipants/{pacticipant}")
+                    "href": term!("http:\\/\\/[^/]+\\/pacticipants\\/[^/]+", "http://localhost/pacticipants/{pacticipant}")
                     }
                 }
                 }));
@@ -316,16 +316,16 @@ mod create_webhook_tests {
                 .json_body(json_pattern!({
                 "_links": {
                     "pb:webhooks": {
-                    "href": term!("http:\\/\\/.*\\/webhooks", "http://localhost/webhooks")
+                    "href": term!("http:\\/\\/[^/]+\\/webhooks", "http://localhost/webhooks")
                     },
                     "pb:webhook": {
-                    "href": term!("http:\\/\\/.*\\/webhooks\\/.*", "http://localhost/webhooks/{uuid}")
+                    "href": term!("http:\\/\\/[^/]+\\/webhooks\\/[^/]+", "http://localhost/webhooks/{uuid}")
                     },
                     "pb:pacticipants": {
-                    "href": term!("http:\\/\\/.*\\/pacticipants", "http://localhost/pacticipants")
+                    "href": term!("http:\\/\\/[^/]+\\/pacticipants", "http://localhost/pacticipants")
                     },
                     "pb:pacticipant": {
-                    "href": term!("http:\\/\\/.*\\/pacticipants\\/\\{pacticipant\\}", "http://localhost/pacticipants/{pacticipant}")
+                    "href": term!("http:\\/\\/[^/]+\\/pacticipants\\/[^/]+", "http://localhost/pacticipants/{pacticipant}")
                     }
                 }
                 }));
@@ -811,7 +811,7 @@ mod create_webhook_tests {
                 .json_body(json_pattern!({
                     "_links": {
                         "self": {
-                            "href": term!("http:\\/\\/.*\\/webhooks\\/.*", format!("http://localhost/webhooks/{}", uuid)),
+                            "href": term!("http:\\/\\/[^/]+\\/webhooks\\/[^/]+", format!("http://localhost/webhooks/{}", uuid)),
                         },
                     }}));
             i
@@ -904,7 +904,7 @@ mod create_webhook_tests {
                 .json_body(json_pattern!({
                     "_links": {
                         "self": {
-                            "href": term!("http:\\/\\/.*\\/webhooks\\/.*", format!("http://localhost/webhooks/{}", uuid)),
+                            "href": term!("http:\\/\\/[^/]+\\/webhooks\\/[^/]+", format!("http://localhost/webhooks/{}", uuid)),
                         },
                     }}));
             i
