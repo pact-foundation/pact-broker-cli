@@ -1,242 +1,139 @@
-name: Test and Release
+---
+name: Test
+
+permissions:
+  contents: read
 
 on:
   pull_request:
     branches:
-      - 'main'
+      - main
+    types:
+      - opened
+      - synchronize
+      - reopened
+      - ready_for_review
   push:
     branches:
-      - 'main'
-    tags:
-      - 'v*'
-      - '!vlatest'
-  workflow_dispatch:
-    inputs:
-      target:
-        description: 'Target platform'
-        required: true
-        default: 'x86_64-apple-darwin'
-        type: choice
-        options:
-            - 'x86_64-apple-darwin'
-            - 'x86_64-unknown-linux-gnu'
-            - 'x86_64-unknown-linux-musl'
-            - 'x86_64-unknown-netbsd'
-            - 'x86_64-unknown-freebsd'
-            - 'x86_64-pc-windows-msvc'
-            - 'x86_64-pc-windows-gnu'
-            - 'aarch64-apple-darwin'
-            - 'aarch64-unknown-linux-musl'
-            - 'aarch64-unknown-linux-gnu'
-            - 'aarch64-unknown-freebsd'
-            - 'aarch64-pc-windows-msvc'
+      - main
 
-      slim:
-        description: 'Enable slim mode'
-        required: true
-        default: false
-        type: boolean
-      use-cross:
-        description: 'Enable cross-compilation'
-        required: true
-        default: false
-        type: boolean
-      version:
-        description: 'The version of the pact cli to release as'
-        default: 'latest'
-      force_release:
-        description: 'force release for target from branch other than main'
-        required: true
-        default: false
-        type: boolean
-      os:
-        description: 'Operating system'
-        required: true
-        default: 'macos-14'
-        type: choice
-        options: ['ubuntu-latest', 'macos-12', 'macos-14', 'windows-latest']
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+env:
+  RUST_BACKTRACE: '1'
+  FORCE_COLOR: '1'
+  CARGO_TERM_COLOR: always
 
 jobs:
-
-  version:
-    name: "🧮 Compute the version"
+  complete:
+    name: Test completion check
+    if: always()
     runs-on: ubuntu-latest
-    outputs:
-      version: ${{ steps.get_next_version.outputs.version }}
-      hasNextVersion: ${{ steps.get_next_version.outputs.hasNextVersion }}
-    steps:
-    - uses: actions/checkout@v6
-      with:
-        lfs: true
-        fetch-depth: 0
-        # ref: ${{ github.event.pull_request.head.sha }}
-    - name: Get next version
-      id: get_next_version
-      uses: thenativeweb/get-next-version@main
-    - name: print
-      env:
-        VERSION: ${{ steps.get_next_version.outputs.version }}
-        HAS_NEXT_VERSION: ${{ steps.get_next_version.outputs.hasNextVersion }}
-      run: |
-        echo "version: ${VERSION}"
-        echo "has_next_version: ${HAS_NEXT_VERSION}"
-
-  changelog:
-    # if: needs.version.outputs.hasNextVersion == 'true'
     needs:
-      - version
-    name: ✍️ Generate changelog
-    runs-on: ubuntu-latest
-    outputs:
-      content: ${{steps.git-cliff.outputs.content}}
-      release_body: ${{ steps.git-cliff-changes.outputs.content }}
+      - format
+      - lint
+      - test
     steps:
-      - uses: actions/checkout@v6
-        with:
-          lfs: true
-          fetch-depth: 0
-      - name: Generate a changelog
-        uses: orhun/git-cliff-action@v4
-        id: git-cliff
-        with:
-          config: cliff.toml
-          args: --verbose
-        env:
-          OUTPUT: CHANGELOG.md
-      - name: Print the changelog
-        env:
-          CONTENT: ${{ steps.git-cliff.outputs.content }}
-        run: echo "${CONTENT}"
-      - name: Generate a changelog
-        uses: orhun/git-cliff-action@v4
-        id: git-cliff-changes
-        with:
-          config: cliff.toml
-          args: -vv --latest --strip header
-        env:
-          OUTPUT: CHANGES.md
-      - name: Print the changelog
-        env:
-          CONTENT: ${{ steps.git-cliff-changes.outputs.content }}
-        run: echo "${CONTENT}"
+      - name: Failed
+        run: exit 1
+        if: |
+          contains(needs.*.result, 'failure') ||
+          contains(needs.*.result, 'skipped') ||
+          contains(needs.*.result, 'cancelled')
 
-  build-single:
-    needs: [version, changelog]
-    if: ${{ github.event_name == 'workflow_dispatch' }}
-    uses: ./.github/workflows/reusable-build.yml
-    with:
-      target: ${{ github.event.inputs.target }}
-      os: ${{ github.event.inputs.os }}
-      use-cross: ${{ github.event.inputs.use-cross == 'true'}}
-      slim: ${{ github.event.inputs.slim == 'true' }}
-      # force_release: ${{ github.event.inputs.force_release == 'true' }}
-      version: ${{ needs.version.outputs.version }}
-    name: '🛠️ Build binaries'
-    permissions:
-      contents: write
+  format:
+    name: Format
+    if: >
+      github.event_name == 'push' ||
+      github.event.pull_request.draft == false
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd  # v6.0.2
+      - uses: actions-rust-lang/setup-rust-toolchain@46268bd060767258de96ed93c1251119784f2ab6  # v1.16.1
+        with:
+          components: rustfmt
+      - name: Check formatting
+        run: cargo fmt --check
 
-  build:
-    needs: [version, changelog]
-    if: ${{ github.event_name != 'workflow_dispatch' }}
-    name: '🛠️ Build binaries'
-    # uses: pact-foundation/pact-broker-cli/.github/workflows/reusable-build.yml@main
-    uses: ./.github/workflows/reusable-build.yml
-    with:
-      target: ${{ matrix.job.target }}
-      os: ${{ matrix.job.os }}
-      use-cross: ${{ matrix.job.use-cross }}
-      slim: false
-      version: ${{ needs.version.outputs.version }}
-      broker_url: ${{ vars.PACT_BROKER_BASE_URL }}
-      # force_release: false
-      # release_notes: ${{ needs.changelog.outputs.release_body }}
-    secrets:
-      broker_token: ${{ secrets.PACTFLOW_PACT_OSS_TOKEN }}
-    # permissions:
-    #   contents: write
+  lint:
+    name: Lint
+    if: >
+      github.event_name == 'push' ||
+      github.event.pull_request.draft == false
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd  # v6.0.2
+      - uses: actions-rust-lang/setup-rust-toolchain@46268bd060767258de96ed93c1251119784f2ab6  # v1.16.1
+        with:
+          components: clippy
+      - name: Run Clippy
+        run: cargo clippy -- -D warnings
+
+  test:
+    name: Test (${{ matrix.os }})
+    if: >
+      github.event_name == 'push' ||
+      github.event.pull_request.draft == false
+    runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
       matrix:
-        job:
-          - { target: x86_64-apple-darwin, os: macos-14, use-cross: false }
-          - { target: x86_64-unknown-linux-gnu, os: ubuntu-latest, use-cross: true }
-          - { target: x86_64-unknown-linux-musl, os: ubuntu-latest, use-cross: true }
-          - { target: x86_64-unknown-netbsd, os: ubuntu-latest, use-cross: true }
-          - { target: x86_64-unknown-freebsd, os: ubuntu-latest, use-cross: true }
-          - { target: x86_64-pc-windows-msvc, os: windows-latest, use-cross: false }
-          - { target: x86_64-pc-windows-gnu, os: windows-latest, use-cross: false }
-          - { target: aarch64-apple-darwin, os: macos-14, use-cross: false }
-          - { target: aarch64-unknown-linux-musl, os: ubuntu-latest, use-cross: true }
-          - { target: aarch64-unknown-linux-gnu, os: ubuntu-latest, use-cross: true }
-          - { target: aarch64-unknown-freebsd, os: ubuntu-latest, use-cross: true }
-          - { target: aarch64-pc-windows-msvc, os: windows-latest, use-cross: false }
+        os: [ubuntu-latest, macos-latest, windows-latest]
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd  # v6.0.2
+      - uses: actions-rust-lang/setup-rust-toolchain@46268bd060767258de96ed93c1251119784f2ab6  # v1.16.1
+      - uses: taiki-e/install-action@7a79fe8c3a13344501c80d99cae481c1c9085912  # 2.81.10
+        with:
+          tool: cargo-nextest
+      - name: Run tests
+        run: cargo nextest run
+      - name: Upload Pacts
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a  # v7.0.1
+        with:
+          name: pacts-${{ matrix.os }}
+          path: target/pacts
+      - name: Start Pact Broker
+        if: runner.os != 'Windows'
+        uses: you54f/pact-broker-in-a-box@main
+      - name: Run CLI integration test
+        if: runner.os != 'Windows'
+        run: ./run.sh
+        env:
+          PACT_BROKER_BASE_URL: http://localhost:9292
+          BIN: ./target/debug/pact-broker-cli
 
-  pact-can-i-deploy:
-    needs: build
-    name: "🔍 Can I deploy?"
+  pactflow:
+    name: PactFlow
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     env:
-      PACTICIPANT: "pact-broker-cli"
-      BRANCH: master
+      PACTICIPANT: pact-broker-cli
     steps:
-      - uses: actions/download-artifact@main
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd  # v6.0.2
+      - uses: actions-rust-lang/setup-rust-toolchain@46268bd060767258de96ed93c1251119784f2ab6  # v1.16.1
+      - name: Download Pacts
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c  # v8.0.1
         with:
-          name: x86_64-unknown-linux-gnu
-          path: dist
-      - name: Install binary
+          name: pacts-ubuntu-latest
+      - name: Build CLI
+        run: cargo build
+      - name: Publish pacts to PactFlow
         run: |
-          chmod +x dist/pact-broker-cli-x86_64-linux-gnu
-          ln -s pact-broker-cli-x86_64-linux-gnu dist/pact-broker-cli
-          echo "$PWD/dist" >> $GITHUB_PATH
-      - run: |
-          pact-broker-cli can-i-deploy \
-            --pacticipant ${PACTICIPANT} --version ${GITHUB_SHA} \
-            --pacticipant "Pact Broker" --branch master \
-            --retry-while-unknown 30 --retry-interval 10
+          ./target/release/pact-broker-cli publish target/pacts \
+            --consumer-app-version "${GITHUB_SHA}" \
+            --branch "${GITHUB_REF_NAME}"
         env:
           PACT_BROKER_BASE_URL: ${{ vars.PACT_BROKER_BASE_URL }}
           PACT_BROKER_TOKEN: ${{ secrets.PACTFLOW_PACT_OSS_TOKEN }}
-
-  pact-record-release:
-    needs: [version, pact-can-i-deploy, release]
-    if: ${{ startsWith(github.ref, 'refs/tags/') }}
-    name: "📝 Record release in Pact Broker"
-    runs-on: ubuntu-latest
-    env: 
-      PACTICIPANT: "pact-broker-cli"
-    steps:
-      - uses: actions/checkout@v6
-      - uses: ./
-      - run: |
-          pact-broker-cli record-deployment \
-            --pacticipant ${PACTICIPANT} \
-            --version ${GITHUB_SHA} \
-            --application-instance v${VERSION} \
-            --environment production
+      - name: Can I deploy?
+        run: |
+          ./target/release/pact-broker-cli can-i-deploy \
+            --pacticipant "${PACTICIPANT}" \
+            --version "${GITHUB_SHA}" \
+            --pacticipant "Pact Broker" \
+            --branch master
         env:
           PACT_BROKER_BASE_URL: ${{ vars.PACT_BROKER_BASE_URL }}
           PACT_BROKER_TOKEN: ${{ secrets.PACTFLOW_PACT_OSS_TOKEN }}
-          VERSION: ${{ needs.version.outputs.version }}
-
-  release:
-    needs: ["build", changelog, version ]
-    name: '📦 Github release'
-    if: ${{ startsWith(github.ref, 'refs/tags/') || github.ref == 'refs/heads/main' }}
-    permissions:
-      contents: write
-    uses: pact-foundation/pact-broker-cli/.github/workflows/reusable-release.yml@main
-    with:
-      version: ${{ needs.version.outputs.version }}
-      release_notes: ${{ needs.changelog.outputs.release_body }}
-
-  release-single:
-    needs: ["build-single", changelog, version]
-    name: '📦 Github release - single'
-    if: ${{ inputs.force_release == true }}
-    permissions:
-      contents: write
-    uses: pact-foundation/pact-broker-cli/.github/workflows/reusable-release.yml@main
-    with:
-      version: ${{ needs.version.outputs.version }}
-      release_notes: ${{ needs.changelog.outputs.release_body }}
-      force_release: ${{ github.event.inputs.force_release == 'true' }}
