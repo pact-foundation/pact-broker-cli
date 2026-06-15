@@ -1,0 +1,29 @@
+name: Post-Release
+
+permissions:
+  contents: read
+
+on:
+  release:
+    types:
+      - published
+
+jobs:
+  record-deploy:
+    name: Record deployment in PactFlow
+    runs-on: ubuntu-latest
+    env:
+      PACTICIPANT: pact-broker-cli
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd  # v6.0.2
+      - uses: ./
+      - name: Record deployment
+        run: |
+          pact-broker-cli record-deployment \
+            --pacticipant "${PACTICIPANT}" \
+            --version "${GITHUB_SHA}" \
+            --application-instance ${{ github.event.release.tag_name }} \
+            --environment production
+        env:
+          PACT_BROKER_BASE_URL: ${{ vars.PACT_BROKER_BASE_URL }}
+          PACT_BROKER_TOKEN: ${{ secrets.PACTFLOW_PACT_OSS_TOKEN }}
