@@ -1,3 +1,5 @@
+#:tombi toml-version = "v1.0.0"
+
 [package]
 name = "pact-broker-cli"
 version = "0.7.1"
@@ -60,26 +62,25 @@ mime = "0.3"
 opentelemetry = "0.32"
 opentelemetry-appender-tracing = "0.32"
 opentelemetry-http = "0.32"
-opentelemetry-otlp = {
-  version = "0.32",
-  features = ["grpc-tonic", "logs", "tls", "tls-roots", "trace"]
-}
+opentelemetry-otlp = { version = "0.32", features = [
+  "grpc-tonic",
+  "logs",
+  "tls",
+  "tls-roots",
+  "trace"
+] }
 opentelemetry_sdk = "0.32"
 opentelemetry-stdout = { version = "0.32", features = ["logs", "trace"] }
 pact_models = "1"
 regex = "1"
-reqwest = {
-  version = "0.13",
-  default-features = false,
-  features = [
-    "blocking",
-    "http2",
-    "json",
-    "native-tls-vendored",
-    "rustls-native-certs",
-    "stream"
-  ]
-}
+reqwest = { version = "0.13", default-features = false, features = [
+  "blocking",
+  "http2",
+  "json",
+  "native-tls-vendored",
+  "rustls-native-certs",
+  "stream"
+] }
 reqwest-middleware = "0.5"
 reqwest-retry = "0.9"
 reqwest-tracing = { version = "0.7", features = ["opentelemetry_0_32"] }
@@ -90,10 +91,12 @@ thiserror = "2"
 tokio = { version = "1", features = ["rt-multi-thread"] }
 tracing = { version = "0.1", features = ["std"] }
 tracing-opentelemetry = "0.33"
-tracing-subscriber = {
-  version = "0.3",
-  features = ["env-filter", "fmt", "registry", "std"]
-}
+tracing-subscriber = { version = "0.3", features = [
+  "env-filter",
+  "fmt",
+  "registry",
+  "std"
+] }
 url = "2"
 urlencoding = "2"
 uuid = { version = "1", features = ["v4"] }
