@@ -2,24 +2,69 @@ name: pact-broker-cli
 description: A CLI client for the Pact Broker. Publish/retrieve pacts and verification results.
 inputs:
   version:
-    description: 'The version of the pact-broker-cli to install. Defaults to vlatest.'
+    description: >-
+      Deprecated. Pin the version via the action ref instead:
+      uses: pact-foundation/pact-broker-cli@vX.Y.Z
     required: false
-    default: 'vlatest'
+    default: ''
+    deprecationMessage: >-
+      The 'version' input is deprecated. Pin the version via the action ref instead:
+      uses: pact-foundation/pact-broker-cli@vX.Y.Z
 
 runs:
   using: "composite"
   steps:
-  # https://docs.github.com/en/actions/sharing-automations/creating-actions/metadata-syntax-for-github-actions#runsstepsrun
-    - run: $GITHUB_ACTION_PATH/install.sh
-      env:
-        PACT_BROKER_CLI_VERSION: ${{ inputs.version }}
-      if: runner.os != 'windows'
+    - name: Install pact-broker-cli (Unix)
+      if: runner.os != 'Windows'
       shell: bash
-    - run: . "$env:GITHUB_ACTION_PATH\install.ps1"
-      if: runner.os == 'windows'
-      shell: powershell
-    - name: add to path if windows
-      if: runner.os == 'windows'
+      run: |
+        EXPLICIT_VERSION="${{ inputs.version }}"
+        ACTION_REF="${{ github.action_ref }}"
+
+        if [ -n "$EXPLICIT_VERSION" ] && [ "$EXPLICIT_VERSION" != "vlatest" ]; then
+          RESOLVED_VERSION="$EXPLICIT_VERSION"
+        elif echo "$ACTION_REF" | grep -qE '^v[0-9]+\.[0-9]+\.[0-9]'; then
+          RESOLVED_VERSION="$ACTION_REF"
+        else
+          RESOLVED_VERSION=""
+        fi
+
+        if [ -z "$RESOLVED_VERSION" ]; then
+          URL="https://github.com/pact-foundation/pact-broker-cli/releases/latest/download/pact-broker-cli-installer.sh"
+        else
+          URL="https://github.com/pact-foundation/pact-broker-cli/releases/download/${RESOLVED_VERSION}/pact-broker-cli-installer.sh"
+        fi
+        curl --proto '=https' --tlsv1.2 -LsSf "$URL" | sh
+
+    - name: Install pact-broker-cli (Windows)
+      if: runner.os == 'Windows'
       shell: powershell
       run: |
-        "$pwd" >> $env:GITHUB_PATH
+        $explicitVersion = "${{ inputs.version }}"
+        $actionRef = "${{ github.action_ref }}"
+
+        if (-not [string]::IsNullOrEmpty($explicitVersion) -and $explicitVersion -ne "vlatest") {
+          $resolvedVersion = $explicitVersion
+        } elseif ($actionRef -match '^v\d+\.\d+\.\d+') {
+          $resolvedVersion = $actionRef
+        } else {
+          $resolvedVersion = ""
+        }
+
+        if ([string]::IsNullOrEmpty($resolvedVersion)) {
+          $url = "https://github.com/pact-foundation/pact-broker-cli/releases/latest/download/pact-broker-cli-installer.ps1"
+        } else {
+          $url = "https://github.com/pact-foundation/pact-broker-cli/releases/download/$resolvedVersion/pact-broker-cli-installer.ps1"
+        }
+        irm $url | iex
+
+    - name: Add pact bin to PATH (Unix)
+      if: runner.os != 'Windows'
+      shell: bash
+      run: echo "$HOME/.pact/bin" >> "$GITHUB_PATH"
+
+    - name: Add pact bin to PATH (Windows)
+      if: runner.os == 'Windows'
+      shell: powershell
+      run: |
+        Add-Content -Path $env:GITHUB_PATH -Value "$env:USERPROFILE\.pact\bin"
