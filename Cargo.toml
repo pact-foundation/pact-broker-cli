@@ -24,7 +24,8 @@ cargo-dist-version = "0.32.0"
 ci = "github"
 targets = [
   "aarch64-apple-darwin",
-  "aarch64-pc-windows-msvc",
+  # Waiting for https://github.com/briansmith/ring/pull/2803 to be released
+  # "aarch64-pc-windows-msvc",
   "aarch64-unknown-linux-gnu",
   "aarch64-unknown-linux-musl",
   "x86_64-apple-darwin",
@@ -34,6 +35,7 @@ targets = [
 ]
 bin-aliases = { pact-broker-cli = ["pact-broker"] }
 install-path = "~/.pact/bin"
+# pr-run-mode = "upload"  # Uncomment to run full builds on PRs
 
 [lib]
 name = "pact_broker_cli"
