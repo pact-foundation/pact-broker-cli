@@ -1,3 +1,30 @@
+# Changelog
+
+All notable changes to this project will be documented in this file.
+
+## [0.8.0] _2026-06-16_
+
+### 🎨 Styling
+
+-   Format
+-   Format
+
+### 🧪 Testing
+
+-   Run publish provider contract tests on all platforms
+
+### 🛠️ Miscellaneous Tasks
+
+-   Bootstrap cargo-dist for multi-platform binary builds
+-   _(lint)_ Address clippy pattern warnings
+-   _(lint)_ Fix never-looping for loop in record_support_ended
+-   _(lint)_ Apply auto-fixable clippy suggestions
+-   _(lint)_ Eliminate dead code warnings from binary by exporting build_cli via lib
+-   _(lint)_ Remove unused imports and prefix unused variables with _
+-   _(lint)_ Resolve all remaining clippy warnings
+-   _(lint)_ Remove unused variables and parameters rather than suppressing with _
+-   _(ci)_ Tweak dist install location and alias
+
 ## [0.5.0] - 2025-10-30
 
 ### Features
