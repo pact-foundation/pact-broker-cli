@@ -151,9 +151,9 @@ mod describe_pacticipant_tests {
         let pacticipant_name = "Foo";
         let repository_url = "http://foo";
         let created_at = "2024-01-01T00:00:00Z";
-        let updated_at = "2024-01-02T00:00:00Z";
+        let _updated_at = "2024-01-02T00:00:00Z";
         let display_name = "Foo Service";
-        let main_branch = "main";
+        let _main_branch = "main";
 
         // Index resource with pb:pacticipant relation
         let index_interaction = |mut i: InteractionBuilder| {

@@ -85,7 +85,7 @@ mod delete_webhook_tests {
     use pact_consumer::builders::InteractionBuilder;
     use pact_consumer::prelude::*;
     use pact_models::PactSpecification;
-    use serde_json::json;
+    
 
     fn setup_mock_server(interactions: Vec<InteractionBuilder>) -> Box<dyn ValidatingMockServer> {
         let config = MockServerConfig {

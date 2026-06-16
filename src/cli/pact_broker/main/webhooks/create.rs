@@ -298,7 +298,7 @@ mod create_webhook_tests {
         }
     }
     fn index_interaction_with_webhook_relation(
-        uuid: &String,
+        _uuid: &String,
     ) -> impl Fn(InteractionBuilder) -> InteractionBuilder {
         |mut i: InteractionBuilder| {
             i.request

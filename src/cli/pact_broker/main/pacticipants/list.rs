@@ -104,7 +104,7 @@ mod list_pacticipants_tests {
 
     use pact_consumer::builders::InteractionBuilder;
     use pact_consumer::prelude::*;
-    use pact_models::{PactSpecification, pact};
+    use pact_models::PactSpecification;
 
     fn setup_mock_server(interactions: Vec<InteractionBuilder>) -> Box<dyn ValidatingMockServer> {
         let config = MockServerConfig {
