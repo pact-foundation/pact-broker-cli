@@ -8,6 +8,7 @@ use std::collections::HashMap;
 use std::fs;
 use std::path::Path;
 
+#[allow(clippy::too_many_arguments)]
 pub fn get_pacts(
     broker_details: &BrokerDetails,
     provider: &str,

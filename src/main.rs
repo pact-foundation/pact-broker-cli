@@ -21,9 +21,8 @@ pub fn handle_matches(
         std::env::args().skip(1).collect()
     };
     match matches {
-        Ok(results) => match results.subcommand() {
-            _ => {
-                let (
+        Ok(results) => {
+            let (
                     enable_otel,
                     enable_otel_logs,
                     enable_otel_traces,
@@ -84,7 +83,6 @@ pub fn handle_matches(
                         Err(error) => Err(ExitCode::from(error as u8)),
                     },
                 }
-            }
         },
         Err(err) => match err.kind() {
             ErrorKind::DisplayHelp => {
