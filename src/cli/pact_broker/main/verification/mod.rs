@@ -31,10 +31,10 @@ impl VerificationResult {
 }
 
 impl VerificationResult {
-    pub fn new(source: &String, results: Vec<PactFileVerificationResult>) -> Self {
+    pub fn new(source: &str, results: Vec<PactFileVerificationResult>) -> Self {
         VerificationResult {
-            source: source.clone(),
-            results: results.clone(),
+            source: source.to_string(),
+            results,
         }
     }
 }
@@ -71,7 +71,7 @@ pub fn verify_json(
     }
 }
 
-pub fn display_results(result: &Vec<VerificationResult>, output_type: &str) -> anyhow::Result<()> {
+pub fn display_results(result: &[VerificationResult], output_type: &str) -> anyhow::Result<()> {
     if output_type == "json" {
         generate_json_output(result)
     } else {
@@ -79,7 +79,7 @@ pub fn display_results(result: &Vec<VerificationResult>, output_type: &str) -> a
     }
 }
 
-fn display_output(results: &Vec<VerificationResult>) -> anyhow::Result<()> {
+fn display_output(results: &[VerificationResult]) -> anyhow::Result<()> {
     let overall_result = results.iter().fold(ResultLevel::NOTICE, |acc, result| {
         result
             .results
@@ -166,7 +166,7 @@ fn display_output(results: &Vec<VerificationResult>) -> anyhow::Result<()> {
     Ok(())
 }
 
-fn generate_json_output(results: &Vec<VerificationResult>) -> anyhow::Result<()> {
+fn generate_json_output(results: &[VerificationResult]) -> anyhow::Result<()> {
     match serde_json::to_string_pretty(&results) {
         Ok(json) => {
             println!("{}", json);

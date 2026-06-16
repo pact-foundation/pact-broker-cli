@@ -174,7 +174,7 @@ fn describe_version_by_environment(
         // Query endpoints based on flags
         let mut all_versions = Vec::new();
 
-        if deployed_only || (!deployed_only && !released_only) {
+        if deployed_only || !released_only {
             // Get currently deployed versions
             let deployed_path = format!(
                 "/environments/{}/deployed-versions/currently-deployed",
@@ -192,7 +192,7 @@ fn describe_version_by_environment(
             }
         }
 
-        if released_only || (!deployed_only && !released_only) {
+        if released_only || !deployed_only {
             // Get currently supported released versions
             let released_path = format!(
                 "/environments/{}/released-versions/currently-supported",

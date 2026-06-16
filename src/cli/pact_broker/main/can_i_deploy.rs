@@ -288,10 +288,10 @@ pub fn can_i_deploy(
                     }
                 }
             }
-            if selector.branch.is_some() {
+            if let Some(branch) = &selector.branch {
                 matrix_href_path.push_str(&format!(
                     "q[][branch]={}&",
-                    urlencoding::encode(selector.branch.as_ref().unwrap())
+                    urlencoding::encode(branch)
                 ));
             }
             for tag in &selector.tags {
