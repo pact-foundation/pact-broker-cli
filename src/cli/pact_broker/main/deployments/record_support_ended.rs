@@ -66,9 +66,9 @@ pub fn record_support_ended(args: &clap::ArgMatches) -> Result<String, PactBroke
                                 .iter()
                                 .map(|env| serde_json::from_value(env.clone()).unwrap())
                                 .collect();
-                            let environment_exists = environments.iter().any(|env| env.name == environment.clone().unwrap().to_string());
+                            let environment_exists = environments.iter().any(|env| env.name == *environment.unwrap());
                             if environment_exists {
-                                let environment_uuid = &environments.iter().find(|env| env.name == environment.clone().unwrap().to_string()).unwrap().uuid;
+                                let environment_uuid = &environments.iter().find(|env| env.name == *environment.unwrap()).unwrap().uuid;
                                 // Use environment_uuid in step 3
 
                                 // 3. Call the environment link and check the specified version exists, get the version link
@@ -95,25 +95,20 @@ pub fn record_support_ended(args: &clap::ArgMatches) -> Result<String, PactBroke
                                             // print!("Result JSON: {:#?}", result);
                                             if let Some(embedded) = result["_embedded"].as_object() {
                                                 if let Some(released_versions) = embedded["releasedVersions"].as_array() {
-                                                    if released_versions.len() == 0 {
+                                                    if released_versions.is_empty() {
                                                         let message = format!("❌ No currently released versions found for {} in {} environment", pacticipant.unwrap(), environment.unwrap());
-                                                        println!("{}", message.clone());
+                                                        println!("{}", message);
                                                         return Err(PactBrokerError::NotFound(message));
                                                     }
                                                     for released_version in released_versions {
                                                         let pacticipant_name = released_version["_embedded"]["pacticipant"]["name"].as_str().unwrap();
                                                         if pacticipant_name == pacticipant.unwrap() && version.unwrap() == released_version["_embedded"]["version"]["number"].as_str().unwrap() {
                                                             let self_href = released_version["_links"]["self"]["href"].as_str().unwrap();
-                                                            // Send a patch request with the user's payload to selfHref
-                                                            // print!("🧹 Undeploying {} from {} environment", pacticipant.unwrap(), environment.unwrap());
-                                                            // print!("🧹 Sending a patch request to {}", self_href);
                                                             let mut payload = json!({});
                                                             payload["currentlySupported"] = serde_json::Value::Bool(false);
-                                                            // let pacticipant_query = format!("?pacticipant={}", urlencoding::encode(pacticipant.unwrap()));
-                                                            let res = hal_client.clone().patch_json(self_href, &payload.to_string(),None).await;
+                                                            let res = hal_client.clone().patch_json(self_href, &payload.to_string(), None).await;
                                                             match res {
                                                                 Ok(_value) => {
-                                                                    // Handle success
                                                                     let message = format!(
                                                                         "Recorded support ended for application {}, version {} from {} environment",
                                                                         utils::GREEN.apply_to(pacticipant.unwrap()),
@@ -125,23 +120,20 @@ pub fn record_support_ended(args: &clap::ArgMatches) -> Result<String, PactBroke
                                                                 }
                                                                 Err(err) => return Err(err),
                                                             }
-                                                        } else {
-                                                            let message = format!("❌ No currently released versions found for {} in {} environment", pacticipant.unwrap(), environment.unwrap());
-                                                            println!("{}", utils::RED.apply_to(message.clone()));
-                                                            return Err(PactBrokerError::NotFound(message));
                                                         }
                                                     }
-                                                    return Ok("".to_string());
+                                                    let message = format!("❌ No currently released versions found for {} in {} environment", pacticipant.unwrap(), environment.unwrap());
+                                                    println!("{}", utils::RED.apply_to(message.clone()));
+                                                    return Err(PactBrokerError::NotFound(message));
                                                 } else {
-                                                    let message = format!("❌ No currently released versions found for {} in {} environment", pacticipant.unwrap(), environment.unwrap());  
+                                                    let message = format!("❌ No currently released versions found for {} in {} environment", pacticipant.unwrap(), environment.unwrap());
                                                     println!("{}", utils::RED.apply_to(message.clone()));
                                                     return Err(PactBrokerError::NotFound(message));
                                                 }
-                                                }
-                                            else {
-                                                let message = format!("❌ Could not process hal relation link");
-                                                println!("{}", utils::RED.apply_to(message.clone()));
-                                                return Err(PactBrokerError::NotFound(message));
+                                            } else {
+                                                let message = "❌ Could not process hal relation link";
+                                                println!("{}", utils::RED.apply_to(message));
+                                                return Err(PactBrokerError::NotFound(message.to_string()));
                                             }
                                         }
                                         Err(err) => return Err(err),
