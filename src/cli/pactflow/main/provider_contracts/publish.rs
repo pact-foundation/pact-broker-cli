@@ -28,20 +28,7 @@ struct ProviderContractPublishRoot {
 #[derive(Default, Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 struct Embedded {
-    // pacticipant: Pacticipant,
     version: Version,
-}
-
-#[derive(Default, Debug, Clone, PartialEq, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
-struct Pacticipant {
-    name: String,
-}
-
-#[derive(Default, Debug, Clone, PartialEq, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
-struct SelfField {
-    href: String,
 }
 
 #[derive(Default, Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -53,38 +40,8 @@ struct Version {
 #[derive(Default, Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 struct Links {
-    // #[serde(rename = "pb:pacticipant")]
-    // pb_pacticipant: PbPacticipant,
-    // #[serde(rename = "pb:pacticipant-version")]
-    // pb_pacticipant_version: PbPacticipantVersion,
     #[serde(rename = "pb:pacticipant-version-tags")]
     pb_pacticipant_version_tags: Vec<Value>,
-    // #[serde(rename = "pf:provider-contract")]
-    // pf_provider_contract: PfProviderContract,
-}
-
-#[derive(Default, Debug, Clone, PartialEq, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
-struct PbPacticipant {
-    href: String,
-    name: String,
-    title: String,
-}
-
-#[derive(Default, Debug, Clone, PartialEq, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
-struct PbPacticipantVersion {
-    href: String,
-    name: String,
-    title: String,
-}
-
-#[derive(Default, Debug, Clone, PartialEq, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
-struct PfProviderContract {
-    href: String,
-    name: String,
-    title: String,
 }
 
 pub fn publish(args: &ArgMatches) -> Result<Value, PactBrokerError> {

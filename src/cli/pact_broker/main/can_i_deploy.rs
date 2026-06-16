@@ -56,7 +56,7 @@ struct VerificationLinks {
     #[serde(rename = "self")]
     self_link: Option<VerificationHref>,
     #[serde(rename = "pfi:ui")]
-    pfi_ui: Option<VerificationHref>,
+    _pfi_ui: Option<VerificationHref>,
 }
 
 #[derive(Debug, serde::Deserialize)]

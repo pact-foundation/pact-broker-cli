@@ -127,6 +127,7 @@ pub fn describe_version(args: &clap::ArgMatches) -> Result<String, PactBrokerErr
 }
 
 /// Describe versions deployed/released to a specific environment
+#[allow(clippy::too_many_arguments)]
 fn describe_version_by_environment(
     broker_url: &str,
     auth: &HttpAuth,

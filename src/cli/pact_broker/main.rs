@@ -112,17 +112,10 @@ fn content_type(response: &reqwest::Response) -> String {
 
 fn json_content_type(response: &reqwest::Response) -> bool {
     match content_type(response).parse::<mime::Mime>() {
-        Ok(mime) => {
-            match (
-                mime.type_().as_str(),
-                mime.subtype().as_str(),
-                mime.suffix(),
-            ) {
-                ("application", "json", None) => true,
-                ("application", "hal", Some(mime::JSON)) => true,
-                _ => false,
-            }
-        }
+        Ok(mime) => matches!(
+            (mime.type_().as_str(), mime.subtype().as_str(), mime.suffix()),
+            ("application", "json", None) | ("application", "hal", Some(mime::JSON))
+        ),
         Err(_) => false,
     }
 }
@@ -918,16 +911,6 @@ impl HALClient {
         }
     }
 
-    fn with_doc_context(self, doc_attributes: &[Link]) -> Result<HALClient, PactBrokerError> {
-        let links: serde_json::Map<String, serde_json::Value> = doc_attributes
-            .iter()
-            .map(|link| (link.name.clone(), link.as_json()))
-            .collect();
-        let links_json = json!({
-          "_links": json!(links)
-        });
-        Ok(self.update_path_info(links_json))
-    }
 }
 
 fn handle_validation_errors(body: Value) -> PactBrokerError {
@@ -1184,6 +1167,7 @@ pub async fn fetch_pacts_from_broker(
 }
 
 /// Fetch Pacts from the broker using the "provider-pacts-for-verification" endpoint
+#[allow(clippy::too_many_arguments)]
 pub async fn fetch_pacts_dynamically_from_broker(
     broker_url: &str,
     provider_name: String,
@@ -1361,86 +1345,6 @@ pub async fn fetch_pact_from_url(
     Ok((pact, links))
 }
 
-async fn publish_provider_tags(
-    hal_client: &HALClient,
-    links: &[Link],
-    provider_tags: Vec<String>,
-    version: &str,
-    headers: Option<HashMap<String, String>>,
-) -> Result<(), PactBrokerError> {
-    let hal_client = hal_client
-        .clone()
-        .with_doc_context(links)?
-        .navigate("pb:provider", &hashmap! {})
-        .await?;
-    match hal_client.find_link("pb:version-tag") {
-        Ok(link) => {
-            for tag in &provider_tags {
-                let template_values = hashmap! {
-                  "version".to_string() => version.to_string(),
-                  "tag".to_string() => tag.clone()
-                };
-                match hal_client
-                    .clone()
-                    .put_json(
-                        hal_client
-                            .clone()
-                            .parse_link_url(&link, &template_values)?
-                            .as_str(),
-                        "{}",
-                        headers.clone(),
-                    )
-                    .await
-                {
-                    Ok(_) => debug!("Pushed tag {} for provider version {}", tag, version),
-                    Err(err) => {
-                        error!(
-                            "Failed to push tag {} for provider version {}",
-                            tag, version
-                        );
-                        return Err(err);
-                    }
-                }
-            }
-            Ok(())
-        }
-        Err(_) => Err(PactBrokerError::LinkError(
-            "Can't publish provider tags as there is no 'pb:version-tag' link".to_string(),
-        )),
-    }
-}
-
-async fn publish_provider_branch(
-    hal_client: &HALClient,
-    links: &[Link],
-    branch: &str,
-    version: &str,
-    headers: Option<HashMap<String, String>>,
-) -> Result<(), PactBrokerError> {
-    let hal_client = hal_client
-        .clone()
-        .with_doc_context(links)?
-        .navigate("pb:provider", &hashmap! {})
-        .await?;
-
-    match hal_client.find_link("pb:branch-version") {
-    Ok(link) => {
-      let template_values = hashmap! {
-        "branch".to_string() => branch.to_string(),
-        "version".to_string() => version.to_string(),
-      };
-      match hal_client.clone().put_json(hal_client.clone().parse_link_url(&link, &template_values)?.as_str(), "{}",headers).await {
-        Ok(_) => debug!("Pushed branch {} for provider version {}", branch, version),
-        Err(err) => {
-          error!("Failed to push branch {} for provider version {}", branch, version);
-          return Err(err);
-        }
-      }
-      Ok(())
-    },
-    Err(_) => Err(PactBrokerError::LinkError("Can't publish provider branch as there is no 'pb:branch-version' link. Please ugrade to Pact Broker version 2.86.0 or later for branch support".to_string()))
-  }
-}
 
 #[skip_serializing_none]
 #[derive(Serialize, Deserialize, Debug, Clone)]

@@ -11,8 +11,7 @@ use clap::ArgMatches;
 use log::*;
 
 use glob::glob;
-use pact_models::http_utils::HttpAuth;
-use pact_models::{http_utils, pact};
+use pact_models::pact;
 use serde::{Deserialize, Serialize};
 use serde_json::{Value, json};
 
@@ -223,6 +222,7 @@ fn merge_interactions_or_messages(
     Ok(())
 }
 
+/// Validate pact files passed on the command line and return verification results.
 pub fn handle_matches(args: &ArgMatches) -> Result<Vec<VerificationResult>, i32> {
     if !args.get_flag("validate") {
         return Ok(vec![]);
@@ -255,6 +255,7 @@ pub fn handle_matches(args: &ArgMatches) -> Result<Vec<VerificationResult>, i32>
     }
 }
 
+/// Publish pact files from the command-line arguments to the configured broker.
 pub fn publish_pacts(args: &ArgMatches) -> Result<Value, i32> {
     let files: Result<Vec<(String, Value)>, anyhow::Error> = load_files(args);
     if files.is_err() {
@@ -547,6 +548,7 @@ pub fn publish_pacts(args: &ArgMatches) -> Result<Value, i32> {
     }
 }
 
+/// Load pact files specified by the command-line arguments into memory.
 pub fn load_files(args: &ArgMatches) -> anyhow::Result<Vec<(String, Value)>> {
     let mut collected: Vec<(String, anyhow::Result<Value>)> = Vec::new();
 
@@ -686,28 +688,12 @@ pub fn load_files(args: &ArgMatches) -> anyhow::Result<Vec<(String, Value)>> {
     }
 }
 
-fn fetch_pact(url: &str, args: &ArgMatches) -> anyhow::Result<(String, Value)> {
-    let auth = if args.contains_id("user") {
-        args.get_one::<String>("password").map(|user| {
-            HttpAuth::User(
-                user.to_string(),
-                args.get_one::<String>("password").map(|p| p.to_string()),
-            )
-        })
-    } else if args.contains_id("token") {
-        args.get_one::<String>("token")
-            .map(|token| HttpAuth::Token(token.to_string()))
-    } else {
-        None
-    };
-    http_utils::fetch_json_from_url(&url.to_string(), &auth)
-}
-
 fn load_file(file_name: &str) -> anyhow::Result<Value> {
     let file = File::open(file_name)?;
     serde_json::from_reader(file).context("file is not JSON")
 }
 
+/// Load all pact files from a directory recursively.
 pub fn load_files_from_dir(dir: &str) -> anyhow::Result<Vec<(String, Value)>> {
     let mut sources: Vec<(String, anyhow::Result<Value>)> = vec![];
 
