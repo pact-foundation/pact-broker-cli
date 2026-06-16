@@ -22,6 +22,7 @@ include = [
 [workspace.metadata.dist]
 cargo-dist-version = "0.32.0"
 ci = "github"
+installers = ["shell", "powershell"]
 targets = [
   "aarch64-apple-darwin",
   # Waiting for https://github.com/briansmith/ring/pull/2803 to be released
