@@ -1,121 +1,92 @@
 # Pact Broker Client
 
+[![Test and Release](https://github.com/pact-foundation/pact-broker-cli/actions/workflows/test.yml/badge.svg)](https://github.com/pact-foundation/pact-broker-cli/actions/workflows/test.yml)
+
 A client for the [Pact Broker](https://docs.pact.io/pact_broker/) and [PactFlow](https://pactflow.io/?utm_source=ossdocs&utm_campaign=pact-broker-client_readme) application.
 
-Publishes and retrieves pacts, pacticipants, pacticipant versions, environments, deployments and releases. Supports publishing provider contracts for PactFlow. The functionality is available via a CLI.
-
-It is designed as a replacement for the [pact_broker-client](https://github.com/pact-foundation/pact_broker-client) application, written in Ruby.
-
-[![Test and Release](https://github.com/pact-foundation/pact-broker-cli/actions/workflows/test.yml/badge.svg)](https://github.com/pact-foundation/pact-broker-cli/actions/workflows/test.yml)
+Publishes and retrieves pacts, pacticipants, pacticipant versions, environments, deployments and releases. Supports publishing provider contracts for PactFlow.
 
 ## Installation
 
-### Supported Platforms
+All major platforms and architectures are supported with pre-built binaries available for download from the [releases](https://github.com/pact-foundation/pact-broker-cli/releases) page. We recommend using the installer for your platform, which will automatically download and install the latest version of the CLI. Alternatively, you can use the standalone executable or Docker image.
 
-| OS            | Architecture | Supported  |
-| ------------- | ------------ | ---------  |
-| MacOS         | x86_64       | ✅         |
-| MacOS         | arm64        | ✅         |
-| Linux (libc)  | x86_64       | ✅         |
-| Linux (libc)  | arm64        | ✅         |
-| Linux (musl)  | x86_64       | ✅         |
-| Linux (musl)  | arm64        | ✅         |
-| Windows       | x86_64       | ✅         |
-| Windows       | arm64        | ✅         |
-| NetBSD        | x86_64       | ✅         |
-| NetBSD        | arm64        | ✅         |
-| OpenBSD       | x86_64       | ✅         |
-| OpenBSD       | arm64        | ✅         |
+### cargo binstall
 
-### Install Scripts
-
-Unix systems
+The fastest cross-platform install using [cargo-binstall](https://github.com/cargo-bins/cargo-binstall). This will download and install the latest version of the CLI for your platfror, using the pre-built binaries where possible and falling back to building from source if not available for your platform.
 
 ```sh
-curl -fsSL https://raw.githubusercontent.com/pact-foundation/pact-broker-cli/main/install.sh | sh
+cargo binstall pact-broker-cli
+# or to install a specific version
+cargo binstall pact-broker-cli --version <VERSION>
 ```
+
+### Shell installer (Unix)
 
 ```sh
-wget -q https://raw.githubusercontent.com/pact-foundation/pact-broker-cli/main/install.sh -O- | sh
+curl --proto '=https' --tlsv1.2 -LsSf \
+  https://github.com/pact-foundation/pact-broker-cli/releases/latest/download/pact-broker-cli-installer.sh | sh
 ```
 
-install fixed version - pass `PACT_BROKER_CLI_VERSION=v<PACT_BROKER_CLI_VERSION>` eg `PACT_BROKER_CLI_VERSION=v0.0.1` or set as an env var
+To install a specific version:
 
 ```sh
-curl -fsSL https://raw.githubusercontent.com/pact-foundation/pact-broker-cli/main/install.sh | PACT_BROKER_CLI_VERSION=v0.0.1 sh
+curl --proto '=https' --tlsv1.2 -LsSf \
+  https://github.com/pact-foundation/pact-broker-cli/releases/download/<VERSION>/pact-broker-cli-installer.sh | sh
 ```
 
-```sh
-wget -q https://raw.githubusercontent.com/pact-foundation/pact-broker-cli/main/install.sh -O- | PACT_BROKER_CLI_VERSION=v0.0.1 sh
-```
-
-Windows (Powershell)
+### PowerShell installer (Windows)
 
 ```powershell
-iwr -useb https://raw.githubusercontent.com/pact-foundation/pact-broker-cli/main/install.ps1 | iex
+powershell -ExecutionPolicy ByPass -c "irm https://github.com/pact-foundation/pact-broker-cli/releases/latest/download/pact-broker-cli-installer.ps1 | iex"
 ```
 
-To install a specific version, set the `PACT_BROKER_CLI_VERSION` environment variable before running the script:
+To install a specific version:
 
 ```powershell
-$env:PACT_BROKER_CLI_VERSION = "v0.0.1"
-iwr -useb https://raw.githubusercontent.com/pact-foundation/pact-broker-cli/main/install.ps1 | iex
+powershell -ExecutionPolicy ByPass -c "irm https://github.com/pact-foundation/pact-broker-cli/releases/download/<VERSION>/pact-broker-cli-installer.ps1 | iex"
 ```
 
 ### Standalone executable
 
-Download the latest binary release for your required platform, from the [release](https://github.com/pact-foundation/pact-broker-cli/releases) page.
-
-### Cargo
-
-```sh
-cargo install pact-broker-cli --locked
-```
-
-To install a specific version using Cargo:
-
-```sh
-cargo install pact-broker-cli --locked --version <VERSION>
-```
+Download the latest binary release for your required platform from the [releases](https://github.com/pact-foundation/pact-broker-cli/releases) page.
 
 ### GitHub Action
 
-An action is available at `pact-foundation/pact-broker-cli@<tag>`
-
-Example
+An action is available at `pact-foundation/pact-broker-cli`. Pin the version via the action ref:
 
 ```yml
-    - uses: pact-foundation/pact-broker-cli@main
- 
+    - uses: pact-foundation/pact-broker-cli@vX.Y.Z
+
     - name: Show help commands
       run: |
         pact-broker-cli --help
         pact-broker-cli pactflow --help
 ```
 
+To always use the latest release, reference `@main` (not recommended for production workflows):
+
+```yml
+    - uses: pact-foundation/pact-broker-cli@main
+```
+
+> [!NOTE]
+>
+> The `version:` input is deprecated. If you were previously using `version: vX.Y.Z`, migrate to pinning via the ref as shown above.
+
 ### Docker
 
-2 images are available
+We publish both Alpine and Debian images, with tags of the form:
 
-- alpine (default)
-- debian
-
-tags format
-
-- `latest`
-- `latest-alpine`
-- `latest-debian`
 - `<version>`
 - `<version>-alpine`
 - `<version>-debian`
 
-#### DockerHub
+To always pull the latest version, replace `<version>` with `latest`.
 
-https://hub.docker.com/r/pactfoundation/pact-broker-cli
+Our images are hosted on both DockerHub and GitHub Container Registry:
 
-#### GitHub Container Registry
-
-https://github.com/pact-foundation/pact-broker-cli/pkgs/container/pact-broker-cli
+- [DockerHub](https://hub.docker.com/r/pactfoundation/pact-broker-cli)
+- [GitHub Container Registry](https://ghcr.io/pact-foundation/pact-broker-cli)
 
 ## Commands
 
@@ -132,6 +103,9 @@ Authentication using a bearer token can be specified using the environment varia
 ### Pacts
 
 #### publish
+
+<details>
+<summary>Show help</summary>
 
 ```console
 $ pact-broker-cli publish --help
@@ -279,9 +253,14 @@ Options:
 
 ```
 
+</details>
+
 Publish pacts to a Pact Broker.
 
 #### list-latest-pact-versions
+
+<details>
+<summary>Show help</summary>
 
 ```console
 $ pact-broker-cli list-latest-pact-versions --help
@@ -329,9 +308,14 @@ Options:
 
 ```
 
+</details>
+
 List the latest pact for each integration
 
 #### get-pacts
+
+<details>
+<summary>Show help</summary>
 
 ```console
 $ pact-broker-cli get-pacts --help
@@ -391,6 +375,8 @@ Options:
 
 ```
 
+</details>
+
 Retrieve pacts for a specified provider with optional filtering by consumer and/or branch. This command allows you to query pacts associated with a provider, providing flexibility to narrow down results based on specific consumers or branches.
 
 Examples:
@@ -418,6 +404,9 @@ pact-broker-cli get-pacts --provider "My API" --output json --broker-base-url ht
 ### Environments
 
 #### create-environment
+
+<details>
+<summary>Show help</summary>
 
 ```console
 $ pact-broker-cli create-environment --help
@@ -475,9 +464,14 @@ Options:
 
 ```
 
+</details>
+
 Create an environment resource in the Pact Broker to represent a real world deployment or release environment.
 
 #### update-environment
+
+<details>
+<summary>Show help</summary>
 
 ```console
 $ pact-broker-cli update-environment --help
@@ -537,9 +531,14 @@ Options:
 
 ```
 
+</details>
+
 Update an environment resource in the Pact Broker.
 
 #### describe-environment
+
+<details>
+<summary>Show help</summary>
 
 ```console
 $ pact-broker-cli describe-environment --help
@@ -589,9 +588,14 @@ Options:
 
 ```
 
+</details>
+
 Describe an environment
 
 #### delete-environment
+
+<details>
+<summary>Show help</summary>
 
 ```console
 $ pact-broker-cli delete-environment --help
@@ -639,9 +643,14 @@ Options:
 
 ```
 
+</details>
+
 Delete an environment
 
 #### list-environments
+
+<details>
+<summary>Show help</summary>
 
 ```console
 $ pact-broker-cli list-environments --help
@@ -689,11 +698,16 @@ Options:
 
 ```
 
+</details>
+
 List environments
 
 ### Deployments
 
 #### record-deployment
+
+<details>
+<summary>Show help</summary>
 
 ```console
 $ pact-broker-cli record-deployment --help
@@ -749,9 +763,14 @@ Options:
 
 ```
 
-Record deployment of a pacticipant version to an environment. See https://docs.pact.io/record-deployment for more information.
+</details>
+
+Record deployment of a pacticipant version to an environment. See <https://docs.pact.io/record-deployment> for more information.
 
 #### record-undeployment
+
+<details>
+<summary>Show help</summary>
 
 ```console
 $ pact-broker-cli record-undeployment --help
@@ -860,14 +879,19 @@ Options:
 
 ```
 
+</details>
+
 Description:
   Note that use of this command is only required if you are permanently removing an application instance from an environment. It is not required if you are
   deploying over a previous version, as record-deployment will automatically mark the previously deployed version as undeployed for you. See
-  https://docs.pact.io/record-undeployment for more information.
+  <https://docs.pact.io/record-undeployment> for more information.
 
 ### Releases
 
 #### record-release
+
+<details>
+<summary>Show help</summary>
 
 ```console
 $ pact-broker-cli record-release --help
@@ -921,9 +945,14 @@ Options:
 
 ```
 
-Record release of a pacticipant version to an environment. See See https://docs.pact.io/record-release for more information.
+</details>
+
+Record release of a pacticipant version to an environment. See See <https://docs.pact.io/record-release> for more information.
 
 #### record-support-ended
+
+<details>
+<summary>Show help</summary>
 
 ```console
 $ pact-broker-cli record-support-ended --help
@@ -977,11 +1006,16 @@ Options:
 
 ```
 
-Record the end of support for a pacticipant version in an environment. See https://docs.pact.io/record-support-ended for more information.
+</details>
+
+Record the end of support for a pacticipant version in an environment. See <https://docs.pact.io/record-support-ended> for more information.
 
 ### Matrix
 
 #### can-i-deploy
+
+<details>
+<summary>Show help</summary>
 
 ```console
 $ pact-broker-cli can-i-deploy --help
@@ -1163,6 +1197,8 @@ Options:
 
 ```
 
+</details>
+
 Description:
   Returns exit code 0 or 1, indicating whether or not the specified application (pacticipant) has a successful verification result with each of the application
   versions that are already deployed to a particular environment. Prints out the relevant pact/verification details, indicating any missing or failed
@@ -1170,16 +1206,16 @@ Description:
 
   The can-i-deploy tool was originally written to support specifying versions and dependencies using tags. This usage has now been superseded by first class
   support for environments, deployments and releases. For documentation on how to use can-i-deploy with tags, please see
-  https://docs.pact.io/pact_broker/client_cli/can_i_deploy_usage_with_tags/
+  <https://docs.pact.io/pact_broker/client_cli/can_i_deploy_usage_with_tags/>
 
   Before `can-i-deploy` can be used, the relevant environment resources must first be created in the Pact Broker using the `create-environment` command. The
   "test" and "production" environments will have been seeded for you. You can check the existing environments by running `pact-broker list-environments`. See
-  https://docs.pact.io/pact_broker/client_cli/readme#environments for more information.
+  <https://docs.pact.io/pact_broker/client_cli/readme#environments> for more information.
 
 `$ pact-broker-cli create-environment --name "uat" --display-name "UAT" --no-production`
 
   After an application is deployed or released, its deployment must be recorded using the `record-deployment` or `record-release` commands. See
-  https://docs.pact.io/pact_broker/recording_deployments_and_releases/ for more information.
+  <https://docs.pact.io/pact_broker/recording_deployments_and_releases/> for more information.
 
 `$ pact-broker-cli record-deployment --pacticipant Foo --version 173153ae0 --environment uat`
 
@@ -1188,7 +1224,7 @@ Description:
 
 `$ pact-broker-cli can-i-deploy --pacticipant PACTICIPANT --version VERSION --to-environment ENVIRONMENT`
 
-  Example: can I deploy version 173153ae0 of application Foo to the test environment?
+  Example: can I deploy version `173153ae0` of application Foo to the test environment?
 
 `$ pact-broker-cli can-i-deploy --pacticipant Foo --version 173153ae0 --to-environment test`
 
@@ -1204,6 +1240,9 @@ command to poll and wait for the missing results to arrive. The arguments to spe
 appropriate values for your pipeline.
 
 #### can-i-merge
+
+<details>
+<summary>Show help</summary>
 
 ```console
 $ pact-broker-cli can-i-merge --help
@@ -1261,12 +1300,17 @@ Options:
 
 ```
 
+</details>
+
 Description:
   Checks if the specified pacticipant version is compatible with the configured main branch of each of the pacticipants with which it is integrated.
 
 ### Provider States
 
 #### list
+
+<details>
+<summary>Show help</summary>
 
 ```console
 $ pact-broker-cli provider-states list --help
@@ -1372,6 +1416,8 @@ Options:
 
 ```
 
+</details>
+
 List aggregated provider states for a provider. This command retrieves all unique provider states across consumer pacts for the specified provider. Provider states are used in contract testing to set up specific server-side conditions before running verification tests.
 
 Examples:
@@ -1393,6 +1439,9 @@ pact-broker-cli provider-states list --broker-base-url http://localhost:9292 --p
 ### Pacticipants
 
 #### create-or-update-pacticipant
+
+<details>
+<summary>Show help</summary>
 
 ```console
 $ pact-broker-cli create-or-update-pacticipant --help
@@ -1448,9 +1497,14 @@ Options:
 
 ```
 
+</details>
+
 Create or update pacticipant by name
 
 #### describe-pacticipant
+
+<details>
+<summary>Show help</summary>
 
 ```console
 $ pact-broker-cli describe-pacticipant --help
@@ -1500,9 +1554,14 @@ Options:
 
 ```
 
+</details>
+
 Describe a pacticipant
 
 #### list-pacticipants
+
+<details>
+<summary>Show help</summary>
 
 ```console
 $ pact-broker-cli list-pacticipants --help
@@ -1550,11 +1609,16 @@ Options:
 
 ```
 
+</details>
+
 List pacticipants
 
 ### Webhooks
 
 #### create-webhook
+
+<details>
+<summary>Show help</summary>
 
 ```console
 $ pact-broker-cli create-webhook --help
@@ -1635,6 +1699,8 @@ Options:
 
 ```
 
+</details>
+
 Description:
   Create a curl command that executes the request that you want your webhook to execute, then replace "curl" with "pact-broker create-webhook" and add the
   consumer, provider, event types and broker details. Note that the URL must be the first parameter when executing create-webhook.
@@ -1643,6 +1709,9 @@ Description:
   option. Please use the --broker-username or environment variable for the Pact Broker username.
 
 #### create-or-update-webhook
+
+<details>
+<summary>Show help</summary>
 
 ```console
 $ pact-broker-cli create-or-update-webhook --help
@@ -1725,6 +1794,8 @@ Options:
 
 ```
 
+</details>
+
 Description:
   Create a curl command that executes the request that you want your webhook to execute, then replace "curl" with "pact-broker create-or-update-webhook" and
   add the consumer, provider, event types and broker details. Note that the URL must be the first parameter when executing create-or-update-webhook and a uuid
@@ -1734,6 +1805,9 @@ Description:
   option. Please use the --broker-username or environment variable for the Pact Broker username.
 
 #### test-webhook
+
+<details>
+<summary>Show help</summary>
 
 ```console
 $ pact-broker-cli test-webhook --help
@@ -1781,9 +1855,14 @@ Options:
 
 ```
 
+</details>
+
 Test the execution of a webhook
 
 #### delete-webhook
+
+<details>
+<summary>Show help</summary>
 
 ```console
 $ pact-broker-cli delete-webhook --help
@@ -1831,11 +1910,16 @@ Options:
 
 ```
 
+</details>
+
 Delete a webhook by its UUID. The command will not return an error if the webhook does not exist, but will print a message indicating whether or not it was found.
 
 ### Branches
 
 #### delete-branch
+
+<details>
+<summary>Show help</summary>
 
 ```console
 $ pact-broker-cli delete-branch --help
@@ -1887,11 +1971,16 @@ Options:
 
 ```
 
+</details>
+
 Deletes a pacticipant branch. Does not delete the versions or pacts/verifications associated with the branch, but does make the pacts inaccessible for verification via consumer versions selectors or WIP pacts.
 
 ### Tags
 
 #### create-version-tag
+
+<details>
+<summary>Show help</summary>
 
 ```console
 $ pact-broker-cli create-version-tag --help
@@ -1947,9 +2036,14 @@ Options:
 
 ```
 
+</details>
+
 Add a tag to a pacticipant version
 
 #### delete-version-tag
+
+<details>
+<summary>Show help</summary>
 
 ```console
 $ pact-broker-cli delete-version-tag --help
@@ -2001,11 +2095,16 @@ Options:
 
 ```
 
+</details>
+
 Delete a tag from a pacticipant version. The command will not throw an error if the tag does not exist, but will print a message indicating whether or not it was found.
 
 ### Versions
 
 #### describe-version
+
+<details>
+<summary>Show help</summary>
 
 ```console
 $ pact-broker-cli describe-version --help
@@ -2065,9 +2164,14 @@ Options:
 
 ```
 
+</details>
+
 Describes a pacticipant version. If no version or tag is specified, the latest version is described.
 
 #### create-or-update-version
+
+<details>
+<summary>Show help</summary>
 
 ```console
 $ pact-broker-cli create-or-update-version --help
@@ -2123,11 +2227,16 @@ Options:
 
 ```
 
+</details>
+
 Create or update pacticipant version by version number
 
 ### Miscellaneous
 
 #### generate-uuid
+
+<details>
+<summary>Show help</summary>
 
 ```console
 $ pact-broker-cli generate-uuid --help
@@ -2155,11 +2264,16 @@ Options:
 
 ```
 
+</details>
+
 Generate a UUID for use when calling create-or-update-webhook
 
 ### Provider contracts (PactFlow only)
 
 #### publish-provider-contract
+
+<details>
+<summary>Show help</summary>
 
 ```console
 $ pact-broker-cli pactflow publish-provider-contract --help
@@ -2244,26 +2358,28 @@ Options:
 
 ```
 
+</details>
+
 ## Connecting to a Pact Broker with a self signed certificate
 
-To connect to a Pact Broker that uses custom SSL cerificates, set the environment variable `SSL_CERT_FILE` to a path that contains the appropriate certificate. Read more at https://docs.pact.io/pact_broker/advanced_topics/using-tls#for-non-jvm
+To connect to a Pact Broker that uses custom SSL cerificates, set the environment variable `SSL_CERT_FILE` to a path that contains the appropriate certificate. Read more at <https://docs.pact.io/pact_broker/advanced_topics/using-tls#for-non-jvm>
 
 The available ssl options are available for all commands
 
 ```sh
   -c, --ssl-certificate <SSL_CERT_FILE>
           The path to a valid SSL certificate file
-          
+
           [env: SSL_CERT_FILE=]
 
       --skip-ssl-verification
           Skip SSL certificate verification
-          
+
           [env: SSL_SKIP_VERIFICATION=]
 
       --ssl-trust-store <SSL_TRUST_STORE>
           Use the system's root trust store for SSL verification
-          
+
           [env: SSL_TRUST_STORE=]
           [default: true]
           [possible values: true, false]
@@ -2273,11 +2389,12 @@ The available ssl options are available for all commands
 
 The `pact-broker-cli` cli supports native opentelemetry for traces and application logs.
 
-It is opt-in via `--enable-otel`, you must set
-    - `--enable-otel-traces` for traces
-    - `--enable-otel-logs` for logs
-        - `--log-level` must be set
-    - `--enable-otlp-exporter` must be set
+It is opt-in via `--enable-otel`, you must set:
+
+- `--enable-otel-traces` for traces
+- `--enable-otel-logs` for logs
+  - `--log-level` must be set
+- `--enable-otlp-exporter` must be set
 
 By default, `--otel-exporter-endpoint` will route to `http://localhost:4318`.
 
@@ -2306,8 +2423,3 @@ export OTEL_EXPORTER_OTLP_ENDPOINT="http://localhost:4318"
 export OTEL_TRACES_EXPORTER="otlp"
 export OTEL_EXPORTER_OTLP_PROTOCOL="http/protobuf"
 ```
-
-Currently instrumented crates are
-
-* pact-broker-cli
-* pact-cli
