@@ -96,7 +96,7 @@ jobs:
           path: target/pacts
       - name: Start Pact Broker
         if: runner.os != 'Windows'
-        uses: you54f/pact-broker-in-a-box@main
+        uses: you54f/pact-broker-in-a-box@32b14f7a159719ef997e651d02e393349ed553ab # main
       - name: Run CLI integration test
         if: runner.os != 'Windows'
         run: ./run.sh
