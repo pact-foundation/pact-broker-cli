@@ -3206,7 +3206,6 @@ dependencies = [
  "native-tls",
  "percent-encoding",
  "pin-project-lite",
- "rustls-native-certs",
  "rustls-pki-types",
  "serde",
  "serde_json",

@@ -80,7 +80,6 @@ reqwest = { version = "0.13", default-features = false, features = [
   "http2",
   "json",
   "native-tls-vendored",
-  "rustls-native-certs",
   "stream"
 ] }
 reqwest-middleware = "0.5"
