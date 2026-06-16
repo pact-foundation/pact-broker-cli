@@ -297,8 +297,8 @@ mod create_webhook_tests {
             i
         }
     }
-    fn index_interaction_with_webhook_relation(
-    ) -> impl Fn(InteractionBuilder) -> InteractionBuilder {
+    fn index_interaction_with_webhook_relation() -> impl Fn(InteractionBuilder) -> InteractionBuilder
+    {
         |mut i: InteractionBuilder| {
             i.request
                 .get()
@@ -471,8 +471,7 @@ mod create_webhook_tests {
         args.push("--provider-verification-succeeded");
         args.push("--provider-verification-failed");
 
-        let matches = add_create_webhook_subcommand()
-            .get_matches_from(args.to_vec());
+        let matches = add_create_webhook_subcommand().get_matches_from(args.to_vec());
 
         let result = create_webhook(&matches);
 
@@ -545,8 +544,7 @@ mod create_webhook_tests {
         let mut args = base_args(mock_server_url.as_str());
         let idx = args.iter().position(|&a| a == "--data").unwrap() + 1;
         args[idx] = xml_body;
-        let matches = add_create_webhook_subcommand()
-            .get_matches_from(args.to_vec());
+        let matches = add_create_webhook_subcommand().get_matches_from(args.to_vec());
 
         let result = create_webhook(&matches);
 
@@ -615,8 +613,7 @@ mod create_webhook_tests {
         let idx = args.iter().position(|&a| a == "--provider").unwrap();
         args.remove(idx);
         args.remove(idx);
-        let matches = add_create_webhook_subcommand()
-            .get_matches_from(args.to_vec());
+        let matches = add_create_webhook_subcommand().get_matches_from(args.to_vec());
 
         let result = create_webhook(&matches);
 
@@ -686,8 +683,7 @@ mod create_webhook_tests {
         args.remove(idx);
         args.remove(idx);
 
-        let matches = add_create_webhook_subcommand()
-            .get_matches_from(args.to_vec());
+        let matches = add_create_webhook_subcommand().get_matches_from(args.to_vec());
 
         let result = create_webhook(&matches);
 
@@ -780,8 +776,7 @@ mod create_webhook_tests {
         let mut args = base_args(mock_server_url.as_str());
         args.push("--uuid");
         args.push(uuid);
-        let matches = add_create_or_update_webhook_subcommand()
-            .get_matches_from(args.to_vec());
+        let matches = add_create_or_update_webhook_subcommand().get_matches_from(args.to_vec());
 
         let result = create_webhook(&matches);
 
@@ -873,8 +868,7 @@ mod create_webhook_tests {
         let mut args = base_args(mock_server_url.as_str());
         args.push("--uuid");
         args.push(uuid);
-        let matches = add_create_or_update_webhook_subcommand()
-            .get_matches_from(args.to_vec());
+        let matches = add_create_or_update_webhook_subcommand().get_matches_from(args.to_vec());
 
         let result = create_webhook(&matches);
 
@@ -964,8 +958,7 @@ mod create_webhook_tests {
         let mut args = base_args(mock_server_url.as_str());
         args.push("--uuid");
         args.push(uuid);
-        let matches = add_create_or_update_webhook_subcommand()
-            .get_matches_from(args.to_vec());
+        let matches = add_create_or_update_webhook_subcommand().get_matches_from(args.to_vec());
 
         let result = create_webhook(&matches);
 

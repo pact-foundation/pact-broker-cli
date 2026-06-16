@@ -113,7 +113,11 @@ fn content_type(response: &reqwest::Response) -> String {
 fn json_content_type(response: &reqwest::Response) -> bool {
     match content_type(response).parse::<mime::Mime>() {
         Ok(mime) => matches!(
-            (mime.type_().as_str(), mime.subtype().as_str(), mime.suffix()),
+            (
+                mime.type_().as_str(),
+                mime.subtype().as_str(),
+                mime.suffix()
+            ),
             ("application", "json", None) | ("application", "hal", Some(mime::JSON))
         ),
         Err(_) => false,
@@ -288,7 +292,7 @@ impl Middleware for OtelPropagatorMiddleware {
         for (key, value) in headers.iter() {
             req.headers_mut().append(key, value.clone());
         }
-        
+
         next.run(req, extensions).await
     }
 }
@@ -376,30 +380,31 @@ impl Middleware for RetryMiddleware {
 
             // Classify the response using reqwest-retry's built-in strategy.
             if let Some(Retryable::Transient) = DefaultRetryableStrategy.handle(&result)
-                && n_past_retries < max_retries {
-                    let delay = if let Ok(ref resp) = result {
-                        utils::compute_retry_delay(
-                            resp.status(),
-                            parse_retry_after(resp),
-                            n_past_retries + 1,
-                        )
-                    } else {
-                        utils::compute_retry_delay(
-                            reqwest::StatusCode::INTERNAL_SERVER_ERROR,
-                            None,
-                            n_past_retries + 1,
-                        )
-                    };
-                    trace!(
-                        attempt = n_past_retries + 1,
-                        max_attempts = self.max_attempts,
-                        delay_ms = delay.as_millis(),
-                        "retrying transient HTTP failure"
-                    );
-                    tokio::time::sleep(delay).await;
-                    n_past_retries += 1;
-                    continue;
-                }
+                && n_past_retries < max_retries
+            {
+                let delay = if let Ok(ref resp) = result {
+                    utils::compute_retry_delay(
+                        resp.status(),
+                        parse_retry_after(resp),
+                        n_past_retries + 1,
+                    )
+                } else {
+                    utils::compute_retry_delay(
+                        reqwest::StatusCode::INTERNAL_SERVER_ERROR,
+                        None,
+                        n_past_retries + 1,
+                    )
+                };
+                trace!(
+                    attempt = n_past_retries + 1,
+                    max_attempts = self.max_attempts,
+                    delay_ms = delay.as_millis(),
+                    "retrying transient HTTP failure"
+                );
+                tokio::time::sleep(delay).await;
+                n_past_retries += 1;
+                continue;
+            }
 
             break result;
         }
@@ -910,7 +915,6 @@ impl HALClient {
             ))),
         }
     }
-
 }
 
 fn handle_validation_errors(body: Value) -> PactBrokerError {
@@ -1265,7 +1269,9 @@ pub async fn fetch_pacts_dynamically_from_broker(
             trace!(?pfv, "got pacts for verification response");
 
             if pfv.embedded.pacts.is_empty() {
-                return Err(anyhow!(PactBrokerError::NotFound("No pacts were found for this provider".to_string())));
+                return Err(anyhow!(PactBrokerError::NotFound(
+                    "No pacts were found for this provider".to_string()
+                )));
             };
 
             let links: Result<Vec<(Link, PactVerificationContext)>, PactBrokerError> = pfv.embedded.pacts.iter().map(| p| {
@@ -1285,7 +1291,9 @@ pub async fn fetch_pacts_dynamically_from_broker(
 
             links
         }
-        None => Err(PactBrokerError::NotFound("No pacts were found for this provider".to_string())),
+        None => Err(PactBrokerError::NotFound(
+            "No pacts were found for this provider".to_string(),
+        )),
     }?;
 
     let results: Vec<_> = futures::stream::iter(pact_links)
@@ -1344,7 +1352,6 @@ pub async fn fetch_pact_from_url(
     let links = links_from_json(&pact_json);
     Ok((pact, links))
 }
-
 
 #[skip_serializing_none]
 #[derive(Serialize, Deserialize, Debug, Clone)]
@@ -1679,16 +1686,10 @@ mod hal_client_custom_headers_tests {
 mod tests {
     use expectest::expect;
     use expectest::prelude::*;
-    
-    
-    
-    
 
     use pact_consumer::prelude::*;
-    
 
     use super::*;
-    
 
     #[test]
     fn resolve_path_test() {

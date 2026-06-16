@@ -235,7 +235,6 @@ pub fn handle_matches(args: &ArgMatches) -> Result<Vec<VerificationResult>, i32>
                 pact::determine_spec_version(source, &pact::parse_meta_data(pact_json));
             let results = verify_json(pact_json, spec_version, source, args.get_flag("strict"));
 
-            
             VerificationResult::new(source, results)
         })
         .collect();
@@ -365,31 +364,30 @@ pub fn publish_pacts(args: &ArgMatches) -> Result<Value, i32> {
                         if let (Some(existing_interactions), Some(new_interactions)) = (
                             existing_json.get_mut("interactions"),
                             pact_json.get("interactions"),
-                        )
-                            && let (Some(existing_arr), Some(new_arr)) = (
-                                existing_interactions.as_array_mut(),
-                                new_interactions.as_array(),
-                            ) {
-                                tracing::debug!(
-                                    "Existing interactions: {}, New interactions: {}",
-                                    existing_arr.len(),
-                                    new_arr.len()
-                                );
+                        ) && let (Some(existing_arr), Some(new_arr)) = (
+                            existing_interactions.as_array_mut(),
+                            new_interactions.as_array(),
+                        ) {
+                            tracing::debug!(
+                                "Existing interactions: {}, New interactions: {}",
+                                existing_arr.len(),
+                                new_arr.len()
+                            );
 
-                                match merge_interactions_or_messages(existing_arr, new_arr) {
-                                    Ok(()) => {
-                                        tracing::debug!(
-                                            "Total interactions after merge: {}",
-                                            existing_arr.len()
-                                        );
-                                    }
-                                    Err(merge_error) => {
-                                        println!("❌ {}", merge_error);
-                                        error!("Pact merge error: {}", merge_error);
-                                        return Err(1);
-                                    }
+                            match merge_interactions_or_messages(existing_arr, new_arr) {
+                                Ok(()) => {
+                                    tracing::debug!(
+                                        "Total interactions after merge: {}",
+                                        existing_arr.len()
+                                    );
+                                }
+                                Err(merge_error) => {
+                                    println!("❌ {}", merge_error);
+                                    error!("Pact merge error: {}", merge_error);
+                                    return Err(1);
                                 }
                             }
+                        }
                     } else {
                         tracing::debug!(
                             "Inserting new pact for consumer: '{}' and provider: '{}'",
@@ -421,8 +419,7 @@ pub fn publish_pacts(args: &ArgMatches) -> Result<Value, i32> {
                         let mut payload = json!({});
                         payload["pacticipantName"] = Value::String(consumer_name.clone());
                         if let Some(v) = consumer_app_version {
-                            payload["pacticipantVersionNumber"] =
-                                Value::String(v.to_string());
+                            payload["pacticipantVersionNumber"] = Value::String(v.to_string());
                         } else {
                             println!("❌ Error: Consumer app version is required to publish pact");
                             return Err(1);

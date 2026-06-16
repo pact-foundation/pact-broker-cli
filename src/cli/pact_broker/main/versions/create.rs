@@ -18,7 +18,6 @@ pub fn create_or_update_version(args: &clap::ArgMatches) -> Result<String, PactB
         .cloned()
         .collect::<Vec<_>>();
 
-    
     tokio::runtime::Runtime::new().unwrap().block_on(async {
         let hal_client: HALClient = HALClient::with_url(
             &broker_url,

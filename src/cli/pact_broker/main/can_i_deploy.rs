@@ -190,15 +190,16 @@ fn build_matrix_table(data: &Data) -> (String, Vec<(String, String)>) {
         };
         if let Some(verification_result) = &matrix_item.verification_result
             && let Some(links) = &verification_result.links
-                && let Some(self_link) = &links.self_link
-                    && let Some(href) = &self_link.href {
-                        let status = match verification_result.success {
-                            Some(true) => "success",
-                            Some(false) => "failure",
-                            None => "unknown",
-                        };
-                        verification_results.push((href.clone(), status.to_string()));
-                    }
+            && let Some(self_link) = &links.self_link
+            && let Some(href) = &self_link.href
+        {
+            let status = match verification_result.success {
+                Some(true) => "success",
+                Some(false) => "failure",
+                None => "unknown",
+            };
+            verification_results.push((href.clone(), status.to_string()));
+        }
         let mut row = vec![
             matrix_item.consumer.name.clone(),
             matrix_item
@@ -286,10 +287,7 @@ pub fn can_i_deploy(
                 }
             }
             if let Some(branch) = &selector.branch {
-                matrix_href_path.push_str(&format!(
-                    "q[][branch]={}&",
-                    urlencoding::encode(branch)
-                ));
+                matrix_href_path.push_str(&format!("q[][branch]={}&", urlencoding::encode(branch)));
             }
             for tag in &selector.tags {
                 matrix_href_path.push_str(&format!("q[][tag]={}&", urlencoding::encode(tag)));
@@ -343,10 +341,11 @@ pub fn can_i_deploy(
             if max_attempts > 0 {
                 if let Ok(ref response) = res
                     && let Ok(data) = serde_json::from_str::<Data>(&response.to_string())
-                        && let Some(summary) = data.summary
-                            && summary.deployable.is_some() {
-                                break;
-                            }
+                    && let Some(summary) = data.summary
+                    && summary.deployable.is_some()
+                {
+                    break;
+                }
                 attempts += 1;
                 if attempts > max_attempts {
                     break;
@@ -428,10 +427,7 @@ pub fn can_i_deploy(
                         }
                     }
                     Err(res) => {
-                        let message = format!(
-                            "❌ No output match provided for {}",
-                            res.clone()
-                        );
+                        let message = format!("❌ No output match provided for {}", res.clone());
                         println!("{}", utils::RED.apply_to(message.clone()));
                         Err(PactBrokerError::ValidationError([message].to_vec()))
                     }

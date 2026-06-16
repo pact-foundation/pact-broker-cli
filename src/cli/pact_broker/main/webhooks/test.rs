@@ -36,8 +36,7 @@ pub fn test_webhook(args: &clap::ArgMatches) -> Result<String, PactBrokerError> 
                 return Err(err);
             }
         };
-        let template_values =
-            hashmap! { "uuid".to_string() => webhook_uuid.unwrap().to_string() };
+        let template_values = hashmap! { "uuid".to_string() => webhook_uuid.unwrap().to_string() };
         let pb_webhook_href_path = follow_templated_broker_relation(
             hal_client.clone(),
             "webhook".to_string(),

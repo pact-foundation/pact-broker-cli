@@ -16,7 +16,6 @@ pub fn list_latest_pact_versions(
     let ssl_options = &broker_details.ssl_options;
     let custom_headers = &broker_details.custom_headers;
 
-    
     tokio::runtime::Runtime::new().unwrap().block_on(async {
         // query pact broker index and get hal relation link
         let hal_client: HALClient = HALClient::with_url(
