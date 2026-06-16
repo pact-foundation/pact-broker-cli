@@ -4,7 +4,8 @@ use crate::cli::{
     pact_broker::main::{
         HALClient, PactBrokerError,
         utils::{
-            get_auth, get_broker_relation, get_broker_url, get_custom_headers, get_retries, get_ssl_options,
+            get_auth, get_broker_relation, get_broker_url, get_custom_headers, get_retries,
+            get_ssl_options,
         },
     },
     utils,

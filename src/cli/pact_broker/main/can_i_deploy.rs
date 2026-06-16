@@ -70,7 +70,11 @@ struct MatrixItem {
     provider: Provider,
     #[serde(rename = "verificationResult")]
     verification_result: Option<VerificationResult>,
-    #[serde(rename = "verificationType", default, deserialize_with = "deserialize_optional_field")]
+    #[serde(
+        rename = "verificationType",
+        default,
+        deserialize_with = "deserialize_optional_field"
+    )]
     verification_type: Option<Option<String>>,
 }
 
@@ -154,9 +158,19 @@ fn parse_args_from_matches(raw_args: Vec<String>) -> Vec<PacticipantArgs> {
 }
 
 fn build_matrix_table(data: &Data) -> (String, Vec<(String, String)>) {
-    let show_verification_type = data.matrix.iter().any(|item| item.verification_type.is_some());
+    let show_verification_type = data
+        .matrix
+        .iter()
+        .any(|item| item.verification_type.is_some());
     let mut table = Table::new();
-    let mut header = vec!["CONSUMER", "C.VERSION", "PROVIDER", "P.VERSION", "SUCCESS?", "RESULT"];
+    let mut header = vec![
+        "CONSUMER",
+        "C.VERSION",
+        "PROVIDER",
+        "P.VERSION",
+        "SUCCESS?",
+        "RESULT",
+    ];
     if show_verification_type {
         header.push("VERIFICATION TYPE");
     }
@@ -470,7 +484,8 @@ mod can_i_deploy_tests {
     fn pact_broker_matrix_response_body() -> JsonPattern {
         let path = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
             .join("tests/fixtures/pact_broker_matrix.json");
-        let data = std::fs::read_to_string(path).expect("Failed to read pact_broker_matrix.json fixture");
+        let data =
+            std::fs::read_to_string(path).expect("Failed to read pact_broker_matrix.json fixture");
         let json: serde_json::Value = serde_json::from_str(&data).unwrap();
         json_pattern!(like!(json))
     }
@@ -478,7 +493,8 @@ mod can_i_deploy_tests {
     fn pactflow_matrix_response_body() -> JsonPattern {
         let path = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
             .join("tests/fixtures/pactflow_matrix.json");
-        let data = std::fs::read_to_string(path).expect("Failed to read pactflow_matrix.json fixture");
+        let data =
+            std::fs::read_to_string(path).expect("Failed to read pactflow_matrix.json fixture");
         let json: serde_json::Value = serde_json::from_str(&data).unwrap();
         json_pattern!(like!(json))
     }
@@ -584,8 +600,15 @@ mod can_i_deploy_tests {
     }"#;
 
         let (output, _) = table_from_json(matrix_json);
-        assert!(output.contains("unknown"), "expected 'unknown' in: {}", output);
-        assert!(!output.contains("false"), "should not show 'false' when no verification result");
+        assert!(
+            output.contains("unknown"),
+            "expected 'unknown' in: {}",
+            output
+        );
+        assert!(
+            !output.contains("false"),
+            "should not show 'false' when no verification result"
+        );
     }
 
     #[test]
@@ -602,8 +625,14 @@ mod can_i_deploy_tests {
     }"#;
 
         let (output, _) = table_from_json(matrix_json);
-        assert!(output.contains("VERIFICATION TYPE"), "column should be shown when key is present");
-        assert!(output.contains("unknown"), "should show 'unknown' when verificationType is null");
+        assert!(
+            output.contains("VERIFICATION TYPE"),
+            "column should be shown when key is present"
+        );
+        assert!(
+            output.contains("unknown"),
+            "should show 'unknown' when verificationType is null"
+        );
     }
 
     #[test]
@@ -619,7 +648,10 @@ mod can_i_deploy_tests {
     }"#;
 
         let (output, _) = table_from_json(matrix_json);
-        assert!(!output.contains("VERIFICATION TYPE"), "column should be hidden when key is absent");
+        assert!(
+            !output.contains("VERIFICATION TYPE"),
+            "column should be hidden when key is absent"
+        );
     }
 
     #[test]
