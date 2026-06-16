@@ -20,7 +20,6 @@ include = [
 [workspace.metadata.dist]
 cargo-dist-version = "0.32.0"
 ci = "github"
-pr-run-mode = "skip"
 targets = [
   "aarch64-apple-darwin",
   "aarch64-pc-windows-msvc",
@@ -30,6 +29,11 @@ targets = [
   "x86_64-pc-windows-msvc",
   "x86_64-unknown-linux-gnu",
   "x86_64-unknown-linux-musl",
+]
+bin-aliases = { pact-broker-cli = ["pact-broker"] }
+install-path = [
+  "~/.pact/bin",
+  "CARGO_HOME",
 ]
 
 [lib]
