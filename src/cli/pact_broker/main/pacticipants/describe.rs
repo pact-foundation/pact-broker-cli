@@ -20,7 +20,6 @@ pub fn describe_pacticipant(
     let custom_headers = &broker_details.custom_headers;
     let ssl_options = &broker_details.ssl_options;
 
-    
     tokio::runtime::Runtime::new().unwrap().block_on(async {
         // query pact broker index and get hal relation link
         let hal_client: HALClient = HALClient::with_url(
@@ -61,12 +60,14 @@ pub fn describe_pacticipant(
                     Ok(json)
                 }
                 OutputType::Table => {
-                    let names = [vec!["name"],
+                    let names = [
+                        vec!["name"],
                         vec!["displayName"],
                         vec!["mainBranch"],
                         vec!["repositoryUrl"],
                         vec!["createdAt"],
-                        vec!["updatedAt"]];
+                        vec!["updatedAt"],
+                    ];
                     let mut table = Table::new();
                     table.load_preset(UTF8_FULL).set_header(vec![
                         "NAME",

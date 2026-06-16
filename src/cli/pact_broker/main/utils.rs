@@ -41,11 +41,12 @@ pub(crate) fn compute_retry_delay(
     attempt: u32,
 ) -> Duration {
     if status == StatusCode::TOO_MANY_REQUESTS
-        && let Some(base) = retry_after {
-            let secs = base.as_secs();
-            let extra = (secs / 5).min(60); // ≈ 20 % of secs, capped at 60 s
-            return Duration::from_secs(secs + extra);
-        }
+        && let Some(base) = retry_after
+    {
+        let secs = base.as_secs();
+        let extra = (secs / 5).min(60); // ≈ 20 % of secs, capped at 60 s
+        return Duration::from_secs(secs + extra);
+    }
     Duration::from_millis(500 * 2_u64.pow(attempt.saturating_sub(1)))
 }
 
@@ -465,9 +466,7 @@ pub async fn get_broker_relation(
                 .to_string()
                 .replace("\"", ""))
         }
-        Err(err) => {
-            Err(err)
-        }
+        Err(err) => Err(err),
     }
 }
 

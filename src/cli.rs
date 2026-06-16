@@ -7,7 +7,6 @@ pub mod pactflow;
 pub mod pactflow_client;
 pub mod utils;
 pub fn build_cli() -> Command {
-    
     pact_broker_client::add_pact_broker_client_command()
         .arg_required_else_help(true)
         .version(env!("CARGO_PKG_VERSION"))

@@ -1,10 +1,10 @@
 use crate::cli::pact_broker::main::{
-        HALClient, PactBrokerError,
-        utils::{
-            follow_broker_relation, get_auth, get_broker_relation, get_broker_url,
-            get_custom_headers, get_retries, get_ssl_options,
-        },
-    };
+    HALClient, PactBrokerError,
+    utils::{
+        follow_broker_relation, get_auth, get_broker_relation, get_broker_url, get_custom_headers,
+        get_retries, get_ssl_options,
+    },
+};
 use comfy_table::Table;
 use comfy_table::presets::UTF8_FULL;
 
@@ -64,18 +64,19 @@ pub fn list_environments(args: &clap::ArgMatches) -> Result<String, PactBrokerEr
                     ]);
 
                     if let Some(embedded) = res["_embedded"].as_object()
-                        && let Some(environments) = embedded["environments"].as_array() {
-                            for environment in environments {
-                                let environment: Environment =
-                                    serde_json::from_value(environment.clone()).unwrap();
-                                table.add_row(vec![
-                                    environment.uuid,
-                                    environment.name,
-                                    environment.display_name,
-                                    environment.production.to_string(),
-                                ]);
-                            }
+                        && let Some(environments) = embedded["environments"].as_array()
+                    {
+                        for environment in environments {
+                            let environment: Environment =
+                                serde_json::from_value(environment.clone()).unwrap();
+                            table.add_row(vec![
+                                environment.uuid,
+                                environment.name,
+                                environment.display_name,
+                                environment.production.to_string(),
+                            ]);
                         }
+                    }
 
                     println!("{table}");
                 }
