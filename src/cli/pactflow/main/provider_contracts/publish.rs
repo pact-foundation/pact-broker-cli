@@ -338,7 +338,6 @@ mod publish_provider_contract_tests {
     use pact_models::{PactSpecification, generators};
     use serde_json::json;
 
-    #[cfg(not(target_os = "windows"))]
     #[test]
     fn publish_provider_contract_success() {
         // Arrange
@@ -492,8 +491,6 @@ mod publish_provider_contract_tests {
         assert_eq!(version.get("number").unwrap(), provider_version_number);
     }
 
-    // Note: Windows is excluded because the test relies on a pact mock server that may have path-related issues
-    #[cfg(not(target_os = "windows"))]
     #[test]
     fn publish_provider_contract_with_missing_verification_results_file() {
         // Arrange - set up the command line arguments with a non-existent file
