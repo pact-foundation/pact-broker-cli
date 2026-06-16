@@ -1,4 +1,4 @@
-use clap::{ArgMatches, Id};
+use clap::ArgMatches;
 use comfy_table::{Table, presets::UTF8_FULL};
 use serde::Deserialize;
 use tracing::debug;

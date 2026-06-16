@@ -1,4 +1,3 @@
-use crate::cli::utils;
 use clap::{Arg, ArgGroup, Command};
 
 pub fn add_broker_auth_arguments() -> Vec<Arg> {

@@ -1,13 +1,10 @@
-use crate::cli::{
-    pact_broker::main::{
+use crate::cli::pact_broker::main::{
         HALClient, PactBrokerError,
         utils::{
             follow_broker_relation, get_auth, get_broker_relation, get_broker_url,
             get_custom_headers, get_retries, get_ssl_options,
         },
-    },
-    utils,
-};
+    };
 use comfy_table::Table;
 use comfy_table::presets::UTF8_FULL;
 

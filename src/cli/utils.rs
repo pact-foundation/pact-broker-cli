@@ -92,7 +92,7 @@ impl<'a> std::fmt::Display for AsCurl<'a> {
 #[cfg(test)]
 mod debug_as_curl_tests {
 
-    use crate::dbg_as_curl;
+    
 
     fn compare(req: reqwest::RequestBuilder, result: &str) {
         let req = dbg_as_curl!(req);

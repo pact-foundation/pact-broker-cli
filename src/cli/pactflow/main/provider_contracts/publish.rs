@@ -1,7 +1,6 @@
 use base64::Engine;
 use base64::engine::general_purpose::STANDARD as Base64;
 use clap::ArgMatches;
-use pact_models::pact::Pact;
 use serde::{Deserialize, Serialize};
 use serde_json::{Value, json};
 
@@ -13,7 +12,7 @@ use crate::cli::{
             get_ssl_options,
         },
     },
-    utils::{self, git_info},
+    utils::git_info,
 };
 
 #[derive(Default, Debug, Clone, PartialEq, Serialize, Deserialize)]

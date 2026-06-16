@@ -193,7 +193,7 @@ pub fn handle_list_provider_states_command(args: &ArgMatches) -> Result<String, 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use comfy_table::{Table, presets::UTF8_FULL};
+    
     use serde_json::json;
     #[test]
     fn test_build_provider_states_path() {

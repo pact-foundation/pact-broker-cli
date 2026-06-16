@@ -1775,16 +1775,16 @@ mod hal_client_custom_headers_tests {
 mod tests {
     use expectest::expect;
     use expectest::prelude::*;
-    use pact_models::prelude::RequestResponsePact;
-    use pact_models::sync_interaction::RequestResponseInteraction;
-    use pact_models::{Consumer, PactSpecification, Provider};
-    use pretty_assertions::assert_eq;
+    
+    
+    
+    
 
     use pact_consumer::prelude::*;
-    use pact_consumer::*;
+    
 
     use super::*;
-    use super::{content_type, json_content_type};
+    
 
     #[test]
     fn resolve_path_test() {

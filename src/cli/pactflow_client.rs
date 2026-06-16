@@ -12,7 +12,7 @@ pub fn add_pactflow_client_command() -> Command {
         .subcommand(add_publish_provider_contract_subcommand())
 }
 
-pub fn run(args: &ArgMatches, raw_args: Vec<String>) -> Result<serde_json::Value, i32> {
+pub fn run(args: &ArgMatches, _raw_args: Vec<String>) -> Result<serde_json::Value, i32> {
     match args.subcommand() {
         Some(("publish-provider-contract", args)) => {
             let res = provider_contracts::publish::publish(args);
