@@ -2,6 +2,21 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.8.1] _2026-06-16_
+
+### 🚀 Features
+
+-   Switch to cargo-dist for installer scripts
+
+### 📚 Documentation
+
+-   Update readme for new installation
+
+### 🛠️ Miscellaneous Tasks
+
+-   _(ci)_ Drop aarch64-pc-windows-msvc target pending ring fix
+
+
 ## [0.8.0] _2026-06-16_
 
 ### 🎨 Styling
