@@ -20,7 +20,7 @@ macro_rules! dbg_as_curl {
         match $req {
             tmp => {
                 match tmp.try_clone().map(|b| b.build()) {
-                    Some(Ok(req)) => tracing::debug!("{}", crate::cli::utils::AsCurl::new(&req)),
+                    Some(Ok(req)) => tracing::debug!("{}", $crate::cli::utils::AsCurl::new(&req)),
                     Some(Err(err)) => tracing::debug!("*Error*: {}", err),
                     None => tracing::debug!("*Error*: request not cloneable",),
                 }
@@ -310,7 +310,7 @@ pub mod git_info {
 
     fn execute_git_command() -> Result<String, String> {
         Command::new("git")
-            .args(&["rev-parse", "--abbrev-ref", "HEAD"])
+            .args(["rev-parse", "--abbrev-ref", "HEAD"])
             .output()
             .map_err(|e| e.to_string())
             .and_then(|output| {
@@ -324,7 +324,7 @@ pub mod git_info {
 
     fn execute_git_commit_command() -> Result<String, String> {
         Command::new("git")
-            .args(&["rev-parse", "HEAD"])
+            .args(["rev-parse", "HEAD"])
             .output()
             .map_err(|e| e.to_string())
             .and_then(|output| {

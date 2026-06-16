@@ -74,7 +74,10 @@ pub fn handle_matches(
                         Ok(_) => Ok(()),
                         Err(error) => Err(ExitCode::from(error as u8)),
                     },
-                    Some(("completions", args)) => Ok(generate_completions(args)),
+                    Some(("completions", args)) => {
+                        generate_completions(args);
+                        Ok(())
+                    },
                     _ => match cli::pact_broker_client::run(results, raw_args) {
                         Ok(_) => Ok(()),
                         Err(error) => Err(ExitCode::from(error as u8)),
@@ -109,7 +112,7 @@ fn generate_completions(args: &ArgMatches) {
         .expect("a directory is expected")
         .to_string();
     let mut cmd = cli::build_cli();
-    let shell_enum = Shell::from_str(&shell).unwrap();
+    let shell_enum = Shell::from_str(shell).unwrap();
     let _ = generate_to(
         shell_enum,
         &mut cmd,

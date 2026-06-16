@@ -180,7 +180,7 @@ impl PartialEq<String> for PactBrokerError {
     }
 }
 
-impl<'a> PartialEq<&'a str> for PactBrokerError {
+impl PartialEq<&str> for PactBrokerError {
     fn eq(&self, other: &&str) -> bool {
         let message = match self {
             PactBrokerError::LinkError(s) => s.clone(),
@@ -220,9 +220,9 @@ impl Link {
     pub fn from_json(link: &str, link_data: &serde_json::Map<String, serde_json::Value>) -> Link {
         Link {
             name: link.to_string(),
-            href: find_entry(link_data, &"href".to_string()).map(|(_, href)| as_string(&href)),
+            href: find_entry(link_data, "href").map(|(_, href)| as_string(&href)),
             templated: is_true(link_data, "templated"),
-            title: link_data.get("title").map(|title| as_string(title)),
+            title: link_data.get("title").map(as_string),
         }
     }
 
@@ -295,8 +295,8 @@ impl Middleware for OtelPropagatorMiddleware {
         for (key, value) in headers.iter() {
             req.headers_mut().append(key, value.clone());
         }
-        let res = next.run(req, extensions).await;
-        res
+        
+        next.run(req, extensions).await
     }
 }
 
@@ -382,8 +382,8 @@ impl Middleware for RetryMiddleware {
             let result = next.clone().run(cloned, extensions).await;
 
             // Classify the response using reqwest-retry's built-in strategy.
-            if let Some(Retryable::Transient) = DefaultRetryableStrategy.handle(&result) {
-                if n_past_retries < max_retries {
+            if let Some(Retryable::Transient) = DefaultRetryableStrategy.handle(&result)
+                && n_past_retries < max_retries {
                     let delay = if let Ok(ref resp) = result {
                         utils::compute_retry_delay(
                             resp.status(),
@@ -407,7 +407,6 @@ impl Middleware for RetryMiddleware {
                     n_past_retries += 1;
                     continue;
                 }
-            }
 
             break result;
         }
@@ -504,11 +503,11 @@ impl HALClient {
             Some(ref json) => match json.get("_links") {
                 Some(json) => match json.get(link) {
                     Some(link_data) => link_data.as_object()
-                        .map(|link_data| Link::from_json(&link.to_string(), &link_data))
+                        .map(|link_data| Link::from_json(link, link_data))
                         .ok_or_else(|| PactBrokerError::LinkError(format!("Link is malformed, expected an object but got {}. URL: '{}', LINK: '{}'",
                             link_data, self.url, link))),
                     None => Err(PactBrokerError::LinkError(format!("Link '{}' was not found in the response, only the following links where found: {:?}. URL: '{}', LINK: '{}'",
-                        link, json.as_object().unwrap_or(&json!({}).as_object().unwrap()).keys().join(", "), self.url, link)))
+                        link, json.as_object().unwrap_or(json!({}).as_object().unwrap()).keys().join(", "), self.url, link)))
                 },
                 None => Err(PactBrokerError::LinkError(format!("Expected a HAL+JSON response from the pact broker, but got a response with no '_links'. URL: '{}', LINK: '{}'",
                     self.url, link)))
@@ -544,7 +543,7 @@ impl HALClient {
 
         let link_url = if link.templated {
             debug!("Link URL is templated");
-            self.parse_link_url(&link, &template_values)
+            self.parse_link_url(link, template_values)
         } else {
             link.href.clone().ok_or_else(|| {
                 PactBrokerError::LinkError(format!(
@@ -556,7 +555,7 @@ impl HALClient {
 
         let base_url = self.url.parse::<Url>()?;
         let joined_url = base_url.join(&link_url)?;
-        self.fetch(joined_url.path().into()).await
+        self.fetch(joined_url.path()).await
     }
     pub async fn delete_url(
         self,
@@ -570,7 +569,7 @@ impl HALClient {
 
         let link_url = if link.templated {
             debug!("Link URL is templated");
-            self.parse_link_url(&link, &template_values)
+            self.parse_link_url(link, template_values)
         } else {
             link.href.clone().ok_or_else(|| {
                 PactBrokerError::LinkError(format!(
@@ -585,7 +584,7 @@ impl HALClient {
         debug!("link_url: {}", link_url);
         let joined_url = base_url.join(&link_url)?;
         debug!("joined_url: {}", joined_url);
-        self.delete(joined_url.path().into()).await
+        self.delete(joined_url.path()).await
     }
 
     pub async fn fetch(&self, path: &str) -> Result<Value, PactBrokerError> {
@@ -806,17 +805,17 @@ impl HALClient {
       None => Err(PactBrokerError::LinkError(format!("No previous resource has been fetched from the pact broker. URL: '{}', LINK: '{}'",
         self.url, link))),
       Some(ref json) => match json.get("_links") {
-        Some(json) => match json.get(&link) {
+        Some(json) => match json.get(link) {
           Some(link_data) => link_data.as_array()
               .map(|link_data| link_data.iter().map(|link_json| match link_json {
-                Value::Object(data) => Link::from_json(&link, data),
+                Value::Object(data) => Link::from_json(link, data),
                 Value::String(s) => Link { name: link.to_string(), href: Some(s.clone()), templated: false, title: None },
                 _ => Link { name: link.to_string(), href: Some(link_json.to_string()), templated: false, title: None }
               }).collect())
               .ok_or_else(|| PactBrokerError::LinkError(format!("Link is malformed, expected an object but got {}. URL: '{}', LINK: '{}'",
                   link_data, self.url, link))),
           None => Err(PactBrokerError::LinkError(format!("Link '{}' was not found in the response, only the following links where found: {:?}. URL: '{}', LINK: '{}'",
-            link, json.as_object().unwrap_or(&json!({}).as_object().unwrap()).keys().join(", "), self.url, link)))
+            link, json.as_object().unwrap_or(json!({}).as_object().unwrap()).keys().join(", "), self.url, link)))
         },
         None => Err(PactBrokerError::LinkError(format!("Expected a HAL+JSON response from the pact broker, but got a response with no '_links'. URL: '{}', LINK: '{}'",
           self.url, link)))
@@ -871,7 +870,7 @@ impl HALClient {
             base_url.join(url)?
         } else {
             let url = url.parse::<Url>()?;
-            base_url.join(&url.path())?
+            base_url.join(url.path())?
         };
 
         let request_builder = match self.auth {
@@ -948,7 +947,7 @@ fn handle_validation_errors(body: Value) -> PactBrokerError {
 
             if let Some(errors) = attrs.get("errors") {
                 let error_messages = match errors {
-                    Value::Array(values) => values.iter().map(|v| json_to_string(v)).collect(),
+                    Value::Array(values) => values.iter().map(json_to_string).collect(),
                     Value::Object(errors) => errors
                         .iter()
                         .map(|(field, errors)| match errors {
@@ -956,7 +955,7 @@ fn handle_validation_errors(body: Value) -> PactBrokerError {
                             Value::Array(errors) => format!(
                                 "{}: {}",
                                 field,
-                                errors.iter().map(|err| json_to_string(err)).join(", ")
+                                errors.iter().map(json_to_string).join(", ")
                             ),
                             _ => format!("{}: {}", field, errors),
                         })
@@ -1281,10 +1280,8 @@ pub async fn fetch_pacts_dynamically_from_broker(
                 });
             trace!(?pfv, "got pacts for verification response");
 
-            if pfv.embedded.pacts.len() == 0 {
-                return Err(anyhow!(PactBrokerError::NotFound(format!(
-                    "No pacts were found for this provider"
-                ))));
+            if pfv.embedded.pacts.is_empty() {
+                return Err(anyhow!(PactBrokerError::NotFound("No pacts were found for this provider".to_string())));
             };
 
             let links: Result<Vec<(Link, PactVerificationContext)>, PactBrokerError> = pfv.embedded.pacts.iter().map(| p| {
@@ -1304,9 +1301,7 @@ pub async fn fetch_pacts_dynamically_from_broker(
 
             links
         }
-        None => Err(PactBrokerError::NotFound(format!(
-            "No pacts were found for this provider"
-        ))),
+        None => Err(PactBrokerError::NotFound("No pacts were found for this provider".to_string())),
     }?;
 
     let results: Vec<_> = futures::stream::iter(pact_links)

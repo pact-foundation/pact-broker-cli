@@ -188,10 +188,10 @@ fn build_matrix_table(data: &Data) -> (String, Vec<(String, String)>) {
         } else {
             "0"
         };
-        if let Some(verification_result) = &matrix_item.verification_result {
-            if let Some(links) = &verification_result.links {
-                if let Some(self_link) = &links.self_link {
-                    if let Some(href) = &self_link.href {
+        if let Some(verification_result) = &matrix_item.verification_result
+            && let Some(links) = &verification_result.links
+                && let Some(self_link) = &links.self_link
+                    && let Some(href) = &self_link.href {
                         let status = match verification_result.success {
                             Some(true) => "success",
                             Some(false) => "failure",
@@ -199,9 +199,6 @@ fn build_matrix_table(data: &Data) -> (String, Vec<(String, String)>) {
                         };
                         verification_results.push((href.clone(), status.to_string()));
                     }
-                }
-            }
-        }
         let mut row = vec![
             matrix_item.consumer.name.clone(),
             matrix_item
@@ -344,15 +341,12 @@ pub fn can_i_deploy(
 
             // If retry_while_unknown is set, poll if deployable is None (unknown)
             if max_attempts > 0 {
-                if let Ok(ref response) = res {
-                    if let Ok(data) = serde_json::from_str::<Data>(&response.to_string()) {
-                        if let Some(summary) = data.summary {
-                            if summary.deployable.is_some() {
+                if let Ok(ref response) = res
+                    && let Ok(data) = serde_json::from_str::<Data>(&response.to_string())
+                        && let Some(summary) = data.summary
+                            && summary.deployable.is_some() {
                                 break;
                             }
-                        }
-                    }
-                }
                 attempts += 1;
                 if attempts > max_attempts {
                     break;
@@ -389,7 +383,7 @@ pub fn can_i_deploy(
                                 }
                             };
 
-                            if data.matrix.len() > 0 {
+                            if !data.matrix.is_empty() {
                                 let (table_str, verification_results) = build_matrix_table(&data);
                                 println!("{table_str}");
                                 if !verification_results.is_empty() {
@@ -419,7 +413,7 @@ pub fn can_i_deploy(
                             } else {
                                 let computer_says_no = utils::RED.apply_to("¯\\_(ツ)_/¯");
                                 println!(r"❌ Computer says no {}", computer_says_no);
-                                if dry_run == true {
+                                if dry_run {
                                     let message =
                                         "📌 Dry run enabled, suppressing failing exit code"
                                             .to_string();
@@ -436,7 +430,7 @@ pub fn can_i_deploy(
                     Err(res) => {
                         let message = format!(
                             "❌ No output match provided for {}",
-                            res.clone().to_string()
+                            res.clone()
                         );
                         println!("{}", utils::RED.apply_to(message.clone()));
                         Err(PactBrokerError::ValidationError([message].to_vec()))
@@ -464,10 +458,10 @@ pub fn can_i_deploy(
                         }
                     }
                     _ => {
-                        println!("❌ {}", err.to_string());
+                        println!("❌ {}", err);
                     }
                 }
-                return Err(err);
+                Err(err)
             }
         }
     })

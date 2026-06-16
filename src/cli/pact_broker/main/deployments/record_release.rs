@@ -32,9 +32,9 @@ pub fn record_release(args: &clap::ArgMatches) -> Result<String, PactBrokerError
                 .fetch(
                     &(broker_url.clone()
                         + "/pacticipants/"
-                        + &pacticipant.unwrap()
+                        + pacticipant.unwrap()
                         + "/versions/"
-                        + &version.unwrap()),
+                        + version.unwrap()),
                 )
                 .await;
             #[derive(Debug, Deserialize, Serialize)]
@@ -92,9 +92,7 @@ pub fn record_release(args: &clap::ArgMatches) -> Result<String, PactBrokerError
                                             }
                                         Ok(message.to_string())
                                     }
-            Err(err) => Err(match err {
-                err => err,
-            }),
+            Err(err) => Err(err),
                                 }
                                         }
                             None => {
@@ -110,11 +108,7 @@ pub fn record_release(args: &clap::ArgMatches) -> Result<String, PactBrokerError
                     }
                 }
             Err(err) => {
-                Err(match err {
-                    err => {
-                        err
-                    }
-                })
+                Err(err)
             }
         }})
 }

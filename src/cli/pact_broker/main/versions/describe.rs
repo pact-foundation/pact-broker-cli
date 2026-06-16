@@ -82,7 +82,7 @@ pub fn describe_version(args: &clap::ArgMatches) -> Result<String, PactBrokerErr
             OutputType::Json => {
                 let json: String = serde_json::to_string(&result).unwrap();
                 println!("{}", json);
-                return Ok(json);
+                Ok(json)
             }
             OutputType::Table => {
                 let mut table = Table::new();
@@ -106,23 +106,21 @@ pub fn describe_version(args: &clap::ArgMatches) -> Result<String, PactBrokerErr
 
                 table.add_row(vec![version_number, &tags]);
                 println!("{table}");
-                return Ok(table.to_string());
+                Ok(table.to_string())
             }
 
             OutputType::Text => {
-                return Err(PactBrokerError::NotFound(
+                Err(PactBrokerError::NotFound(
                     "Text output is not supported for describe versions".to_string(),
-                ));
+                ))
             }
             OutputType::Pretty => {
                 let json: String = serde_json::to_string(&result).unwrap();
                 println!("{}", json);
-                return Ok(json);
+                Ok(json)
             }
         },
-        Err(PactBrokerError::NotFound(_)) => Err(PactBrokerError::NotFound(format!(
-            "Pacticipant version not found"
-        ))),
+        Err(PactBrokerError::NotFound(_)) => Err(PactBrokerError::NotFound("Pacticipant version not found".to_string())),
 
         Err(err) => Err(err),
     }

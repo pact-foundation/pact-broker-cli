@@ -66,8 +66,8 @@ pub fn list_environments(args: &clap::ArgMatches) -> Result<String, PactBrokerEr
                         "PRODUCTION",
                     ]);
 
-                    if let Some(embedded) = res["_embedded"].as_object() {
-                        if let Some(environments) = embedded["environments"].as_array() {
+                    if let Some(embedded) = res["_embedded"].as_object()
+                        && let Some(environments) = embedded["environments"].as_array() {
                             for environment in environments {
                                 let environment: Environment =
                                     serde_json::from_value(environment.clone()).unwrap();
@@ -79,7 +79,6 @@ pub fn list_environments(args: &clap::ArgMatches) -> Result<String, PactBrokerEr
                                 ]);
                             }
                         }
-                    }
 
                     println!("{table}");
                 }

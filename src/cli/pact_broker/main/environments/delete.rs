@@ -103,6 +103,6 @@ mod delete_environment_tests {
         let result = delete_environment(&matches);
         assert!(result.is_ok());
         let msg = result.unwrap();
-        assert!(msg.contains(&format!("deleted successfully")));
+        assert!(msg.contains(&"deleted successfully".to_string()));
     }
 }

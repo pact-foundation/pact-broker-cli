@@ -68,14 +68,14 @@ pub fn record_undeployment(args: &clap::ArgMatches) -> Result<String, PactBroker
                             .iter()
                             .map(|env| serde_json::from_value(env.clone()).unwrap())
                             .collect();
-                        let environment_exists = environments.iter().any(|env| env.name == environment.clone().unwrap().to_string());
+                        let environment_exists = environments.iter().any(|env| env.name == *environment.unwrap());
                         if environment_exists {
-                            let environment_uuid = &environments.iter().find(|env| env.name == environment.clone().unwrap().to_string()).unwrap().uuid;
+                            let environment_uuid = &environments.iter().find(|env| env.name == *environment.unwrap()).unwrap().uuid;
                             // Use environment_uuid in step 3
                             // println!("✅ Environment {} found with UUID: {}", environment.clone().unwrap(), environment_uuid);
                             // 3. Call the environment link and check the specified version exists, get the version link
                             let res = hal_client.clone()
-                            .fetch(&(broker_url.clone() + "/environments/" + &environment_uuid))
+                            .fetch(&(broker_url.clone() + "/environments/" + environment_uuid))
                             .await;
                         match res {
                             Ok(result) => {
@@ -94,7 +94,7 @@ pub fn record_undeployment(args: &clap::ArgMatches) -> Result<String, PactBroker
                                         // print!("🧹 Found currently deployed versions");
                                         if let Some(embedded) = result["_embedded"].as_object() {
                                             if let Some(deployed_versions) = embedded["deployedVersions"].as_array() {
-                                                if deployed_versions.len() == 0 {
+                                                if deployed_versions.is_empty() {
                                                     print!("❌ No currently deployed versions in {} environment", environment.unwrap());
                                                     PactBrokerError::NotFound(
                                                         format!("No currently deployed versions found for {} in {} environment", pacticipant.unwrap(), environment.unwrap())
@@ -134,9 +134,7 @@ pub fn record_undeployment(args: &clap::ArgMatches) -> Result<String, PactBroker
                                             }
                                             else {
                                                 print!("❌ Could not process hal relation link");
-                                                PactBrokerError::IoError(
-                                                    "Could not process hal relation link".to_string()
-                                                );
+                                                "Could not process hal relation link".to_string();
                                             }
                                         }
                                     Err(err) => return Err(err),

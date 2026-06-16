@@ -50,7 +50,7 @@ pub fn verify_json(
             let metadata = parse_meta_data(pact_json);
             determine_spec_version(source, &metadata)
         }
-        _ => spec_version.clone(),
+        _ => spec_version,
     };
     match spec_version {
         PactSpecification::V4 => V4Pact::verify_json("/", pact_json, strict, spec_version),
@@ -65,7 +65,7 @@ pub fn verify_json(
             _ => vec![PactFileVerificationResult::new(
                 "/",
                 ResultLevel::ERROR,
-                &format!("Must be an Object, got {}", json_type_of(pact_json)),
+                format!("Must be an Object, got {}", json_type_of(pact_json)),
             )],
         },
     }

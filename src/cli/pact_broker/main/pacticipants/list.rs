@@ -18,10 +18,11 @@ pub fn list_pacticipants(
     let ssl_options = &broker_details.ssl_options;
     let custom_headers = &broker_details.custom_headers;
 
-    let res = tokio::runtime::Runtime::new().unwrap().block_on(async {
+    
+    tokio::runtime::Runtime::new().unwrap().block_on(async {
         // query pact broker index and get hal relation link
         let hal_client: HALClient = HALClient::with_url(
-            &broker_url,
+            broker_url,
             auth.clone(),
             ssl_options.clone(),
             custom_headers.clone(),
@@ -53,10 +54,10 @@ pub fn list_pacticipants(
                 OutputType::Json => {
                     let json: String = serde_json::to_string(&result).unwrap();
                     println!("{}", json);
-                    return Ok(json);
+                    Ok(json)
                 }
                 OutputType::Table => {
-                    let names = vec![vec!["name"], vec!["displayName"]];
+                    let names = [vec!["name"], vec!["displayName"]];
                     let mut table = Table::new();
                     table
                         .load_preset(UTF8_FULL)
@@ -77,31 +78,23 @@ pub fn list_pacticipants(
                         }
                     }
                     println!("{table}");
-                    return Ok(table.to_string());
+                    Ok(table.to_string())
                 }
 
                 OutputType::Text => {
                     let text = result.to_string();
                     println!("{:?}", text);
-                    return Ok(text);
+                    Ok(text)
                 }
                 OutputType::Pretty => {
                     let json: String = serde_json::to_string(&result).unwrap();
                     println!("{}", json);
-                    return Ok(json);
+                    Ok(json)
                 }
             },
             Err(err) => Err(err),
         }
-    });
-    match res {
-        Ok(result) => {
-            return Ok(result);
-        }
-        Err(err) => {
-            return Err(err);
-        }
-    }
+    })
 }
 
 #[cfg(test)]

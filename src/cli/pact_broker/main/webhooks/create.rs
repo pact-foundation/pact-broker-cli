@@ -146,11 +146,10 @@ pub fn create_webhook(args: &clap::ArgMatches) -> Result<String, PactBrokerError
             }
         }
 
-        if let Some(desc) = description {
-            if !desc.is_empty() {
+        if let Some(desc) = description
+            && !desc.is_empty() {
                 webhook_data["description"] = serde_json::json!(desc);
             }
-        }
         let mut events  = Vec::new();
         if contract_content_changed {
             events.push(serde_json::json!({"name": "contract_content_changed"}));
@@ -176,8 +175,8 @@ pub fn create_webhook(args: &clap::ArgMatches) -> Result<String, PactBrokerError
             ));
         }
         webhook_data["events"] = serde_json::json!(events);
-        if let Some(consumer) = consumer {
-            if !consumer.is_empty() {
+        if let Some(consumer) = consumer
+            && !consumer.is_empty() {
             webhook_data["consumer"] = serde_json::json!({
                 "name": consumer,
             });
@@ -185,9 +184,8 @@ pub fn create_webhook(args: &clap::ArgMatches) -> Result<String, PactBrokerError
                 webhook_data["consumer"]["label"] = serde_json::json!(consumer_label);
             }
         }
-        }
-        if let Some(provider) = provider {
-            if !provider.is_empty() {
+        if let Some(provider) = provider
+            && !provider.is_empty() {
             webhook_data["provider"] = serde_json::json!({
                 "name": provider,
             });
@@ -195,12 +193,10 @@ pub fn create_webhook(args: &clap::ArgMatches) -> Result<String, PactBrokerError
                 webhook_data["provider"]["label"] = serde_json::json!(provider_label);
             }
         }
-        }
-        if let Some(team_uuid) = team_uuid {
-            if !team_uuid.is_empty() {
+        if let Some(team_uuid) = team_uuid
+            && !team_uuid.is_empty() {
             webhook_data["teamUuid"] = serde_json::json!(team_uuid);
             }
-        }
         let webhook_data_str = webhook_data.to_string();
         match operation {
             WebhookOperation::Update => {
@@ -477,7 +473,7 @@ mod create_webhook_tests {
         args.push("--provider-verification-failed");
 
         let matches = add_create_webhook_subcommand()
-            .get_matches_from(args.iter().map(|s| *s).collect::<Vec<_>>());
+            .get_matches_from(args.to_vec());
 
         let result = create_webhook(&matches);
 
@@ -551,7 +547,7 @@ mod create_webhook_tests {
         let idx = args.iter().position(|&a| a == "--data").unwrap() + 1;
         args[idx] = xml_body;
         let matches = add_create_webhook_subcommand()
-            .get_matches_from(args.iter().map(|s| *s).collect::<Vec<_>>());
+            .get_matches_from(args.to_vec());
 
         let result = create_webhook(&matches);
 
@@ -615,7 +611,7 @@ mod create_webhook_tests {
         let idx = args.iter().position(|&a| a == "https://webhook").unwrap();
         args.remove(idx);
         let matches = add_create_webhook_subcommand()
-            .get_matches_from(args.iter().map(|s| *s).collect::<Vec<_>>());
+            .get_matches_from(args.to_vec());
 
         let result = create_webhook(&matches);
 
@@ -685,7 +681,7 @@ mod create_webhook_tests {
         args.remove(idx);
         args.remove(idx);
         let matches = add_create_webhook_subcommand()
-            .get_matches_from(args.iter().map(|s| *s).collect::<Vec<_>>());
+            .get_matches_from(args.to_vec());
 
         let result = create_webhook(&matches);
 
@@ -756,7 +752,7 @@ mod create_webhook_tests {
         args.remove(idx);
 
         let matches = add_create_webhook_subcommand()
-            .get_matches_from(args.iter().map(|s| *s).collect::<Vec<_>>());
+            .get_matches_from(args.to_vec());
 
         let result = create_webhook(&matches);
 
@@ -850,7 +846,7 @@ mod create_webhook_tests {
         args.push("--uuid");
         args.push(uuid);
         let matches = add_create_or_update_webhook_subcommand()
-            .get_matches_from(args.iter().map(|s| *s).collect::<Vec<_>>());
+            .get_matches_from(args.to_vec());
 
         let result = create_webhook(&matches);
 
@@ -943,7 +939,7 @@ mod create_webhook_tests {
         args.push("--uuid");
         args.push(uuid);
         let matches = add_create_or_update_webhook_subcommand()
-            .get_matches_from(args.iter().map(|s| *s).collect::<Vec<_>>());
+            .get_matches_from(args.to_vec());
 
         let result = create_webhook(&matches);
 
@@ -1034,7 +1030,7 @@ mod create_webhook_tests {
         args.push("--uuid");
         args.push(uuid);
         let matches = add_create_or_update_webhook_subcommand()
-            .get_matches_from(args.iter().map(|s| *s).collect::<Vec<_>>());
+            .get_matches_from(args.to_vec());
 
         let result = create_webhook(&matches);
 

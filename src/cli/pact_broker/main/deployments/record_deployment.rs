@@ -26,9 +26,9 @@ pub fn record_deployment(args: &clap::ArgMatches) -> Result<String, PactBrokerEr
                     .fetch(
                         &(broker_url.clone()
                             + "/pacticipants/"
-                            + &pacticipant.unwrap()
+                            + pacticipant.unwrap()
                             + "/versions/"
-                            + &version.unwrap()),
+                            + version.unwrap()),
                     )
                     .await;
 
@@ -93,9 +93,7 @@ pub fn record_deployment(args: &clap::ArgMatches) -> Result<String, PactBrokerEr
                                                 }
                                             Ok(message)
                                         }
-            Err(err) => Err(match err {
-                err => err,
-            }),
+            Err(err) => Err(err),
                                     }
                                             }
                                 None => {
@@ -110,9 +108,7 @@ pub fn record_deployment(args: &clap::ArgMatches) -> Result<String, PactBrokerEr
                             }
                         }
                     }
-            Err(err) => Err(match err {
-                err => err,
-            }),
+            Err(err) => Err(err),
             }})
 }
 

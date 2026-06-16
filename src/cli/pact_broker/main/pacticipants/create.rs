@@ -138,7 +138,7 @@ pub fn create_or_update_pacticipant(args: &clap::ArgMatches) -> Result<String, P
                     pacticipant_name
                 ))
             }
-            Err(err) => return Err(err.clone()),
+            Err(err) => Err(err.clone()),
         }
     });
 
