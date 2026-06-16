@@ -249,11 +249,7 @@ mod retry_tests {
     #[test]
     fn delay_for_429_with_zero_retry_after_adds_no_extra() {
         // Retry-After: 0 s → 0 + min(0, 60) = 0
-        let delay = compute_retry_delay(
-            StatusCode::TOO_MANY_REQUESTS,
-            Some(Duration::ZERO),
-            1,
-        );
+        let delay = compute_retry_delay(StatusCode::TOO_MANY_REQUESTS, Some(Duration::ZERO), 1);
         assert_eq!(delay, Duration::from_secs(0));
     }
 }

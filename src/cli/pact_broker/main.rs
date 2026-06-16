@@ -595,7 +595,7 @@ impl HALClient {
         info!("Fetching path '{}' from pact broker", path);
         trace!(%path, broker_url = %self.url, ">> fetch");
         let url = self.resolve_path(path)?;
-            debug!("Final broker URL: {}", url);
+        debug!("Final broker URL: {}", url);
 
         let mut request_builder = match self.auth {
             Some(ref auth) => match auth {
@@ -622,29 +622,29 @@ impl HALClient {
         self.parse_broker_response(path.to_string(), response).await
     }
 
-      fn resolve_path(&self, path: &str) -> Result<Url, PactBrokerError> {
+    fn resolve_path(&self, path: &str) -> Result<Url, PactBrokerError> {
         let broker_url = self.url.parse::<Url>()?;
         let context_path = broker_url.path();
         let url = if path.is_empty() {
-        broker_url
+            broker_url
         } else if !context_path.is_empty() && context_path != "/" {
-        if path.starts_with(context_path) {
-            let mut base_url = broker_url.clone();
-            base_url.set_path("/");
-            base_url.join(path)?
-        } else if path.starts_with("/") {
-            let mut base_url = broker_url.clone();
-            base_url.set_path(path);
-            base_url
+            if path.starts_with(context_path) {
+                let mut base_url = broker_url.clone();
+                base_url.set_path("/");
+                base_url.join(path)?
+            } else if path.starts_with("/") {
+                let mut base_url = broker_url.clone();
+                base_url.set_path(path);
+                base_url
+            } else {
+                let mut base_url = broker_url.clone();
+                let mut cp = context_path.to_string();
+                cp.push('/');
+                base_url.set_path(cp.as_str());
+                base_url.join(path)?
+            }
         } else {
-            let mut base_url = broker_url.clone();
-            let mut cp = context_path.to_string();
-            cp.push('/');
-            base_url.set_path(cp.as_str());
-            base_url.join(path)?
-        }
-        } else {
-        broker_url.join(path)?
+            broker_url.join(path)?
         };
         Ok(url)
     }
@@ -1022,7 +1022,9 @@ impl HALClient {
                             builder = builder.tls_certs_merge(certs);
                         } else {
                             // Use ONLY the provided certificate; bypass all built-in roots.
-                            debug!("Disabling root trust store for SSL — using only the provided certificate");
+                            debug!(
+                                "Disabling root trust store for SSL — using only the provided certificate"
+                            );
                             builder = builder.tls_certs_only(certs);
                         }
                     }
@@ -1040,7 +1042,9 @@ impl HALClient {
                 );
             }
         } else if !ssl_options.use_root_trust_store {
-            debug!("ssl-trust-store disabled but no custom certificate provided; proceeding with system roots");
+            debug!(
+                "ssl-trust-store disabled but no custom certificate provided; proceeding with system roots"
+            );
         }
         if ssl_options.skip_ssl {
             builder = builder.danger_accept_invalid_certs(true);
@@ -1051,7 +1055,9 @@ impl HALClient {
         ClientBuilder::new(built_client)
             .with(TracingMiddleware::default())
             .with(OtelPropagatorMiddleware)
-            .with(RetryMiddleware { max_attempts: retries })
+            .with(RetryMiddleware {
+                max_attempts: retries,
+            })
             .build()
     }
 
@@ -1777,100 +1783,141 @@ mod hal_client_custom_headers_tests {
 }
 
 #[cfg(test)]
-mod tests
-{
+mod tests {
     use expectest::expect;
-  use expectest::prelude::*;
-  use pact_models::{Consumer, PactSpecification, Provider};
-  use pact_models::prelude::RequestResponsePact;
-  use pact_models::sync_interaction::RequestResponseInteraction;
-  use pretty_assertions::assert_eq;
+    use expectest::prelude::*;
+    use pact_models::prelude::RequestResponsePact;
+    use pact_models::sync_interaction::RequestResponseInteraction;
+    use pact_models::{Consumer, PactSpecification, Provider};
+    use pretty_assertions::assert_eq;
 
-  use pact_consumer::*;
-  use pact_consumer::prelude::*;
+    use pact_consumer::prelude::*;
+    use pact_consumer::*;
 
-  use super::*;
-  use super::{content_type, json_content_type};
+    use super::*;
+    use super::{content_type, json_content_type};
 
     #[test]
-  fn resolve_path_test() {
-    let client = HALClient::with_url("not a URL", None, SslOptions::default(), None);
-    expect!(client.resolve_path("/any")).to(be_err());
+    fn resolve_path_test() {
+        let client = HALClient::with_url("not a URL", None, SslOptions::default(), None);
+        expect!(client.resolve_path("/any")).to(be_err());
 
-    let client = HALClient::with_url("http://localhost-ip4:1234", None, SslOptions::default(), None);
-    expect!(client.resolve_path("")).to(be_ok().value(Url::parse("http://localhost-ip4:1234").unwrap()));
-    expect!(client.resolve_path("/")).to(be_ok().value(Url::parse("http://localhost-ip4:1234").unwrap()));
-    expect!(client.resolve_path("/any")).to(be_ok().value(Url::parse("http://localhost-ip4:1234/any").unwrap()));
-    expect!(client.resolve_path("any")).to(be_ok().value(Url::parse("http://localhost-ip4:1234/any").unwrap()));
-    expect!(client.resolve_path("any/sub-path")).to(be_ok().value(Url::parse("http://localhost-ip4:1234/any/sub-path").unwrap()));
-    expect!(client.resolve_path("/base-path")).to(be_ok().value(Url::parse("http://localhost-ip4:1234/base-path").unwrap()));
-    expect!(client.resolve_path("/base-path/")).to(be_ok().value(Url::parse("http://localhost-ip4:1234/base-path/").unwrap()));
-    expect!(client.resolve_path("/base-path/sub-path")).to(be_ok().value(Url::parse("http://localhost-ip4:1234/base-path/sub-path").unwrap()));
+        let client = HALClient::with_url(
+            "http://localhost-ip4:1234",
+            None,
+            SslOptions::default(),
+            None,
+        );
+        expect!(client.resolve_path(""))
+            .to(be_ok().value(Url::parse("http://localhost-ip4:1234").unwrap()));
+        expect!(client.resolve_path("/"))
+            .to(be_ok().value(Url::parse("http://localhost-ip4:1234").unwrap()));
+        expect!(client.resolve_path("/any"))
+            .to(be_ok().value(Url::parse("http://localhost-ip4:1234/any").unwrap()));
+        expect!(client.resolve_path("any"))
+            .to(be_ok().value(Url::parse("http://localhost-ip4:1234/any").unwrap()));
+        expect!(client.resolve_path("any/sub-path"))
+            .to(be_ok().value(Url::parse("http://localhost-ip4:1234/any/sub-path").unwrap()));
+        expect!(client.resolve_path("/base-path"))
+            .to(be_ok().value(Url::parse("http://localhost-ip4:1234/base-path").unwrap()));
+        expect!(client.resolve_path("/base-path/"))
+            .to(be_ok().value(Url::parse("http://localhost-ip4:1234/base-path/").unwrap()));
+        expect!(client.resolve_path("/base-path/sub-path"))
+            .to(be_ok().value(Url::parse("http://localhost-ip4:1234/base-path/sub-path").unwrap()));
 
-    let client = HALClient::with_url("http://localhost-ip4:1234/base-path", None, SslOptions::default(), None);
-    expect!(client.resolve_path("")).to(be_ok().value(Url::parse("http://localhost-ip4:1234/base-path").unwrap()));
-    expect!(client.resolve_path("/")).to(be_ok().value(Url::parse("http://localhost-ip4:1234").unwrap()));
-    expect!(client.resolve_path("/any")).to(be_ok().value(Url::parse("http://localhost-ip4:1234/any").unwrap()));
-    expect!(client.resolve_path("any")).to(be_ok().value(Url::parse("http://localhost-ip4:1234/base-path/any").unwrap()));
-    expect!(client.resolve_path("any/sub-path")).to(be_ok().value(Url::parse("http://localhost-ip4:1234/base-path/any/sub-path").unwrap()));
-    expect!(client.resolve_path("/base-path")).to(be_ok().value(Url::parse("http://localhost-ip4:1234/base-path").unwrap()));
-    expect!(client.resolve_path("/base-path/")).to(be_ok().value(Url::parse("http://localhost-ip4:1234/base-path/").unwrap()));
-    expect!(client.resolve_path("/base-path/sub-path")).to(be_ok().value(Url::parse("http://localhost-ip4:1234/base-path/sub-path").unwrap()));
-  }
+        let client = HALClient::with_url(
+            "http://localhost-ip4:1234/base-path",
+            None,
+            SslOptions::default(),
+            None,
+        );
+        expect!(client.resolve_path(""))
+            .to(be_ok().value(Url::parse("http://localhost-ip4:1234/base-path").unwrap()));
+        expect!(client.resolve_path("/"))
+            .to(be_ok().value(Url::parse("http://localhost-ip4:1234").unwrap()));
+        expect!(client.resolve_path("/any"))
+            .to(be_ok().value(Url::parse("http://localhost-ip4:1234/any").unwrap()));
+        expect!(client.resolve_path("any"))
+            .to(be_ok().value(Url::parse("http://localhost-ip4:1234/base-path/any").unwrap()));
+        expect!(client.resolve_path("any/sub-path"))
+            .to(be_ok()
+                .value(Url::parse("http://localhost-ip4:1234/base-path/any/sub-path").unwrap()));
+        expect!(client.resolve_path("/base-path"))
+            .to(be_ok().value(Url::parse("http://localhost-ip4:1234/base-path").unwrap()));
+        expect!(client.resolve_path("/base-path/"))
+            .to(be_ok().value(Url::parse("http://localhost-ip4:1234/base-path/").unwrap()));
+        expect!(client.resolve_path("/base-path/sub-path"))
+            .to(be_ok().value(Url::parse("http://localhost-ip4:1234/base-path/sub-path").unwrap()));
+    }
 
-  #[test_log::test(tokio::test)]
-  async fn navigate_first_retrieves_the_root_resource() {
-    let pact_broker = PactBuilderAsync::new("RustPactVerifier", "PactBrokerStub")
-      .interaction("a request to a hal resource", "", |mut i| async move {
-        i.request.path("/");
-        i.response
+    #[test_log::test(tokio::test)]
+    async fn navigate_first_retrieves_the_root_resource() {
+        let pact_broker =
+            PactBuilderAsync::new("RustPactVerifier", "PactBrokerStub")
+                .interaction("a request to a hal resource", "", |mut i| async move {
+                    i.request.path("/");
+                    i.response
           .header("Content-Type", "application/hal+json")
           .body("{\"_links\":{\"next\":{\"href\":\"/abc\"},\"prev\":{\"href\":\"/def\"}}}");
-        i
-      })
-      .await
-      .interaction("a request to next", "", |mut i| async move {
-        i.request.path("/abc");
-        i.response
-          .header("Content-Type", "application/json")
-          .json_body(json_pattern!("Yay! You found your way here"));
-        i
-      })
-      .await
-      .start_mock_server(None, Some(MockServerConfig::default()));
+                    i
+                })
+                .await
+                .interaction("a request to next", "", |mut i| async move {
+                    i.request.path("/abc");
+                    i.response
+                        .header("Content-Type", "application/json")
+                        .json_body(json_pattern!("Yay! You found your way here"));
+                    i
+                })
+                .await
+                .start_mock_server(None, Some(MockServerConfig::default()));
 
-    let client = HALClient::with_url(pact_broker.url().as_str(), None, SslOptions::default(), None);
-    let result = client.navigate("next", &hashmap!{}).await.unwrap();
-    expect!(result.path_info).to(be_some().value(serde_json::Value::String("Yay! You found your way here".to_string())));
-  }
+        let client = HALClient::with_url(
+            pact_broker.url().as_str(),
+            None,
+            SslOptions::default(),
+            None,
+        );
+        let result = client.navigate("next", &hashmap! {}).await.unwrap();
+        expect!(result.path_info).to(be_some().value(serde_json::Value::String(
+            "Yay! You found your way here".to_string(),
+        )));
+    }
 
-  #[test_log::test(tokio::test)]
-  async fn navigate_will_not_retrieve_the_root_resource_if_a_path_is_already_set() {
-    let pact_broker = PactBuilderAsync::new("RustPactVerifier", "PactBrokerStub")
-      .interaction("a request to next", "", |mut i| async move {
-        i.request.path("/abc");
-        i.response
-          .header("Content-Type", "application/json")
-          .json_body(json_pattern!("Yay! You found your way here"));
-        i
-      })
-      .await
-      .start_mock_server(None, Some(MockServerConfig::default()));
+    #[test_log::test(tokio::test)]
+    async fn navigate_will_not_retrieve_the_root_resource_if_a_path_is_already_set() {
+        let pact_broker = PactBuilderAsync::new("RustPactVerifier", "PactBrokerStub")
+            .interaction("a request to next", "", |mut i| async move {
+                i.request.path("/abc");
+                i.response
+                    .header("Content-Type", "application/json")
+                    .json_body(json_pattern!("Yay! You found your way here"));
+                i
+            })
+            .await
+            .start_mock_server(None, Some(MockServerConfig::default()));
 
-    let mut client = HALClient::with_url(pact_broker.url().as_str(), None, SslOptions::default(), None);
-    client.path_info = Some(json!({
-      "_links": {
-        "next": { "href": "/abc" },
-        "prev": { "href": "/def" }
-      }
-    }));
-    let result = client.navigate("next", &hashmap!{}).await.unwrap();
-    expect!(result.path_info).to(be_some().value(serde_json::Value::String("Yay! You found your way here".to_string())));
-  }
+        let mut client = HALClient::with_url(
+            pact_broker.url().as_str(),
+            None,
+            SslOptions::default(),
+            None,
+        );
+        client.path_info = Some(json!({
+          "_links": {
+            "next": { "href": "/abc" },
+            "prev": { "href": "/def" }
+          }
+        }));
+        let result = client.navigate("next", &hashmap! {}).await.unwrap();
+        expect!(result.path_info).to(be_some().value(serde_json::Value::String(
+            "Yay! You found your way here".to_string(),
+        )));
+    }
 
-  #[test_log::test(tokio::test)]
-  async fn navigate_takes_context_paths_into_account() {
-    let pact_broker = PactBuilderAsync::new("RustPactVerifier", "PactBrokerStub")
+    #[test_log::test(tokio::test)]
+    async fn navigate_takes_context_paths_into_account() {
+        let pact_broker = PactBuilderAsync::new("RustPactVerifier", "PactBrokerStub")
       .interaction("a request to a hal resource with base path", "", |mut i| async move {
         i.request.path("/base-path");
         i.response
@@ -1889,10 +1936,17 @@ mod tests
       .await
       .start_mock_server(None, Some(MockServerConfig::default()));
 
-    let client = HALClient::with_url(pact_broker.url().join("/base-path").unwrap().as_str(), None, SslOptions::default(), None);
-    let result = client.navigate("next", &hashmap!{}).await.unwrap();
-    expect!(result.path_info).to(be_some().value(serde_json::Value::String("Yay! You found your way here".to_string())));
-  }
+        let client = HALClient::with_url(
+            pact_broker.url().join("/base-path").unwrap().as_str(),
+            None,
+            SslOptions::default(),
+            None,
+        );
+        let result = client.navigate("next", &hashmap! {}).await.unwrap();
+        expect!(result.path_info).to(be_some().value(serde_json::Value::String(
+            "Yay! You found your way here".to_string(),
+        )));
+    }
 }
 
 // MARK: RetryMiddleware integration tests
@@ -1917,8 +1971,7 @@ mod retry_middleware_tests {
     }
 
     fn hal_client(base_url: &str, retries: u8) -> HALClient {
-        HALClient::with_url(base_url, None, SslOptions::default(), None)
-            .with_retry_count(retries)
+        HALClient::with_url(base_url, None, SslOptions::default(), None).with_retry_count(retries)
     }
 
     #[tokio::test]
