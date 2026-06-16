@@ -303,30 +303,26 @@ pub fn publish_pacts(args: &ArgMatches) -> Result<Value, i32> {
                 git_branch = Some("".to_string());
             }
             if auto_detect_version_properties {
-                if consumer_app_version == None {
+                if consumer_app_version.is_none() {
                     consumer_app_version = git_commit.as_ref();
-                    println!(
-                        "🔍 Auto detected git commit: {}",
-                        consumer_app_version.unwrap().to_string()
-                    );
-                } else {
+                    if let Some(v) = consumer_app_version {
+                        println!("🔍 Auto detected git commit: {}", v);
+                    }
+                } else if let Some(v) = consumer_app_version {
                     println!(
                         "🔍 auto_detect_version_properties set to {}, but consumer_app_version provided {}",
-                        auto_detect_version_properties,
-                        consumer_app_version.unwrap().to_string()
+                        auto_detect_version_properties, v
                     );
                 }
-                if branch == None {
+                if branch.is_none() {
                     branch = git_branch.as_ref();
-                    println!(
-                        "🔍 Auto detected git branch: {}",
-                        branch.unwrap().to_string()
-                    );
-                } else {
+                    if let Some(b) = branch {
+                        println!("🔍 Auto detected git branch: {}", b);
+                    }
+                } else if let Some(b) = branch {
                     println!(
                         "🔍 auto_detect_version_properties set to {}, but branch provided {}",
-                        auto_detect_version_properties,
-                        branch.unwrap().to_string()
+                        auto_detect_version_properties, b
                     );
                 }
             }
@@ -424,18 +420,18 @@ pub fn publish_pacts(args: &ArgMatches) -> Result<Value, i32> {
                         let pact_json_data = pact.to_json(pact_spec).unwrap();
                         let mut payload = json!({});
                         payload["pacticipantName"] = Value::String(consumer_name.clone());
-                        if consumer_app_version != None {
+                        if let Some(v) = consumer_app_version {
                             payload["pacticipantVersionNumber"] =
-                                Value::String(consumer_app_version.unwrap().to_string());
+                                Value::String(v.to_string());
                         } else {
                             println!("❌ Error: Consumer app version is required to publish pact");
                             return Err(1);
                         }
-                        if branch != None {
-                            payload["branch"] = Value::String(branch.unwrap().to_string());
+                        if let Some(b) = branch {
+                            payload["branch"] = Value::String(b.to_string());
                         }
-                        if build_url != None {
-                            payload["buildUrl"] = Value::String(build_url.unwrap().to_string());
+                        if let Some(url) = build_url {
+                            payload["buildUrl"] = Value::String(url.to_string());
                         }
                         if let Some(tags) = args.get_many::<String>("tag") {
                             payload["tags"] = serde_json::Value::Array(vec![]);

@@ -91,11 +91,8 @@ pub struct Notice {
 
 fn is_true(object: &serde_json::Map<String, Value>, field: &str) -> bool {
     match object.get(field) {
-        Some(json) => match *json {
-            serde_json::Value::Bool(b) => b,
-            _ => false,
-        },
-        None => false,
+        Some(serde_json::Value::Bool(b)) => *b,
+        _ => false,
     }
 }
 
@@ -1094,20 +1091,17 @@ impl HALClient {
 
 pub fn links_from_json(json: &Value) -> Vec<Link> {
     match json.get("_links") {
-        Some(json) => match json {
-            Value::Object(v) => v
-                .iter()
-                .map(|(link, json)| match json {
-                    Value::Object(attr) => Link::from_json(link, attr),
-                    _ => Link {
-                        name: link.clone(),
-                        ..Link::default()
-                    },
-                })
-                .collect(),
-            _ => vec![],
-        },
-        None => vec![],
+        Some(Value::Object(v)) => v
+            .iter()
+            .map(|(link, json)| match json {
+                Value::Object(attr) => Link::from_json(link, attr),
+                _ => Link {
+                    name: link.clone(),
+                    ..Link::default()
+                },
+            })
+            .collect(),
+        _ => vec![],
     }
 }
 

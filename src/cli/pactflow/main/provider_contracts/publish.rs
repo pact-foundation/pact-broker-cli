@@ -147,30 +147,26 @@ pub fn publish(args: &ArgMatches) -> Result<Value, PactBrokerError> {
                 git_branch = Some("".to_string());
             }
             if auto_detect_version_properties {
-                if provider_app_version == None {
+                if provider_app_version.is_none() {
                     provider_app_version = git_commit.as_ref();
-                    println!(
-                        "🔍 Auto detected git commit: {}",
-                        provider_app_version.unwrap().to_string()
-                    );
-                } else {
+                    if let Some(v) = provider_app_version {
+                        println!("🔍 Auto detected git commit: {}", v);
+                    }
+                } else if let Some(v) = provider_app_version {
                     println!(
                         "🔍 auto_detect_version_properties set to {}, but provider_app_version provided {}",
-                        auto_detect_version_properties,
-                        provider_app_version.unwrap().to_string()
+                        auto_detect_version_properties, v
                     );
                 }
-                if branch == None {
+                if branch.is_none() {
                     branch = git_branch.as_ref();
-                    println!(
-                        "🔍 Auto detected git branch: {}",
-                        branch.unwrap().to_string()
-                    );
-                } else {
+                    if let Some(b) = branch {
+                        println!("🔍 Auto detected git branch: {}", b);
+                    }
+                } else if let Some(b) = branch {
                     println!(
                         "🔍 auto_detect_version_properties set to {}, but branch provided {}",
-                        auto_detect_version_properties,
-                        branch.unwrap().to_string()
+                        auto_detect_version_properties, b
                     );
                 }
             }
