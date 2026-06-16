@@ -298,7 +298,6 @@ mod create_webhook_tests {
         }
     }
     fn index_interaction_with_webhook_relation(
-        _uuid: &String,
     ) -> impl Fn(InteractionBuilder) -> InteractionBuilder {
         |mut i: InteractionBuilder| {
             i.request
@@ -764,7 +763,7 @@ mod create_webhook_tests {
         };
 
         let mock_server = setup_mock_server(vec![
-            index_interaction_with_webhook_relation(&uuid.to_string())(InteractionBuilder::new(
+            index_interaction_with_webhook_relation()(InteractionBuilder::new(
                 "a request for the index resource with the webhook relation",
                 "",
             )),
@@ -857,7 +856,7 @@ mod create_webhook_tests {
         };
 
         let mock_server = setup_mock_server(vec![
-            index_interaction_with_webhook_relation(&uuid.to_string())(InteractionBuilder::new(
+            index_interaction_with_webhook_relation()(InteractionBuilder::new(
                 "a request for the index resource with the webhook relation",
                 "",
             )),
@@ -948,7 +947,7 @@ mod create_webhook_tests {
         };
 
         let mock_server = setup_mock_server(vec![
-            index_interaction_with_webhook_relation(&uuid.to_string())(InteractionBuilder::new(
+            index_interaction_with_webhook_relation()(InteractionBuilder::new(
                 "a request for the index resource with the webhook relation",
                 "",
             )),

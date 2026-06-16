@@ -70,7 +70,7 @@ pub fn handle_matches(
                 let _enter = span.enter();
 
                 match results.subcommand() {
-                    Some(("pactflow", args)) => match cli::pactflow_client::run(args, raw_args) {
+                    Some(("pactflow", args)) => match cli::pactflow_client::run(args) {
                         Ok(_) => Ok(()),
                         Err(error) => Err(ExitCode::from(error as u8)),
                     },

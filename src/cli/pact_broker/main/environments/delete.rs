@@ -56,7 +56,7 @@ mod delete_environment_tests {
     use pact_consumer::prelude::*;
     use pact_models::PactSpecification;
 
-    fn build_matches(broker_url: &str, uuid: &str, _output: &str) -> clap::ArgMatches {
+    fn build_matches(broker_url: &str, uuid: &str) -> clap::ArgMatches {
         let args = vec!["delete-environment", "-b", broker_url, "--uuid", uuid];
         add_delete_environment_subcommand().get_matches_from(args)
     }
@@ -98,7 +98,7 @@ mod delete_environment_tests {
             .start_mock_server(None, Some(config));
         let mock_server_url = pact_broker_service.url();
 
-        let matches = build_matches(mock_server_url.as_str(), uuid, "text");
+        let matches = build_matches(mock_server_url.as_str(), uuid);
 
         let result = delete_environment(&matches);
         assert!(result.is_ok());
