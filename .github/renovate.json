@@ -10,6 +10,7 @@
 	"prHourlyLimit": 0,
 	"prConcurrentLimit": 0,
 	"rebaseWhen": "conflicted",
+	"ignorePaths": [".github/workflows/release.yml"],
 	"packageRules": [
 		{
 			"matchPackageNames": ["taiki-e/install-action"],

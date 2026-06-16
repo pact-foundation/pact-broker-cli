@@ -31,10 +31,7 @@ targets = [
   "x86_64-unknown-linux-musl",
 ]
 bin-aliases = { pact-broker-cli = ["pact-broker"] }
-install-path = [
-  "~/.pact/bin",
-  "CARGO_HOME",
-]
+install-path = "~/.pact/bin"
 
 [lib]
 name = "pact_broker_cli"
