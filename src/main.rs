@@ -1,4 +1,5 @@
 pub mod cli;
+pub use cli::build_cli;
 
 use clap::ArgMatches;
 use clap::error::ErrorKind;
