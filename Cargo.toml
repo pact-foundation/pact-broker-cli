@@ -103,13 +103,13 @@ urlencoding = "2"
 uuid = { version = "1", features = ["v4"] }
 
 [dev-dependencies]
-axum = "0.8.9"
-expectest = "0.12"
-pact_consumer = "1"
-pretty_assertions = "1"
-test-log = { version = "0.2", features = ["trace"] }
-tokio = { version = "1", features = ["macros", "net", "rt-multi-thread"] }
-trycmd = "1"
+axum = "=0.8.9"
+expectest = "=0.12.0"
+pact_consumer = "=1.4.4"
+pretty_assertions = "=1.4.1"
+test-log = { version = "=0.2.21", features = ["trace"] }
+tokio = { version = "=1.52.3", features = ["macros", "net", "rt-multi-thread"] }
+trycmd = "=1.2.0"
 
 [profile.dist]
 inherits = "release"
