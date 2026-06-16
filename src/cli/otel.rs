@@ -187,7 +187,7 @@ pub fn capture_telemetry(args: &[String], exit_code: i32, error_message: Option<
     let span_context = span.context();
     let otel_span = span_context.span();
 
-    if let Some(binary) = args.get(0) {
+    if let Some(binary) = args.first() {
         otel_span.set_attribute(KeyValue::new("binary", binary.clone()));
     }
     if let Some(command) = args.get(1) {

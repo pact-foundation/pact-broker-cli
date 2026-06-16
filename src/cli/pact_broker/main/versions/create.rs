@@ -18,7 +18,8 @@ pub fn create_or_update_version(args: &clap::ArgMatches) -> Result<String, PactB
         .cloned()
         .collect::<Vec<_>>();
 
-    let result = tokio::runtime::Runtime::new().unwrap().block_on(async {
+    
+    tokio::runtime::Runtime::new().unwrap().block_on(async {
         let hal_client: HALClient = HALClient::with_url(
             &broker_url,
             Some(auth.clone()),
@@ -85,8 +86,7 @@ pub fn create_or_update_version(args: &clap::ArgMatches) -> Result<String, PactB
             }
         }
         Ok("Version created or updated successfully".to_string())
-    });
-    result
+    })
 }
 
 #[cfg(test)]

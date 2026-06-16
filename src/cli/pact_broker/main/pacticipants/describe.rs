@@ -20,10 +20,11 @@ pub fn describe_pacticipant(
     let custom_headers = &broker_details.custom_headers;
     let ssl_options = &broker_details.ssl_options;
 
-    let res = tokio::runtime::Runtime::new().unwrap().block_on(async {
+    
+    tokio::runtime::Runtime::new().unwrap().block_on(async {
         // query pact broker index and get hal relation link
         let hal_client: HALClient = HALClient::with_url(
-            &broker_url,
+            broker_url,
             auth.clone(),
             ssl_options.clone(),
             custom_headers.clone(),
@@ -57,17 +58,15 @@ pub fn describe_pacticipant(
                 OutputType::Json => {
                     let json: String = serde_json::to_string(&result).unwrap();
                     println!("{}", json);
-                    return Ok(json);
+                    Ok(json)
                 }
                 OutputType::Table => {
-                    let names = vec![
-                        vec!["name"],
+                    let names = [vec!["name"],
                         vec!["displayName"],
                         vec!["mainBranch"],
                         vec!["repositoryUrl"],
                         vec!["createdAt"],
-                        vec!["updatedAt"],
-                    ];
+                        vec!["updatedAt"]];
                     let mut table = Table::new();
                     table.load_preset(UTF8_FULL).set_header(vec![
                         "NAME",
@@ -95,7 +94,7 @@ pub fn describe_pacticipant(
                     let records: Vec<String> = values.iter().map(|v| v.to_string()).collect();
                     table.add_row(records.as_slice());
                     println!("{table}");
-                    return Ok(table.to_string());
+                    Ok(table.to_string())
                 }
 
                 OutputType::Text => {
@@ -113,25 +112,17 @@ pub fn describe_pacticipant(
                         let value = result.get(key).and_then(|v| v.as_str()).unwrap_or("-");
                         println!("{label}: {value}");
                     }
-                    return Ok(text);
+                    Ok(text)
                 }
                 OutputType::Pretty => {
                     let json: String = serde_json::to_string(&result).unwrap();
                     println!("{}", json);
-                    return Ok(json);
+                    Ok(json)
                 }
             },
             Err(err) => Err(err),
         }
-    });
-    match res {
-        Ok(result) => {
-            return Ok(result);
-        }
-        Err(err) => {
-            return Err(err);
-        }
-    }
+    })
 }
 
 #[cfg(test)]

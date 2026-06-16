@@ -7,7 +7,8 @@ pub mod pactflow;
 pub mod pactflow_client;
 pub mod utils;
 pub fn build_cli() -> Command {
-    let app = pact_broker_client::add_pact_broker_client_command()
+    
+    pact_broker_client::add_pact_broker_client_command()
         .arg_required_else_help(true)
         .version(env!("CARGO_PKG_VERSION"))
         .about("A pact cli tool")
@@ -16,8 +17,7 @@ pub fn build_cli() -> Command {
         .subcommand(
             pactflow_client::add_pactflow_client_command().version(env!("CARGO_PKG_VERSION")),
         )
-        .subcommand(add_completions_subcommand());
-    app
+        .subcommand(add_completions_subcommand())
 }
 
 fn add_otel_options_args() -> Vec<Arg> {
@@ -67,7 +67,7 @@ fn add_otel_options_args() -> Vec<Arg> {
             .default_value("http")
             .requires_if("otlp", "otel-exporter")
             .env("OTEL_EXPORTER_OTLP_PROTOCOL")
-            .value_parser(clap::builder::PossibleValuesParser::new(&[
+            .value_parser(clap::builder::PossibleValuesParser::new([
                 "http",
                 "http/protobuf",
             ])),
@@ -145,7 +145,7 @@ fn add_completions_subcommand() -> Command {
     .arg(Arg::new("shell")
         .value_name("SHELL")
         .required(true)
-        .value_parser(clap::builder::PossibleValuesParser::new(&["bash", "fish", "zsh", "powershell", "elvish"]))
+        .value_parser(clap::builder::PossibleValuesParser::new(["bash", "fish", "zsh", "powershell", "elvish"]))
         .help("The shell to generate the script for"))
     .arg(Arg::new("dir")
         .short('d')

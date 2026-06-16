@@ -224,7 +224,7 @@ fn merge_interactions_or_messages(
 }
 
 pub fn handle_matches(args: &ArgMatches) -> Result<Vec<VerificationResult>, i32> {
-    if args.get_flag("validate") == false {
+    if !args.get_flag("validate") {
         return Ok(vec![]);
     }
     let files = load_files(args).map_err(|_| 1)?;
@@ -235,8 +235,8 @@ pub fn handle_matches(args: &ArgMatches) -> Result<Vec<VerificationResult>, i32>
                 pact::determine_spec_version(source, &pact::parse_meta_data(pact_json));
             let results = verify_json(pact_json, spec_version, source, args.get_flag("strict"));
 
-            let verification_results = VerificationResult::new(source, results);
-            verification_results
+            
+            VerificationResult::new(source, results)
         })
         .collect();
 
@@ -247,11 +247,11 @@ pub fn handle_matches(args: &ArgMatches) -> Result<Vec<VerificationResult>, i32>
     let display_result = display_results(&results, "json");
 
     if display_result.is_err() {
-        return Err(3);
+        Err(3)
     } else if results.iter().any(|res| res.has_errors()) {
-        return Err(2);
+        Err(2)
     } else {
-        return Ok(results);
+        Ok(results)
     }
 }
 
@@ -364,8 +364,8 @@ pub fn publish_pacts(args: &ArgMatches) -> Result<Value, i32> {
                         if let (Some(existing_interactions), Some(new_interactions)) = (
                             existing_json.get_mut("interactions"),
                             pact_json.get("interactions"),
-                        ) {
-                            if let (Some(existing_arr), Some(new_arr)) = (
+                        )
+                            && let (Some(existing_arr), Some(new_arr)) = (
                                 existing_interactions.as_array_mut(),
                                 new_interactions.as_array(),
                             ) {
@@ -389,7 +389,6 @@ pub fn publish_pacts(args: &ArgMatches) -> Result<Value, i32> {
                                     }
                                 }
                             }
-                        }
                     } else {
                         tracing::debug!(
                             "Inserting new pact for consumer: '{}' and provider: '{}'",
@@ -443,7 +442,7 @@ pub fn publish_pacts(args: &ArgMatches) -> Result<Value, i32> {
                             }
                         };
                         if tag_with_git_branch {
-                            if !payload.get("tags").map_or(false, |v| v.is_array()) {
+                            if !payload.get("tags").is_some_and(|v| v.is_array()) {
                                 payload["tags"] = serde_json::Value::Array(vec![]);
                             }
                             payload["tags"].as_array_mut().unwrap().push(
@@ -526,7 +525,7 @@ pub fn publish_pacts(args: &ArgMatches) -> Result<Value, i32> {
                                         }
                                     },
                                     _ => {
-                                        println!("❌ {}", err.to_string());
+                                        println!("❌ {}", err);
                                     }
                                 }
                                 return Err(1);
@@ -543,7 +542,7 @@ pub fn publish_pacts(args: &ArgMatches) -> Result<Value, i32> {
         }
         Err(err) => {
             handle_error(err);
-            return Err(1);
+            Err(1)
         }
     }
 }
@@ -674,10 +673,10 @@ pub fn load_files(args: &ArgMatches) -> anyhow::Result<Vec<(String, Value)>> {
             })
             .collect::<String>();
 
-        return Err(anyhow!(format!(
+        Err(anyhow!(format!(
             "Failed to load one or more pact files:{}",
             pretty_errors
-        )));
+        )))
     } else {
         tracing::info!("Successfully loaded all pact files.");
         Ok(collected

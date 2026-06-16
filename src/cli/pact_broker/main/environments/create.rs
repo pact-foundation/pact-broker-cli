@@ -117,7 +117,7 @@ pub fn create_environment(args: &clap::ArgMatches) -> Result<String, PactBrokerE
                         utils::GREEN.apply_to(uuid.trim_matches('"'))
                     );
                 }
-                Ok(format!("Successfully created environment"))
+                Ok("Successfully created environment".to_string())
             }
             Err(err) => Err(err),
         }

@@ -73,7 +73,7 @@ pub fn record_support_ended(args: &clap::ArgMatches) -> Result<String, PactBroke
 
                                 // 3. Call the environment link and check the specified version exists, get the version link
                                 let res = hal_client.clone()
-                                .fetch(&(broker_url.clone() + "/environments/" + &environment_uuid + "?"))
+                                .fetch(&(broker_url.clone() + "/environments/" + environment_uuid + "?"))
                                 .await;
                             match res {
                                 Ok(result) => {
@@ -124,30 +124,30 @@ pub fn record_support_ended(args: &clap::ArgMatches) -> Result<String, PactBroke
                                                     }
                                                     let message = format!("❌ No currently released versions found for {} in {} environment", pacticipant.unwrap(), environment.unwrap());
                                                     println!("{}", utils::RED.apply_to(message.clone()));
-                                                    return Err(PactBrokerError::NotFound(message));
+                                                    Err(PactBrokerError::NotFound(message))
                                                 } else {
                                                     let message = format!("❌ No currently released versions found for {} in {} environment", pacticipant.unwrap(), environment.unwrap());
                                                     println!("{}", utils::RED.apply_to(message.clone()));
-                                                    return Err(PactBrokerError::NotFound(message));
+                                                    Err(PactBrokerError::NotFound(message))
                                                 }
                                             } else {
                                                 let message = "❌ Could not process hal relation link";
                                                 println!("{}", utils::RED.apply_to(message));
-                                                return Err(PactBrokerError::NotFound(message.to_string()));
+                                                Err(PactBrokerError::NotFound(message.to_string()))
                                             }
                                         }
-                                        Err(err) => return Err(err),
+                                        Err(err) => Err(err),
                                     }
                                 }
-                                Err(err) => return Err(err),
+                                Err(err) => Err(err),
                             }
                             } else {
                                 let message = format!("❌ Environment {} not found", environment.unwrap());
                                 println!("{}", message.clone());
-                                return Err(PactBrokerError::NotFound(message));
+                                Err(PactBrokerError::NotFound(message))
                             }
                         }
-                            Err(err) => return Err(err),
+                            Err(err) => Err(err),
                         }
             })
 }
@@ -364,9 +364,9 @@ mod record_support_ended_tests {
         // Should contain a success message and the pacticipant/environment
         assert!(output.contains(&format!(
             "Recorded support ended for application {}, version {} from {} environment",
-            utils::GREEN.apply_to("Foo").to_string(),
-            utils::GREEN.apply_to(application_version).to_string(),
-            utils::GREEN.apply_to("test").to_string()
+            utils::GREEN.apply_to("Foo"),
+            utils::GREEN.apply_to(application_version),
+            utils::GREEN.apply_to("test")
         )));
     }
 }

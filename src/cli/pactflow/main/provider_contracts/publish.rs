@@ -268,7 +268,7 @@ pub fn publish(args: &ArgMatches) -> Result<Value, PactBrokerError> {
                 }
             };
             if tag_with_git_branch {
-                if !payload.get("tags").map_or(false, |v| v.is_array()) {
+                if !payload.get("tags").is_some_and(|v| v.is_array()) {
                     payload["tags"] = serde_json::Value::Array(vec![]);
                 }
                 payload["tags"]
@@ -293,7 +293,7 @@ pub fn publish(args: &ArgMatches) -> Result<Value, PactBrokerError> {
             println!(
                 "📨 Attempting to publish provider contract for provider: {} version: {}",
                 provider_name,
-                provider_app_version.unwrap().to_string()
+                provider_app_version.unwrap()
             );
             let res = tokio::runtime::Runtime::new().unwrap().block_on(async {
                 hal_client
@@ -332,7 +332,7 @@ pub fn publish(args: &ArgMatches) -> Result<Value, PactBrokerError> {
                                     println!(
                                         "✅ Provider contract published successfully for provider: {} version: {}",
                                         provider_name,
-                                        provider_app_version.unwrap().to_string()
+                                        provider_app_version.unwrap()
                                     );
                                     println!(
                                         "⚠️ Warning: Failed to process response notices - Error: {:?}",
@@ -360,7 +360,7 @@ pub fn publish(args: &ArgMatches) -> Result<Value, PactBrokerError> {
                             }
                         },
                         _ => {
-                            println!("❌ {}", err.to_string());
+                            println!("❌ {}", err);
                         }
                     }
                     return Err(err);
@@ -419,7 +419,7 @@ mod publish_provider_contract_tests {
         let publish_provider_contract_path_generator = generators! {
             "BODY" => {
             "$._links.pb:pf:publish-provider-contract.href" => Generator::MockServerURL(
-                           format!("/contracts/publish/{}", provider_name.to_string()),
+                           format!("/contracts/publish/{}", provider_name),
                             ".*\\/contracts\\/publish\\/.*".to_string()
             )
             }
