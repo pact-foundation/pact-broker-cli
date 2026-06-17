@@ -1,0 +1,33 @@
+# syntax=docker/dockerfile:1
+ARG BASE_IMAGE=debian:13-slim@sha256:4e401d95de7083948053197a9c3913343cd06b706bf15eb6a0c3ccd26f436a0e
+
+FROM ${BASE_IMAGE} AS installer
+ARG VERSION
+RUN <<'EOF'
+set -euo pipefail
+apt-get update
+apt-get install -y --no-install-recommends curl ca-certificates xz-utils
+curl --proto '=https' --tlsv1.2 -LsSf \
+    "https://github.com/pact-foundation/pact-broker-cli/releases/download/v${VERSION}/pact-broker-cli-installer.sh" \
+    -o /tmp/installer.sh
+sh /tmp/installer.sh
+EOF
+
+FROM ${BASE_IMAGE}
+ARG VERSION
+LABEL org.opencontainers.image.title="pact-broker-cli" \
+    org.opencontainers.image.description="A CLI client for the Pact Broker. Publish and retrieve pacts and verification results." \
+    org.opencontainers.image.version="${VERSION}" \
+    org.opencontainers.image.url="https://www.pact.io" \
+    org.opencontainers.image.source="https://github.com/pact-foundation/pact-broker-cli" \
+    org.opencontainers.image.licenses="MIT" \
+    org.opencontainers.image.vendor="Pact Foundation"
+RUN <<'EOF'
+set -euo pipefail
+apt-get update
+apt-get install -y --no-install-recommends ca-certificates
+rm -rf /var/lib/apt/lists/*
+EOF
+COPY --from=installer /root/.pact/bin/pact-broker-cli /usr/local/bin/pact-broker-cli
+ENTRYPOINT ["pact-broker-cli"]
+CMD ["--help"]

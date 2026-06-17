@@ -1,0 +1,104 @@
+#!/usr/bin/env bash
+# Build and push multi-platform container images for pact-broker-cli.
+#
+# Builds Alpine and Debian variants, tagging each for both Docker Hub
+# (pactfoundation) and GHCR (ghcr.io/pact-foundation).
+#
+# Environment:
+#   CONTAINER_TAG    - Version to build (e.g. 0.8.1, without the 'v' prefix).
+#                      Required.
+#   PUSH_IMAGE       - Set to "true" to push images to registries.
+#                      Default: false
+#   TAG_LATEST       - Set to "true" to also tag the base image as "latest".
+#                      Default: false
+#   PLATFORMS        - Comma-separated target platforms for all builds.
+#                      Default: linux/amd64,linux/arm64
+#   PLATFORMS_ALPINE - Comma-separated target platforms for Alpine builds.
+#                      Overrides PLATFORMS. Default: linux/amd64,linux/arm64
+#   PLATFORMS_DEBIAN - Comma-separated target platforms for Debian builds.
+#                      Overrides PLATFORMS. Default: linux/amd64,linux/arm64
+set -euo pipefail
+
+readonly CONTAINER_TAG="${CONTAINER_TAG:?CONTAINER_TAG must be set}"
+readonly PUSH_IMAGE="${PUSH_IMAGE:-false}"
+readonly TAG_LATEST="${TAG_LATEST:-false}"
+readonly PLATFORMS="${PLATFORMS:-linux/amd64,linux/arm64}"
+
+# Maps tag suffix → Containerfile. Add entries here to introduce new targets.
+# Note: bash prohibits empty string keys; use "base" for the unsuffixed default
+# image — it is stripped back to "" via ${key#base} at build time.
+declare -rA TARGET_CONTAINERFILE=(
+	["base"]="Containerfile.alpine"
+	["-alpine"]="Containerfile.alpine"
+	["-debian"]="Containerfile.debian"
+)
+
+# Maps Containerfile → target platforms.
+declare -rA CONTAINERFILE_PLATFORMS=(
+	["Containerfile.alpine"]="${PLATFORMS_ALPINE:-${PLATFORMS}}"
+	["Containerfile.debian"]="${PLATFORMS_DEBIAN:-${PLATFORMS}}"
+)
+
+#######################################
+# Build (and optionally push) a multi-platform container image.
+# Globals:
+#   CONTAINER_TAG
+#   PUSH_IMAGE
+# Arguments:
+#   $1  registry       Registry prefix (e.g. pactfoundation)
+#   $2  tag            Full image tag (e.g. 0.8.1-alpine)
+#   $3  containerfile  Containerfile to use
+#   $4  platforms      Comma-separated target platforms
+#   $5  extra_tag      Optional additional tag to apply (e.g. latest)
+#######################################
+build_and_push() {
+	local -r registry="$1"
+	local -r tag="$2"
+	local -r containerfile="$3"
+	local -r platforms="$4"
+	local -r extra_tag="${5:-}"
+
+	local -a args=()
+	args+=("-t" "${registry}/pact-broker-cli:${tag}")
+	[[ -n "${extra_tag}" ]] && args+=("-t" "${registry}/pact-broker-cli:${extra_tag}")
+	args+=("--build-arg" "VERSION=${CONTAINER_TAG}")
+	args+=("--platform" "${platforms}")
+	[[ "${PUSH_IMAGE}" == "true" ]] && args+=("--push")
+
+	docker buildx build "${args[@]}" -f "${containerfile}" .
+}
+
+declare -ra REGISTRIES=("pactfoundation" "ghcr.io/pact-foundation")
+
+#######################################
+# Main entry point.
+# Globals:
+#   CONTAINER_TAG
+#   TAG_LATEST
+#   REGISTRIES
+#   TARGET_CONTAINERFILE
+#   CONTAINERFILE_PLATFORMS
+#######################################
+main() {
+	echo "Building version ${CONTAINER_TAG}"
+
+	# Create a multi-platform builder; a pre-existing builder with this name is fine.
+	docker buildx create --name multiarch --use 2>/dev/null || true
+
+	local latest_tag=""
+	[[ "${TAG_LATEST}" == "true" ]] && latest_tag="latest"
+
+	for registry in "${REGISTRIES[@]}"; do
+		for key in "${!TARGET_CONTAINERFILE[@]}"; do
+			local suffix="${key#base}"
+			local containerfile="${TARGET_CONTAINERFILE[${key}]}"
+			local platforms="${CONTAINERFILE_PLATFORMS[${containerfile}]}"
+			local extra_tag="${latest_tag:+${latest_tag}${suffix}}"
+			build_and_push "${registry}" "${CONTAINER_TAG}${suffix}" "${containerfile}" "${platforms}" "${extra_tag}"
+		done
+	done
+}
+
+if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
+	main "$@"
+fi

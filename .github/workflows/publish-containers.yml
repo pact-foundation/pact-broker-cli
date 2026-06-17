@@ -1,0 +1,56 @@
+name: Publish Containers
+
+permissions:
+  contents: read
+  packages: write
+
+on:
+  workflow_call:
+    inputs:
+      plan:
+        required: true
+        type: string
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Version tag to publish (e.g. v0.8.1)'
+        required: true
+        type: string
+
+jobs:
+  publish-containers:
+    name: Publish Container Images
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10  # v6.0.3
+      - name: Resolve version
+        id: version
+        env:
+          PLAN: ${{ inputs.plan }}
+          MANUAL_TAG: ${{ inputs.tag }}
+        run: |
+          if [[ "${{ github.event_name }}" == "workflow_call" ]]; then
+            ANNOUNCEMENT_TAG="$(echo "$PLAN" | jq -r '.announcement_tag')"
+          else
+            ANNOUNCEMENT_TAG="$MANUAL_TAG"
+          fi
+          echo "tag=${ANNOUNCEMENT_TAG#v}" >> "$GITHUB_OUTPUT"
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@06116385d9baf250c9f4dcb4858b16962ea869c3  # v41.0
+      - name: Login to Docker Hub
+        uses: docker/login-action@650006c6eb7dba73a995cc03b0b2d7f5ca915bee  # v4.2.0
+        with:
+          username: ${{ secrets.DOCKER_HUB_USERNAME }}
+          password: ${{ secrets.DOCKER_HUB_TOKEN }}
+      - name: Login to GitHub Container Registry
+        uses: docker/login-action@650006c6eb7dba73a995cc03b0b2d7f5ca915bee  # v4.2.0
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Build & Push Container Images
+        env:
+          CONTAINER_TAG: ${{ steps.version.outputs.tag }}
+          PUSH_IMAGE: "true"
+        run: ./build
+        working-directory: ./docker
