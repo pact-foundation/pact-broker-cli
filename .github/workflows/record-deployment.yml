@@ -1,16 +1,18 @@
-name: Post-Release
+name: Record Deployment
 
 permissions:
   contents: read
 
 on:
-  release:
-    types:
-      - published
+  workflow_call:
+    inputs:
+      plan:
+        required: true
+        type: string
 
 jobs:
-  record-deploy:
-    name: Record deployment in PactFlow
+  record-deployment:
+    name: Record Deployment in PactFlow
     runs-on: ubuntu-latest
     env:
       PACTICIPANT: pact-broker-cli
@@ -18,12 +20,13 @@ jobs:
       - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10  # v6.0.3
       - uses: ./
       - name: Record deployment
+        env:
+          PLAN: ${{ inputs.plan }}
+          PACT_BROKER_BASE_URL: ${{ vars.PACT_BROKER_BASE_URL }}
+          PACT_BROKER_TOKEN: ${{ secrets.PACTFLOW_PACT_OSS_TOKEN }}
         run: |
           pact-broker-cli record-deployment \
             --pacticipant "${PACTICIPANT}" \
             --version "${GITHUB_SHA}" \
-            --application-instance ${{ github.event.release.tag_name }} \
+            --application-instance "$(echo "$PLAN" | jq -r '.announcement_tag')" \
             --environment production
-        env:
-          PACT_BROKER_BASE_URL: ${{ vars.PACT_BROKER_BASE_URL }}
-          PACT_BROKER_TOKEN: ${{ secrets.PACTFLOW_PACT_OSS_TOKEN }}

@@ -294,3 +294,21 @@ jobs:
         with:
           persist-credentials: false
           submodules: recursive
+
+  custom-publish-containers:
+    needs:
+      - plan
+      - announce
+    uses: ./.github/workflows/publish-containers.yml
+    with:
+      plan: ${{ needs.plan.outputs.val }}
+    secrets: inherit
+
+  custom-record-deployment:
+    needs:
+      - plan
+      - announce
+    uses: ./.github/workflows/record-deployment.yml
+    with:
+      plan: ${{ needs.plan.outputs.val }}
+    secrets: inherit
