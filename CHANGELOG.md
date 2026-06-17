@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.8.2] _2026-06-17_
+
+### 🚀 Features
+
+-   _(ci)_ Wire in container publishing
+
+
 ## [0.8.1] _2026-06-16_
 
 ### 🚀 Features
