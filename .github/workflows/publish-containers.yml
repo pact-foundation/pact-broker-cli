@@ -16,6 +16,11 @@ on:
         description: 'Version tag to publish (e.g. v0.8.1)'
         required: true
         type: string
+      latest_release:
+        description: 'Also tag this image as latest'
+        required: false
+        type: boolean
+        default: false
 
 jobs:
   publish-containers:
@@ -31,8 +36,10 @@ jobs:
         run: |
           if [[ "${{ github.event_name }}" == "workflow_call" ]]; then
             ANNOUNCEMENT_TAG="$(echo "$PLAN" | jq -r '.announcement_tag')"
+            echo "tag_latest=true" >> "$GITHUB_OUTPUT"
           else
             ANNOUNCEMENT_TAG="$MANUAL_TAG"
+            echo "tag_latest=${{ inputs.latest_release }}" >> "$GITHUB_OUTPUT"
           fi
           echo "tag=${ANNOUNCEMENT_TAG#v}" >> "$GITHUB_OUTPUT"
       - name: Set up QEMU
@@ -52,5 +59,6 @@ jobs:
         env:
           CONTAINER_TAG: ${{ steps.version.outputs.tag }}
           PUSH_IMAGE: "true"
+          TAG_LATEST: ${{ steps.version.outputs.tag_latest }}
         run: ./build
         working-directory: ./docker
