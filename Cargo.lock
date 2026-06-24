@@ -2473,9 +2473,9 @@ dependencies = [
 
 [[package]]
 name = "pact-plugin-driver"
-version = "1.0.0-beta.2"
+version = "1.0.0-beta.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "a57020200c95ae7e9000279365cd40d53b04a175fec2ac30747f433c67590367"
+checksum = "6dbed2a7d5ffdd7a7052a3483d306a5bf01e0035abf45f41eca829d62e4a7573"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -2517,9 +2517,9 @@ dependencies = [
 
 [[package]]
 name = "pact_consumer"
-version = "1.4.4"
+version = "1.4.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "7b6b65aafe28c1f68f21f31b377c7e699480e8befb397f6681435075d14ae962"
+checksum = "2fea308ee2b23c0ee5e44db984f0408f7397d8fa4754dd18f1b085c831a2ead6"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -2536,14 +2536,15 @@ dependencies = [
  "tokio",
  "tracing",
  "url",
+ "uuid",
  "yansi",
 ]
 
 [[package]]
 name = "pact_matching"
-version = "2.0.5"
+version = "2.0.7"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "80fa14cf0ff7ec47cfd1d228771472a8801e4b6d05366a6c706597c6abe60856"
+checksum = "4ca18228eef920f1bf5670d032439401e3470e77a3c889d09f7f6ce1ec29351e"
 dependencies = [
  "ansi_term",
  "anyhow",
