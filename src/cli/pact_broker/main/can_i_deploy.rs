@@ -300,10 +300,14 @@ pub fn can_i_deploy(
             matrix_href_path.push_str(&format!("tag={}&", urlencoding::encode(to)));
         }
 
-        if selectors.len() == 1 {
-            matrix_href_path.push_str("latestby=cvp");
-        } else {
+        // Use "cvpv" whenever an environment is targeted so that every version of an integrated
+        // application that is currently released/deployed to the environment is evaluated
+        // independently. "cvp" collapses these down to the latest provider version, hiding
+        // incompatible versions that are still live. See pact_broker issue #903.
+        if to_environment.is_some() || selectors.len() > 1 {
             matrix_href_path.push_str("latestby=cvpv");
+        } else {
+            matrix_href_path.push_str("latestby=cvp");
         }
 
         if let Some(to_environment) = to_environment {
@@ -1036,6 +1040,171 @@ mod can_i_deploy_tests {
         let raw_args: Vec<String> = raw_args.into_iter().map(|s| s.to_string()).collect();
         let result = can_i_deploy(&matches, raw_args, false);
         assert!(result.is_ok());
+    }
+
+    // When deploying to an environment, every version of an integrated application that is
+    // currently released/deployed there must be evaluated, so "cvpv" is used (not "cvp" which
+    // would collapse to the latest provider version and hide still-live incompatible versions).
+    // See pact_broker issue #903.
+    #[test]
+    fn to_environment_uses_cvpv() {
+        let config = MockServerConfig {
+            pact_specification: PactSpecification::V2,
+            ..Default::default()
+        };
+        let pact_broker_service = PactBuilder::new("pact-broker-cli", "Pact Broker")
+            .interaction("a request for the compatibility matrix for Foo version 1.2.3 against the production environment", "", |mut i| {
+                i.given("the pact for Foo version 1.2.3 has been verified by the versions of Bar in the production environment");
+                i.request
+                    .get()
+                    .path("/matrix")
+                    .query_param("q[][pacticipant]", "Foo")
+                    .query_param("q[][version]", "1.2.3")
+                    .query_param("latestby", "cvpv")
+                    .query_param("environment", "production");
+                i.response
+                    .status(200)
+                    .header("Content-Type", "application/hal+json;charset=utf-8")
+                    .json_body(pact_broker_matrix_response_body());
+                i
+            })
+            .start_mock_server(None, Some(config));
+        let mock_server_url = pact_broker_service.url();
+
+        let raw_args = vec![
+            "can-i-deploy",
+            "-b",
+            mock_server_url.as_str(),
+            "--pacticipant",
+            "Foo",
+            "--version",
+            "1.2.3",
+            "--to-environment",
+            "production",
+        ];
+        let matches = build_matches(raw_args.clone());
+        let raw_args: Vec<String> = raw_args.into_iter().map(|s| s.to_string()).collect();
+        let result = can_i_deploy(&matches, raw_args, false);
+        assert!(result.is_ok());
+    }
+
+    // False-positive scenario from issue #903: when multiple provider versions are released to an
+    // environment and one fails, cvpv preserves the failing row. cvp would collapse it away,
+    // returning a false "deployable: true". The CLI must return Err when deployable is false.
+    #[test]
+    fn to_environment_not_deployable_when_a_released_provider_version_fails() {
+        let config = MockServerConfig {
+            pact_specification: PactSpecification::V2,
+            ..Default::default()
+        };
+        let pact_broker_service = PactBuilder::new("pact-broker-cli", "Pact Broker")
+            .interaction(
+                "a request for the compatibility matrix for Foo 1.2.3 against production where a released provider version has a failing verification",
+                "",
+                |mut i| {
+                    i.given("Bar versions 10 (failing) and 11 (passing) are both released to production");
+                    i.request
+                        .get()
+                        .path("/matrix")
+                        .query_param("q[][pacticipant]", "Foo")
+                        .query_param("q[][version]", "1.2.3")
+                        .query_param("latestby", "cvpv")
+                        .query_param("environment", "production");
+                    i.response
+                        .status(200)
+                        .header("Content-Type", "application/hal+json;charset=utf-8")
+                        .json_body(json_pattern!({
+                            "summary": { "deployable": false },
+                            "matrix": each_like!({
+                                "consumer": { "name": like!("Foo"), "version": { "number": like!("1.2.3") } },
+                                "provider": { "name": like!("Bar"), "version": { "number": like!("10") } },
+                                "verificationResult": {
+                                    "success": false,
+                                    "_links": { "self": { "href": like!("http://result") } }
+                                }
+                            }, min=1)
+                        }));
+                    i
+                },
+            )
+            .start_mock_server(None, Some(config));
+        let mock_server_url = pact_broker_service.url();
+
+        let raw_args = vec![
+            "can-i-deploy",
+            "-b",
+            mock_server_url.as_str(),
+            "--pacticipant",
+            "Foo",
+            "--version",
+            "1.2.3",
+            "--to-environment",
+            "production",
+        ];
+        let matches = build_matches(raw_args.clone());
+        let raw_args: Vec<String> = raw_args.into_iter().map(|s| s.to_string()).collect();
+        let result = can_i_deploy(&matches, raw_args, false);
+        assert!(result.is_err());
+    }
+
+    // When multiple provider versions are released/deployed to an environment and all are
+    // compatible, cvpv returns a row for each — the CLI must report deployable.
+    #[test]
+    fn to_environment_deployable_when_all_released_versions_are_compatible() {
+        let config = MockServerConfig {
+            pact_specification: PactSpecification::V2,
+            ..Default::default()
+        };
+        let pact_broker_service = PactBuilder::new("pact-broker-cli", "Pact Broker")
+            .interaction(
+                "a request for the compatibility matrix for Foo 1.2.3 against production where all released provider versions are compatible",
+                "",
+                |mut i| {
+                    i.given("Bar versions 10 and 11 are both released to production with passing verifications");
+                    i.request
+                        .get()
+                        .path("/matrix")
+                        .query_param("q[][pacticipant]", "Foo")
+                        .query_param("q[][version]", "1.2.3")
+                        .query_param("latestby", "cvpv")
+                        .query_param("environment", "production");
+                    i.response
+                        .status(200)
+                        .header("Content-Type", "application/hal+json;charset=utf-8")
+                        .json_body(json_pattern!({
+                            "summary": { "deployable": true },
+                            "matrix": each_like!({
+                                "consumer": { "name": like!("Foo"), "version": { "number": like!("1.2.3") } },
+                                "provider": { "name": like!("Bar"), "version": { "number": like!("10") } },
+                                "verificationResult": {
+                                    "success": true,
+                                    "_links": { "self": { "href": like!("http://result") } }
+                                }
+                            }, min=2)
+                        }));
+                    i
+                },
+            )
+            .start_mock_server(None, Some(config));
+        let mock_server_url = pact_broker_service.url();
+
+        let raw_args = vec![
+            "can-i-deploy",
+            "-b",
+            mock_server_url.as_str(),
+            "--pacticipant",
+            "Foo",
+            "--version",
+            "1.2.3",
+            "--to-environment",
+            "production",
+        ];
+        let matches = build_matches(raw_args.clone());
+        let raw_args: Vec<String> = raw_args.into_iter().map(|s| s.to_string()).collect();
+        let result = can_i_deploy(&matches, raw_args, false);
+        assert!(result.is_ok());
+        let output = result.unwrap();
+        assert!(output.contains("Computer says yes"));
     }
 
     // sends URL Querying broker at: http://127.0.0.1:61567/matrix?q[][pacticipant]=Foo&q[][version]=1.2.3&q[][pacticipant]=Bar&q[][latest]=true&q[][tag]=prod&latestby=cvpv
