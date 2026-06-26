@@ -2,6 +2,17 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.8.2] _2026-06-26_
+
+### 🚀 Features
+
+-   _(ci)_ Wire in container publishing
+
+### 🐛 Bug Fixes
+
+-   _(can-i-deploy)_ Use latestby=cvpv when targeting an environment ([#102](https://github.com/pact-foundation/pact-broker-cli/issues/102))
+
+
 ## [0.8.1] _2026-06-16_
 
 ### 🚀 Features
