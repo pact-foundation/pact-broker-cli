@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.8.3] _2026-06-26_
+
+### 🛠️ Miscellaneous Tasks
+
+-   _(ci)_ Fix container job permissions
+
+
 ## [0.8.2] _2026-06-26_
 
 ### 🚀 Features
