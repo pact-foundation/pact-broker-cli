@@ -34,7 +34,7 @@ jobs:
           PLAN: ${{ inputs.plan }}
           MANUAL_TAG: ${{ inputs.tag }}
         run: |
-          if [[ "${{ github.event_name }}" == "workflow_call" ]]; then
+          if [[ -n "$PLAN" ]]; then
             ANNOUNCEMENT_TAG="$(echo "$PLAN" | jq -r '.announcement_tag')"
             echo "tag_latest=true" >> "$GITHUB_OUTPUT"
           else
