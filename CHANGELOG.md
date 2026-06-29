@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.8.4] _2026-06-29_
+
+### 🐛 Bug Fixes
+
+-   _(can-i-deploy)_ Ensure ignore argument is passed to matrix query
+
+
 ## [0.8.3] _2026-06-26_
 
 ### 🛠️ Miscellaneous Tasks
