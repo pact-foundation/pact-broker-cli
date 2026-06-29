@@ -95,7 +95,13 @@ struct PacticipantArgs {
     main_branch: bool,
 }
 
-fn parse_args_from_matches(raw_args: Vec<String>) -> Vec<PacticipantArgs> {
+#[derive(Debug, Default)]
+struct IgnoreArgs {
+    pacticipant: String,
+    version: Option<String>,
+}
+
+fn parse_args_from_matches(raw_args: &[String]) -> Vec<PacticipantArgs> {
     // Get the raw arguments as they were passed on the command line
     let mut args = raw_args.iter().peekable();
     let mut result = Vec::new();
@@ -146,14 +152,39 @@ fn parse_args_from_matches(raw_args: Vec<String>) -> Vec<PacticipantArgs> {
                         pacticipant_args.main_branch = true;
                     }
                     "--pacticipant" | "-a" => break,
-                    _ => {
-                        args.next();
-                    }
+                    _ => break,
                 }
             }
             result.push(pacticipant_args);
         }
     }
+    result
+}
+
+fn parse_ignore_args_from_matches(raw_args: &[String]) -> Vec<IgnoreArgs> {
+    let mut args = raw_args.iter().peekable();
+    let mut result = Vec::new();
+
+    while let Some(arg) = args.next() {
+        if arg == "--ignore"
+            && let Some(pacticipant) = args.next()
+        {
+            let mut ignore_args = IgnoreArgs {
+                pacticipant: pacticipant.to_string(),
+                ..Default::default()
+            };
+
+            if let Some(next_arg) = args.peek()
+                && (next_arg.as_str() == "--version" || next_arg.as_str() == "-e")
+            {
+                args.next();
+                ignore_args.version = args.next().map(|s| s.to_string());
+            }
+
+            result.push(ignore_args);
+        }
+    }
+
     result
 }
 
@@ -240,9 +271,11 @@ pub fn can_i_deploy(
 ) -> Result<String, PactBrokerError> {
     debug!("Args: {:?}", args);
 
-    let selectors = parse_args_from_matches(raw_args);
+    let selectors = parse_args_from_matches(&raw_args);
+    let ignores = parse_ignore_args_from_matches(&raw_args);
 
     debug!("Selectors: {:?}", selectors);
+    debug!("Ignores: {:?}", ignores);
     // Other arguments
     let to_environment = args.try_get_one::<String>("to-environment").unwrap_or(None);
     let to = args.try_get_one::<String>("to").unwrap_or(None);
@@ -294,6 +327,18 @@ pub fn can_i_deploy(
             }
             if selector.main_branch {
                 matrix_href_path.push_str("q[][mainBranch]=true&");
+            }
+        }
+        for ignore in &ignores {
+            matrix_href_path.push_str(&format!(
+                "ignore[][pacticipant]={}&",
+                urlencoding::encode(&ignore.pacticipant)
+            ));
+            if let Some(version) = &ignore.version {
+                matrix_href_path.push_str(&format!(
+                    "ignore[][version]={}&",
+                    urlencoding::encode(version)
+                ));
             }
         }
         if let Some(to) = to {
@@ -1316,6 +1361,113 @@ mod can_i_deploy_tests {
         assert!(result.is_ok());
         let output = result.unwrap();
         assert!(output.contains("Computer says"));
+    }
+
+    #[test]
+    fn sends_ignore_pacticipant_in_query() {
+        let config = MockServerConfig {
+            pact_specification: PactSpecification::V2,
+            ..Default::default()
+        };
+        let pact_broker_service = PactBuilder::new("pact-broker-cli", "Pact Broker")
+            .interaction(
+                "a request for the compatibility matrix that ignores a pacticipant",
+                "",
+                |mut i| {
+                    i.given("the pact for Foo version 1.2.4 has been successfully verified by Bar version 4.5.6");
+                    i.request
+                        .get()
+                        .path("/matrix")
+                        .query_param("q[][pacticipant]", "Foo")
+                        .query_param("q[][version]", "1.2.4")
+                        .query_param("q[][pacticipant]", "Bar")
+                        .query_param("q[][version]", "4.5.6")
+                        .query_param("ignore[][pacticipant]", "Baz")
+                        .query_param("latestby", "cvpv");
+                    i.response
+                        .status(200)
+                        .header("Content-Type", "application/hal+json;charset=utf-8")
+                        .json_body(pact_broker_matrix_response_body());
+                    i
+                },
+            )
+            .start_mock_server(None, Some(config));
+        let mock_server_url = pact_broker_service.url();
+
+        let raw_args = vec![
+            "can-i-deploy",
+            "-b",
+            mock_server_url.as_str(),
+            "--pacticipant",
+            "Foo",
+            "--version",
+            "1.2.4",
+            "--pacticipant",
+            "Bar",
+            "--version",
+            "4.5.6",
+            "--ignore",
+            "Baz",
+        ];
+        let matches = build_matches(raw_args.clone());
+        let raw_args: Vec<String> = raw_args.into_iter().map(|s| s.to_string()).collect();
+        let result = can_i_deploy(&matches, raw_args, false);
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn sends_ignore_pacticipant_and_version_in_query() {
+        let config = MockServerConfig {
+            pact_specification: PactSpecification::V2,
+            ..Default::default()
+        };
+        let pact_broker_service = PactBuilder::new("pact-broker-cli", "Pact Broker")
+            .interaction(
+                "a request for the compatibility matrix that ignores a specific pacticipant version",
+                "",
+                |mut i| {
+                    i.given("the pact for Foo version 1.2.4 has been successfully verified by Bar version 4.5.6");
+                    i.request
+                        .get()
+                        .path("/matrix")
+                        .query_param("q[][pacticipant]", "Foo")
+                        .query_param("q[][version]", "1.2.4")
+                        .query_param("q[][pacticipant]", "Bar")
+                        .query_param("q[][version]", "4.5.6")
+                        .query_param("ignore[][pacticipant]", "Baz")
+                        .query_param("ignore[][version]", "9.9.9")
+                        .query_param("latestby", "cvpv");
+                    i.response
+                        .status(200)
+                        .header("Content-Type", "application/hal+json;charset=utf-8")
+                        .json_body(pact_broker_matrix_response_body());
+                    i
+                },
+            )
+            .start_mock_server(None, Some(config));
+        let mock_server_url = pact_broker_service.url();
+
+        let raw_args = vec![
+            "can-i-deploy",
+            "-b",
+            mock_server_url.as_str(),
+            "--pacticipant",
+            "Foo",
+            "--version",
+            "1.2.4",
+            "--pacticipant",
+            "Bar",
+            "--version",
+            "4.5.6",
+            "--ignore",
+            "Baz",
+            "--version",
+            "9.9.9",
+        ];
+        let matches = build_matches(raw_args.clone());
+        let raw_args: Vec<String> = raw_args.into_iter().map(|s| s.to_string()).collect();
+        let result = can_i_deploy(&matches, raw_args, false);
+        assert!(result.is_ok());
     }
 
     #[test]
