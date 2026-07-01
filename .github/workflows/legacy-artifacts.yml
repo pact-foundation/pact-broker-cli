@@ -87,7 +87,7 @@ jobs:
 
             if [[ "$archive_ext" == "zip" ]]; then
               unzip -q "$archive"
-              cp "pact-broker-cli-${target}/pact-broker-cli.exe" "$legacy_name"
+              cp "pact-broker-cli.exe" "$legacy_name"
             else
               tar xJf "$archive"
               cp "pact-broker-cli-${target}/pact-broker-cli" "$legacy_name"
