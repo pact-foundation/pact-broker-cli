@@ -368,7 +368,6 @@ mod record_deployment_tests {
         assert!(json.get("target").is_none());
     }
 
-
     #[test]
     fn returns_error_when_environment_not_available() {
         let config = MockServerConfig {
