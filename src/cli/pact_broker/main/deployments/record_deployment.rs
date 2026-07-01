@@ -66,8 +66,8 @@ pub fn record_deployment(args: &clap::ArgMatches) -> Result<String, PactBrokerEr
 
 
                                     let mut payload = json!({});
-                                    payload["target"] = serde_json::Value::String(environment.unwrap().to_string());
                                     if let Some(application_instance) = application_instance {
+                                        payload["target"] = serde_json::Value::String(application_instance.to_string());
                                         payload["applicationInstance"] = serde_json::Value::String(application_instance.to_string());
                                     }
                                     let res: Result<Value, PactBrokerError> = hal_client.clone().post_json(&(link_record_deployment_href.clone()), &payload.to_string(), None).await;
@@ -168,7 +168,7 @@ mod record_deployment_tests {
                     .header("Content-Type", "application/json")
                     .body(json!({
                         "applicationInstance": application_instance,
-                        "target": environment_name
+                        "target": application_instance
                     }).to_string());
                 i.response
                     .status(201)
@@ -252,7 +252,7 @@ mod record_deployment_tests {
                     .header("Content-Type", "application/json")
                     .body(json!({
                         "applicationInstance": application_instance,
-                        "target": environment_name
+                        "target": application_instance
                     }).to_string());
                 i.response
                     .status(201)
@@ -289,6 +289,85 @@ mod record_deployment_tests {
         let json: serde_json::Value = serde_json::from_str(&output).unwrap();
         assert_eq!(json["target"], application_instance);
     }
+
+    #[test]
+    fn does_not_set_target_when_application_instance_is_not_provided() {
+        let config = MockServerConfig {
+            pact_specification: PactSpecification::V2,
+            ..MockServerConfig::default()
+        };
+
+        let pacticipant_name = "Foo";
+        let version_number = "5556b8149bf8bac76bc30f50a8a2dd4c22c85f30";
+        let environment_name = "test";
+        let record_deployment_path = format!(
+            "/pacticipants/{}/versions/{}/deployed-versions/environment/{}",
+            pacticipant_name, version_number, "16926ef3-590f-4e3f-838e-719717aa88c9"
+        );
+
+        let pact_broker_service = PactBuilder::new("pact-broker-cli", "Pact Broker")
+            .interaction("a request for a pacticipant version", "", |mut i| {
+                i.given("version 5556b8149bf8bac76bc30f50a8a2dd4c22c85f30 of pacticipant Foo exists with a test environment available for deployment");
+                i.request
+                    .path(format!("/pacticipants/{}/versions/{}", pacticipant_name, version_number))
+                    .header("Accept", "application/hal+json")
+                    .header("Accept", "application/json");
+                i.response
+                    .header("Content-Type", "application/hal+json;charset=utf-8")
+                    .json_body(json_pattern!({
+                        "_links": {
+                            "pb:record-deployment": [
+                                {
+                                    "name": environment_name,
+                                    "href": term!("http:\\/\\/[^/]+\\/pacticipants\\/[^/]+\\/versions\\/[^/]+\\/deployed-versions\\/environment\\/[^/]+", format!("http://localhost{}", record_deployment_path))
+                                }
+                            ]
+                        }
+                    }));
+                i
+            })
+            .interaction("a request to record a deployment", "", |mut i| {
+                i.given("version 5556b8149bf8bac76bc30f50a8a2dd4c22c85f30 of pacticipant Foo exists with a test environment available for deployment");
+                i.request
+                    .method("POST")
+                    .path(record_deployment_path.clone())
+                    .header("Accept", "application/hal+json")
+                    .header("Content-Type", "application/json")
+                    .body("{}");
+                i.response
+                    .status(201)
+                    .header("Content-Type", "application/hal+json;charset=utf-8")
+                    .json_body(json_pattern!({
+                        "uuid": "deployment-uuid"
+                    }));
+                i
+            })
+            .start_mock_server(None, Some(config));
+
+        let mock_server_url = pact_broker_service.url();
+
+        let matches = add_record_deployment_subcommand().get_matches_from(vec![
+            "record-deployment",
+            "-b",
+            mock_server_url.as_str(),
+            "--pacticipant",
+            pacticipant_name,
+            "--version",
+            version_number,
+            "--environment",
+            environment_name,
+            "--output",
+            "json",
+        ]);
+
+        let result = record_deployment(&matches);
+
+        assert!(result.is_ok());
+        let output = result.unwrap();
+        let json: serde_json::Value = serde_json::from_str(&output).unwrap();
+        assert!(json.get("target").is_none());
+    }
+
 
     #[test]
     fn returns_error_when_environment_not_available() {
