@@ -2,6 +2,18 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.8.5] _2026-07-01_
+
+### 🐛 Bug Fixes
+
+-   _(record-deployment)_ Set target to application_instance if set
+-   _(record-undeployment)_ Support application-instance when undeploying apps
+
+### 🛠️ Miscellaneous Tasks
+
+-   _(ci)_ Wire legacy-artifacts into the release pipeline
+
+
 ## [0.8.4] _2026-06-29_
 
 ### 🐛 Bug Fixes
