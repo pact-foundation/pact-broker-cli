@@ -1,0 +1,100 @@
+# Publishes loose binaries under the pre-cargo-dist naming convention
+# (pact-broker-cli-<old-os>[.exe]) alongside the cargo-dist archives, so
+# consumers still running the old install.sh/action.yml (unpinned, or
+# pinned to an action tag older than v0.8.0) don't 404 when "latest
+# release" becomes a cargo-dist release.
+#
+# TEMPORARY: this job self-disables (no-ops) on or after 2027-01-01 and
+# is safe to delete after that date — remove this file, drop
+# "./legacy-artifacts" from post-announce-jobs and the
+# "legacy-artifacts" entry from github-custom-job-permissions in
+# Cargo.toml, then run `dist generate`.
+#
+# See docs/superpowers/specs/2026-07-01-legacy-artifact-compat-design.md
+
+name: Legacy Artifacts
+
+permissions:
+  contents: write
+
+on:
+  workflow_call:
+    inputs:
+      plan:
+        required: true
+        type: string
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Release tag to backfill legacy artifacts onto (e.g. v0.8.2)'
+        required: true
+        type: string
+
+jobs:
+  legacy-artifacts:
+    name: Publish Legacy-Named Artifacts
+    runs-on: ubuntu-latest
+    steps:
+      - name: Resolve tag
+        id: version
+        env:
+          PLAN: ${{ inputs.plan }}
+          MANUAL_TAG: ${{ inputs.tag }}
+        run: |
+          if [[ -n "$PLAN" ]]; then
+            TAG="$(echo "$PLAN" | jq -r '.announcement_tag')"
+          else
+            TAG="$MANUAL_TAG"
+          fi
+          echo "tag=${TAG}" >> "$GITHUB_OUTPUT"
+
+      - name: Check cutoff date
+        id: cutoff
+        run: |
+          if [[ "$(date -u +%Y-%m-%d)" < "2027-01-01" ]]; then
+            echo "enabled=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "enabled=false" >> "$GITHUB_OUTPUT"
+            echo "Past 2027-01-01 cutoff; skipping legacy artifact publishing." >&2
+          fi
+
+      - name: Repackage legacy-named binaries
+        if: steps.cutoff.outputs.enabled == 'true'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAG: ${{ steps.version.outputs.tag }}
+        run: |
+          set -euo pipefail
+          workdir="$(mktemp -d)"
+          cd "$workdir"
+
+          targets=(
+            "aarch64-apple-darwin:pact-broker-cli-aarch64-macos:tar.xz"
+            "x86_64-apple-darwin:pact-broker-cli-x86_64-macos:tar.xz"
+            "aarch64-unknown-linux-gnu:pact-broker-cli-aarch64-linux-gnu:tar.xz"
+            "aarch64-unknown-linux-musl:pact-broker-cli-aarch64-linux-musl:tar.xz"
+            "x86_64-unknown-linux-gnu:pact-broker-cli-x86_64-linux-gnu:tar.xz"
+            "x86_64-unknown-linux-musl:pact-broker-cli-x86_64-linux-musl:tar.xz"
+            "x86_64-pc-windows-msvc:pact-broker-cli-x86_64-windows-msvc.exe:zip"
+          )
+
+          for entry in "${targets[@]}"; do
+            IFS=':' read -r target legacy_name archive_ext <<< "$entry"
+            archive="pact-broker-cli-${target}.${archive_ext}"
+
+            echo "::group::${target}"
+            gh release download "$TAG" --repo "${GITHUB_REPOSITORY}" -p "$archive" -O "$archive" --clobber
+
+            if [[ "$archive_ext" == "zip" ]]; then
+              unzip -q "$archive"
+              cp "pact-broker-cli-${target}/pact-broker-cli.exe" "$legacy_name"
+            else
+              tar xJf "$archive"
+              cp "pact-broker-cli-${target}/pact-broker-cli" "$legacy_name"
+              chmod +x "$legacy_name"
+            fi
+
+            gh release upload "$TAG" "$legacy_name" --repo "${GITHUB_REPOSITORY}" --clobber
+            rm -rf "pact-broker-cli-${target}" "$archive"
+            echo "::endgroup::"
+          done
