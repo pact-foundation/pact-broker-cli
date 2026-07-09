@@ -16,6 +16,51 @@ enum WebhookOperation {
     Update,
 }
 
+fn parse_headers(
+    headers: &[String],
+) -> Result<serde_json::Map<String, serde_json::Value>, PactBrokerError> {
+    let mut parsed_headers = serde_json::Map::new();
+
+    for header in headers {
+        let (name, value) = header.split_once(':').ok_or_else(|| {
+            PactBrokerError::IoError(format!(
+                "Invalid header format '{}'. Expected 'Header-Name: Value'",
+                header
+            ))
+        })?;
+
+        let name = name.trim();
+        if name.is_empty() {
+            return Err(PactBrokerError::IoError(format!(
+                "Invalid header format '{}'. Header name cannot be empty",
+                header
+            )));
+        }
+
+        parsed_headers.insert(
+            name.to_string(),
+            serde_json::Value::String(value.trim().to_string()),
+        );
+    }
+
+    Ok(parsed_headers)
+}
+
+fn parse_request_body(data: Option<&String>) -> serde_json::Value {
+    match data {
+        Some(body) => {
+            let trimmed = body.trim();
+            if trimmed.is_empty() {
+                serde_json::Value::String(String::new())
+            } else {
+                serde_json::from_str::<serde_json::Value>(trimmed)
+                    .unwrap_or_else(|_| serde_json::Value::String(body.to_string()))
+            }
+        }
+        None => serde_json::Value::Null,
+    }
+}
+
 pub fn create_webhook(args: &clap::ArgMatches) -> Result<String, PactBrokerError> {
     let broker_url = get_broker_url(args).trim_end_matches('/').to_string();
     let auth = get_auth(args);
@@ -29,6 +74,7 @@ pub fn create_webhook(args: &clap::ArgMatches) -> Result<String, PactBrokerError
         .unwrap_or_default()
         .cloned()
         .collect::<Vec<_>>();
+    let headers = parse_headers(&headers)?;
     let data = args.try_get_one::<String>("data").unwrap();
     let user = args.try_get_one::<String>("user").unwrap();
     let consumer = args.try_get_one::<String>("consumer").unwrap();
@@ -121,10 +167,11 @@ pub fn create_webhook(args: &clap::ArgMatches) -> Result<String, PactBrokerError
         ).await.map(|s| (s, WebhookOperation::Create))
     };
     let (webhook_endpoint_url, operation) = webhook_endpoint_info?;
+        let parsed_data = parse_request_body(data);
         let request_params = serde_json::json!({
             "method": http_method,
             "headers": headers,
-            "body": data,
+            "body": parsed_data,
         });
         let request_params = if let Ok(Some(url)) = url {
             let mut params = request_params.as_object().unwrap().clone();
@@ -255,7 +302,8 @@ mod create_webhook_tests {
             "--request",
             "POST",
             "--header",
-            "Foo:bar Bar:foo",
+            "Foo:bar",
+            "Bar:foo",
             "--user",
             "username:password",
             "--data",
@@ -266,6 +314,38 @@ mod create_webhook_tests {
             "Pricing Service",
             "--contract-content-changed",
         ]
+    }
+
+    #[test]
+    fn create_or_update_webhook_parses_multiple_headers_from_single_flag_occurrence() {
+        let args = vec![
+            "create-or-update-webhook",
+            "https://webhook",
+            "--uuid",
+            "93451a49-e797-4eb3-8812-6726e380a39f",
+            "-b",
+            "http://localhost:9292",
+            "--header",
+            "Content-Type: application/json",
+            "Accept: application/vnd.github.everest-preview+json",
+            "Authorization: Bearer token",
+        ];
+
+        let matches = add_create_or_update_webhook_subcommand().get_matches_from(args);
+        let headers = matches
+            .get_many::<String>("header")
+            .unwrap_or_default()
+            .cloned()
+            .collect::<Vec<_>>();
+
+        assert_eq!(
+            headers,
+            vec![
+                "Content-Type: application/json".to_string(),
+                "Accept: application/vnd.github.everest-preview+json".to_string(),
+                "Authorization: Bearer token".to_string(),
+            ]
+        );
     }
 
     fn index_interaction() -> impl Fn(InteractionBuilder) -> InteractionBuilder {
@@ -336,8 +416,11 @@ mod create_webhook_tests {
             "request": {
                 "url": "https://webhook",
                 "method": "POST",
-                "headers": ["Foo:bar", "Bar:foo"],
-                "body": "{\"some\":\"body\"}",
+                "headers": {
+                    "Foo": "bar",
+                    "Bar": "foo"
+                },
+                "body": { "some": "body" },
                 "username": "username",
                 "password": "password"
             },
@@ -413,8 +496,11 @@ mod create_webhook_tests {
             "request": {
                 "url": "https://webhook",
                 "method": "POST",
-                "headers": ["Foo:bar", "Bar:foo"],
-                "body": "{\"some\":\"body\"}",
+                "headers": {
+                    "Foo": "bar",
+                    "Bar": "foo"
+                },
+                "body": { "some": "body" },
                 "username": "username",
                 "password": "password"
             },
@@ -492,7 +578,10 @@ mod create_webhook_tests {
             "request": {
                 "url": "https://webhook",
                 "method": "POST",
-                "headers": ["Foo:bar", "Bar:foo"],
+                "headers": {
+                    "Foo": "bar",
+                    "Bar": "foo"
+                },
                 "body": xml_body,
                 "username": "username",
                 "password": "password"
@@ -561,8 +650,11 @@ mod create_webhook_tests {
             "request": {
                 "url": "https://webhook",
                 "method": "POST",
-                "headers": ["Foo:bar", "Bar:foo"],
-                "body": "{\"some\":\"body\"}",
+                "headers": {
+                    "Foo": "bar",
+                    "Bar": "foo"
+                },
+                "body": { "some": "body" },
                 "username": "username",
                 "password": "password"
             },
@@ -630,8 +722,11 @@ mod create_webhook_tests {
             "request": {
                 "url": "https://webhook",
                 "method": "POST",
-                "headers": ["Foo:bar", "Bar:foo"],
-                "body": "{\"some\":\"body\"}",
+                "headers": {
+                    "Foo": "bar",
+                    "Bar": "foo"
+                },
+                "body": { "some": "body" },
                 "username": "username",
                 "password": "password"
             },
@@ -702,8 +797,11 @@ mod create_webhook_tests {
             "request": {
                 "url": "https://webhook",
                 "method": "POST",
-                "headers": ["Foo:bar", "Bar:foo"],
-                "body": "{\"some\":\"body\"}",
+                "headers": {
+                    "Foo": "bar",
+                    "Bar": "foo"
+                },
+                "body": { "some": "body" },
                 "username": "username",
                 "password": "password"
             },
@@ -794,8 +892,11 @@ mod create_webhook_tests {
             "request": {
                 "url": "https://webhook",
                 "method": "POST",
-                "headers": ["Foo:bar", "Bar:foo"],
-                "body": "{\"some\":\"body\"}",
+                "headers": {
+                    "Foo": "bar",
+                    "Bar": "foo"
+                },
+                "body": { "some": "body" },
                 "username": "username",
                 "password": "password"
             },
@@ -889,8 +990,11 @@ mod create_webhook_tests {
             "request": {
                 "url": "https://webhook",
                 "method": "POST",
-                "headers": ["Foo:bar", "Bar:foo"],
-                "body": "{\"some\":\"body\"}",
+                "headers": {
+                    "Foo": "bar",
+                    "Bar": "foo"
+                },
+                "body": { "some": "body" },
                 "username": "username",
                 "password": "password"
             },
