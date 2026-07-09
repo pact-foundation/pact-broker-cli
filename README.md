@@ -1632,8 +1632,8 @@ Arguments:
 Options:
   -X, --request <METHOD>
           Webhook HTTP method
-  -H, --header [<one two three>]
-          Webhook Header
+  -H, --header <HEADER>...
+          Webhook Header(s): Space delimited and quote wrapped - eg 'Content-Type: application/json' 'Accept: application/vnd.github.everest-preview+json'
   -d, --data <DATA>
           Webhook payload
       --user <USER>
@@ -1739,8 +1739,8 @@ Options:
           Specify the uuid for the webhook
   -X, --request <METHOD>
           Webhook HTTP method
-  -H, --header [<one two three>]
-          Webhook Header
+  -H, --header <HEADER>...
+          Webhook Header(s): Space delimited and quote wrapped - eg 'Content-Type: application/json' 'Accept: application/vnd.github.everest-preview+json'
   -d, --data <DATA>
           Webhook payload
       --user <USER>
