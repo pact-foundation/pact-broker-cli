@@ -455,7 +455,7 @@ pub async fn get_broker_relation(
             if relation_value.is_none() {
                 return Err(PactBrokerError::NotFound(format!(
                     "Could not find relation '{}'",
-                    &relation
+                    relation
                 )));
             }
 

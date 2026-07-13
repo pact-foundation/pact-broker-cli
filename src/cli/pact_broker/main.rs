@@ -609,7 +609,7 @@ impl HALClient {
         let response = request_builder.send().await.map_err(|err| {
             PactBrokerError::IoError(format!(
                 "Failed to access pact broker path '{}' - {}. URL: '{}'",
-                &path, err, &self.url,
+                path, err, self.url,
             ))
         })?;
 
@@ -675,7 +675,7 @@ impl HALClient {
         let response = request_builder.send().await.map_err(|err| {
             PactBrokerError::IoError(format!(
                 "Failed to delete pact broker path '{}' - {}. URL: '{}'",
-                &path, err, &self.url,
+                path, err, self.url,
             ))
         })?;
 
@@ -718,7 +718,7 @@ impl HALClient {
             let body = response.bytes().await.map_err(|_| {
                 PactBrokerError::IoError(format!(
                     "Failed to download response body for path '{}'. URL: '{}'",
-                    &path, self.url
+                    path, self.url
                 ))
             })?;
 
@@ -1138,7 +1138,7 @@ pub async fn fetch_pacts_from_broker(
               PactBrokerError::LinkError(
                 format!(
                   "Expected a HAL+JSON response from the pact broker, but got a link with no HREF. URL: '{}', LINK: '{:?}'",
-                  &hal_client.url,
+                  hal_client.url,
                   pact_link
                 )
               )
@@ -1281,8 +1281,8 @@ pub async fn fetch_pacts_dynamically_from_broker(
               PactBrokerError::LinkError(
                 format!(
                   "Expected a HAL+JSON response from the pact broker, but got a link with no HREF. URL: '{}', PATH: '{:?}'",
-                  &hal_client.url,
-                  &p.links,
+                  hal_client.url,
+                  p.links,
                 )
               )
             )
@@ -1304,7 +1304,7 @@ pub async fn fetch_pacts_dynamically_from_broker(
             PactBrokerError::LinkError(
               format!(
                 "Expected a HAL+JSON response from the pact broker, but got a link with no HREF. URL: '{}', LINK: '{:?}'",
-                &hal_client.url,
+                hal_client.url,
                 pact_link
               )
             )
