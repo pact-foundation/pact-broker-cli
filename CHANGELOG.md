@@ -2,6 +2,17 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.8.6] _2026-07-13_
+
+### 🐛 Bug Fixes
+
+-   _(create-webhook)_ Fix issue with header parsing & payload
+
+### 🛠️ Miscellaneous Tasks
+
+-   New lint errors in latest version of rust/clippy
+
+
 ## [0.8.5] _2026-07-01_
 
 ### 🐛 Bug Fixes
