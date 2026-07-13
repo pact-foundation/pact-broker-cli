@@ -120,6 +120,6 @@ fn generate_completions(args: &ArgMatches) {
     );
     println!(
         "ℹ️  {} shell completions for pact-broker-cli written to {}",
-        &shell_enum, &out_dir
+        shell_enum, out_dir
     );
 }
