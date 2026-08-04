@@ -55,7 +55,7 @@ path = "src/bin.rs"
 [dependencies]
 anyhow = "1"
 async-trait = "0.1"
-base64 = "0.22"
+base64 = "0.23"
 clap = { version = "4", features = ["cargo", "derive", "env"] }
 clap_complete = "4"
 comfy-table = "7"
