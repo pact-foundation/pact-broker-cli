@@ -115,7 +115,7 @@ expectest = "=0.12.0"
 pact_consumer = "=1.4.5"
 pretty_assertions = "=1.4.1"
 test-log = { version = "=0.2.21", features = ["trace"] }
-tokio = { version = "=1.52.3", features = ["macros", "net", "rt-multi-thread"] }
+tokio = { version = "=1.53.1", features = ["macros", "net", "rt-multi-thread"] }
 trycmd = "=1.2.0"
 
 [profile.dist]
