@@ -58,7 +58,7 @@ async-trait = "0.1"
 base64 = "0.23"
 clap = { version = "4", features = ["cargo", "derive", "env"] }
 clap_complete = "4"
-comfy-table = "7"
+comfy-table = "8"
 console = "0.16"
 futures = "0.3"
 glob = "0.3"
