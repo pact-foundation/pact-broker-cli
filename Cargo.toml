@@ -116,7 +116,7 @@ pact_consumer = "=1.4.5"
 pretty_assertions = "=1.4.1"
 test-log = { version = "=0.2.21", features = ["trace"] }
 tokio = { version = "=1.53.1", features = ["macros", "net", "rt-multi-thread"] }
-trycmd = "=1.2.0"
+trycmd = "=1.2.1"
 
 [profile.dist]
 inherits = "release"
