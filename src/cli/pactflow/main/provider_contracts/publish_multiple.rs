@@ -28,6 +28,7 @@ pub struct ContractSpec {
     pub verifier: Option<String>,
     pub verifier_version: Option<String>,
     pub verification_results_content_type: Option<String>,
+    pub verification_results_format: Option<String>,
 }
 
 impl ContractSpec {
@@ -62,6 +63,7 @@ impl ContractSpec {
         let verifier = map.remove("verifier");
         let verifier_version = map.remove("verifier-version");
         let verification_results_content_type = map.remove("verification-results-content-type");
+        let verification_results_format = map.remove("verification-results-format");
 
         Ok(ContractSpec {
             name,
@@ -73,6 +75,7 @@ impl ContractSpec {
             verifier,
             verifier_version,
             verification_results_content_type,
+            verification_results_format,
         })
     }
 }
@@ -205,6 +208,9 @@ pub fn publish_multiple(args: &ArgMatches) -> Result<Value, PactBrokerError> {
                         }
                         if let Some(ct) = &spec.verification_results_content_type {
                             svr.insert("contentType".to_string(), Value::String(ct.clone()));
+                        }
+                        if let Some(fmt) = &spec.verification_results_format {
+                            svr.insert("format".to_string(), Value::String(fmt.clone()));
                         }
                         if let Some(v) = &spec.verifier {
                             svr.insert("verifier".to_string(), Value::String(v.clone()));
@@ -509,6 +515,7 @@ mod publish_multiple_provider_contracts_tests {
                         "success": true,
                         "content": verif_b64,
                         "contentType": "text/plain",
+                        "format": "text",
                         "verifier": "spectral",
                         "verifierVersion": "1.0.0"
                     }
@@ -590,7 +597,8 @@ mod publish_multiple_provider_contracts_tests {
             &format!(
                 "name=payments-api,file={},specification=oas,content-type=application/yaml,\
                  verification-results={},verification-success=true,verifier=spectral,\
-                 verifier-version=1.0.0,verification-results-content-type=text/plain",
+                 verifier-version=1.0.0,verification-results-content-type=text/plain,\
+                 verification-results-format=text",
                 PAYMENTS_FIXTURE, VERIF_RESULTS
             ),
             "--contract",

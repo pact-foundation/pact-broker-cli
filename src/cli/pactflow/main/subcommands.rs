@@ -161,7 +161,8 @@ pub fn add_publish_provider_contracts_subcommand() -> Command {
                     "Contract spec: name=<name>,file=<path>,specification=<SPECIFICATION>,\
                      content-type=<mime>[,verification-results=<path>,\
                      verification-success=<true|false>,verifier=<tool>,\
-                     verifier-version=<ver>,verification-results-content-type=<mime>]. \
+                     verifier-version=<ver>,verification-results-content-type=<mime>,\
+                     verification-results-format=<format>]. \
                      SPECIFICATION is any value accepted by the server (e.g. oas, asyncapi, protobuf). \
                      Can be repeated.",
                 ),
