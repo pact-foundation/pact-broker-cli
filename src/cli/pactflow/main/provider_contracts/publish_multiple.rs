@@ -767,7 +767,11 @@ mod publish_multiple_provider_contracts_tests {
         assert_eq!(contracts.len(), 3);
         assert!(contracts.iter().any(|c| c.as_str() == Some("payments-api")));
         assert!(contracts.iter().any(|c| c.as_str() == Some("fraud-events")));
-        assert!(contracts.iter().any(|c| c.as_str() == Some("payments-grpc")));
+        assert!(
+            contracts
+                .iter()
+                .any(|c| c.as_str() == Some("payments-grpc"))
+        );
     }
 
     // Test 5: duplicate contract names are rejected before any HTTP call
