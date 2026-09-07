@@ -1,5 +1,5 @@
 use crate::cli::add_output_arguments;
-use clap::{Arg, Command};
+use clap::{Arg, ArgAction, Command};
 
 pub fn add_publish_provider_contract_subcommand() -> Command {
     Command::new("publish-provider-contract")
@@ -93,4 +93,78 @@ pub fn add_publish_provider_contract_subcommand() -> Command {
         .help("Tag provider version with the name of the current git branch. Supports Buildkite, Circle CI, Travis CI, GitHub Actions, Jenkins, Hudson, AppVeyor, GitLab, CodeShip, Bitbucket and Azure DevOps."))
     .args(add_output_arguments(["json", "text"].to_vec(), "text"))
     .args(crate::cli::add_ssl_arguments())
+}
+
+pub fn add_publish_provider_contracts_subcommand() -> Command {
+    Command::new("publish-provider-contracts")
+        .about("Publish multiple provider contracts to PactFlow in a single request")
+        .args(crate::cli::pact_broker::main::subcommands::add_broker_auth_arguments())
+        .arg(
+            Arg::new("provider")
+                .long("provider")
+                .value_name("PROVIDER")
+                .required(true)
+                .help("The provider name"),
+        )
+        .arg(
+            Arg::new("provider-app-version")
+                .short('a')
+                .long("provider-app-version")
+                .value_name("PROVIDER_APP_VERSION")
+                .required_unless_present("auto-detect-version-properties")
+                .help("The provider application version"),
+        )
+        .arg(
+            Arg::new("branch")
+                .long("branch")
+                .value_name("BRANCH")
+                .help("Repository branch of the provider version"),
+        )
+        .arg(
+            Arg::new("tag")
+                .short('t')
+                .long("tag")
+                .value_delimiter(',')
+                .num_args(0..)
+                .value_parser(clap::builder::NonEmptyStringValueParser::new())
+                .help("Tag name for provider version. Can be specified multiple times (delimiter ,)."),
+        )
+        .arg(
+            Arg::new("build-url")
+                .long("build-url")
+                .value_name("BUILD_URL")
+                .help("The build URL that produced the provider contracts"),
+        )
+        .arg(
+            Arg::new("auto-detect-version-properties")
+                .short('r')
+                .long("auto-detect-version-properties")
+                .num_args(0)
+                .action(ArgAction::SetTrue)
+                .help("Automatically detect the repository commit, branch and build URL from known CI environment variables or git CLI."),
+        )
+        .arg(
+            Arg::new("tag-with-git-branch")
+                .long("tag-with-git-branch")
+                .num_args(0)
+                .action(ArgAction::SetTrue)
+                .help("Tag provider version with the name of the current git branch."),
+        )
+        .arg(
+            Arg::new("contract")
+                .long("contract")
+                .num_args(1)
+                .action(ArgAction::Append)
+                .required(true)
+                .value_name("CONTRACT_SPEC")
+                .help(
+                    "Contract spec: name=<name>,file=<path>,specification=<oas|asyncapi>,\
+                     content-type=<mime>[,verification-results=<path>,\
+                     verification-success=<true|false>,verifier=<tool>,\
+                     verifier-version=<ver>,verification-results-content-type=<mime>]. \
+                     Can be repeated.",
+                ),
+        )
+        .args(add_output_arguments(["json", "text"].to_vec(), "text"))
+        .args(crate::cli::add_ssl_arguments())
 }
