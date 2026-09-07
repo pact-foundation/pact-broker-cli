@@ -158,10 +158,11 @@ pub fn add_publish_provider_contracts_subcommand() -> Command {
                 .required(true)
                 .value_name("CONTRACT_SPEC")
                 .help(
-                    "Contract spec: name=<name>,file=<path>,specification=<oas|asyncapi>,\
+                    "Contract spec: name=<name>,file=<path>,specification=<SPECIFICATION>,\
                      content-type=<mime>[,verification-results=<path>,\
                      verification-success=<true|false>,verifier=<tool>,\
                      verifier-version=<ver>,verification-results-content-type=<mime>]. \
+                     SPECIFICATION is any value accepted by the server (e.g. oas, asyncapi, protobuf). \
                      Can be repeated.",
                 ),
         )

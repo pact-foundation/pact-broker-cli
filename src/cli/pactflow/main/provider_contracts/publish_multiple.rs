@@ -360,6 +360,7 @@ mod publish_multiple_provider_contracts_tests {
     const BUILD_URL: &str = "http://ci/build/42";
     const PAYMENTS_FIXTURE: &str = "tests/fixtures/payments-api.yaml";
     const FRAUD_FIXTURE: &str = "tests/fixtures/fraud-events.yaml";
+    const PROTO_FIXTURE: &str = "tests/fixtures/service.proto";
     const VERIF_RESULTS: &str = "tests/fixtures/verification-results.txt";
 
     fn mock_server_config() -> MockServerConfig {
@@ -633,7 +634,135 @@ mod publish_multiple_provider_contracts_tests {
         }
     }
 
-    // Test 4: duplicate contract names are rejected before any HTTP call
+    // Test 4: arbitrary specification type (protobuf) passes through unchanged — server decides validity
+    #[test]
+    fn publish_contracts_supports_arbitrary_specification_types() {
+        let payments_content = std::fs::read_to_string(PAYMENTS_FIXTURE).unwrap();
+        let fraud_content = std::fs::read_to_string(FRAUD_FIXTURE).unwrap();
+        let proto_content = std::fs::read_to_string(PROTO_FIXTURE).unwrap();
+        let payments_b64 = Base64.encode(&payments_content);
+        let fraud_b64 = Base64.encode(&fraud_content);
+        let proto_b64 = Base64.encode(&proto_content);
+
+        let request_body = json!({
+            "pacticipantVersionNumber": PROVIDER_VERSION,
+            "contracts": [
+                {
+                    "name": "payments-api",
+                    "content": payments_b64,
+                    "contentType": "application/yaml",
+                    "specification": "oas"
+                },
+                {
+                    "name": "fraud-events",
+                    "content": fraud_b64,
+                    "contentType": "application/yaml",
+                    "specification": "asyncapi"
+                },
+                {
+                    "name": "payments-grpc",
+                    "content": proto_b64,
+                    "contentType": "application/x-protobuf",
+                    "specification": "protobuf"
+                }
+            ]
+        });
+
+        let response_body = json!({
+            "notices": [{ "text": "Contracts published successfully", "type": "success" }],
+            "contracts": ["payments-api", "fraud-events", "payments-grpc"]
+        });
+
+        let pactflow_service = PactBuilder::new("pact-broker-cli", "PactFlow")
+            .interaction(
+                "GET / returns HAL index with pf:publish-provider-contracts (multi-spec test)",
+                "",
+                |mut i| {
+                    i.given("pf:publish-provider-contracts relation exists in index");
+                    i.request
+                        .get()
+                        .path("/")
+                        .header("Accept", "application/hal+json")
+                        .header("Accept", "application/json");
+                    i.response
+                        .status(200)
+                        .header("Content-Type", "application/hal+json;charset=utf-8")
+                        .json_body(json_pattern!({
+                            "_links": {
+                                "pf:publish-provider-contracts": {
+                                    "href": term!(
+                                        format!(".*\\/provider-contracts\\/provider\\/{}\\/publish-contracts", PROVIDER_NAME),
+                                        format!("http://localhost:1234/provider-contracts/provider/{}/publish-contracts", PROVIDER_NAME)
+                                    )
+                                }
+                            }
+                        }));
+                    i
+                },
+            )
+            .interaction(
+                "POST publish-contracts with oas, asyncapi, and protobuf specifications",
+                "",
+                |mut i| {
+                    i.request
+                        .post()
+                        .path(format!(
+                            "/provider-contracts/provider/{}/publish-contracts",
+                            PROVIDER_NAME
+                        ))
+                        .header("Content-Type", "application/json")
+                        .header("Accept", "application/hal+json,application/problem+json")
+                        .json_body(request_body.clone());
+                    i.response
+                        .status(200)
+                        .header("Content-Type", "application/hal+json;charset=utf-8")
+                        .json_body(response_body.clone());
+                    i
+                },
+            )
+            .start_mock_server(None, Some(mock_server_config()));
+
+        let url = pactflow_service.url();
+
+        let matches = add_publish_provider_contracts_subcommand().get_matches_from(vec![
+            "publish-provider-contracts",
+            "-b",
+            url.as_str(),
+            "--provider",
+            PROVIDER_NAME,
+            "--provider-app-version",
+            PROVIDER_VERSION,
+            "--contract",
+            &format!(
+                "name=payments-api,file={},specification=oas,content-type=application/yaml",
+                PAYMENTS_FIXTURE
+            ),
+            "--contract",
+            &format!(
+                "name=fraud-events,file={},specification=asyncapi,content-type=application/yaml",
+                FRAUD_FIXTURE
+            ),
+            "--contract",
+            &format!(
+                "name=payments-grpc,file={},specification=protobuf,content-type=application/x-protobuf",
+                PROTO_FIXTURE
+            ),
+            "--output",
+            "json",
+        ]);
+
+        let result = publish_multiple(&matches);
+
+        assert!(result.is_ok());
+        let val = result.unwrap();
+        let contracts = val.get("contracts").unwrap().as_array().unwrap();
+        assert_eq!(contracts.len(), 3);
+        assert!(contracts.iter().any(|c| c.as_str() == Some("payments-api")));
+        assert!(contracts.iter().any(|c| c.as_str() == Some("fraud-events")));
+        assert!(contracts.iter().any(|c| c.as_str() == Some("payments-grpc")));
+    }
+
+    // Test 5: duplicate contract names are rejected before any HTTP call
     #[test]
     fn publish_contracts_duplicate_names_rejected() {
         let matches = add_publish_provider_contracts_subcommand().get_matches_from(vec![
