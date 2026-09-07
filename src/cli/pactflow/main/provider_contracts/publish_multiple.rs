@@ -56,9 +56,9 @@ impl ContractSpec {
             .remove("content-type")
             .unwrap_or_else(|| "application/yaml".to_string());
         let verification_results = map.remove("verification-results");
-        let verification_success = map.remove("verification-success").map(|v| {
-            matches!(v.to_lowercase().as_str(), "true" | "1")
-        });
+        let verification_success = map
+            .remove("verification-success")
+            .map(|v| matches!(v.to_lowercase().as_str(), "true" | "1"));
         let verifier = map.remove("verifier");
         let verifier_version = map.remove("verifier-version");
         let verification_results_content_type = map.remove("verification-results-content-type");
@@ -118,7 +118,10 @@ pub fn publish_multiple(args: &ArgMatches) -> Result<Value, PactBrokerError> {
             })?;
             let verif_content = if let Some(ref path) = spec.verification_results {
                 Some(std::fs::read_to_string(path).map_err(|e| {
-                    eprintln!("❌ Failed to read verification results file '{}': {}", path, e);
+                    eprintln!(
+                        "❌ Failed to read verification results file '{}': {}",
+                        path, e
+                    );
                     PactBrokerError::IoError(e.to_string())
                 })?)
             } else {
@@ -251,7 +254,10 @@ pub fn publish_multiple(args: &ArgMatches) -> Result<Value, PactBrokerError> {
             let output: Result<Option<&String>, clap::parser::MatchesError> =
                 args.try_get_one::<String>("output");
 
-            let n = payload["contracts"].as_array().map(|a| a.len()).unwrap_or(0);
+            let n = payload["contracts"]
+                .as_array()
+                .map(|a| a.len())
+                .unwrap_or(0);
             println!(
                 "📨 Attempting to publish {} provider contracts for provider: {} version: {}",
                 n,
@@ -301,7 +307,10 @@ pub fn publish_multiple(args: &ArgMatches) -> Result<Value, PactBrokerError> {
                                         provider_name,
                                         provider_app_version.map_or("unknown", |v| v)
                                     );
-                                    println!("⚠️ Warning: Failed to process response - Error: {:?}", err);
+                                    println!(
+                                        "⚠️ Warning: Failed to process response - Error: {:?}",
+                                        err
+                                    );
                                     return Err(PactBrokerError::ContentError(err.to_string()));
                                 }
                             }
