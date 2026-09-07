@@ -2360,6 +2360,121 @@ Options:
 
 </details>
 
+#### publish-provider-contracts
+
+<details>
+<summary>Show help</summary>
+
+```console
+$ pact-broker-cli pactflow publish-provider-contracts --help
+Publish multiple provider contracts to PactFlow in a single request
+
+Usage: pact-broker-cli pactflow publish-provider-contracts [OPTIONS] --broker-base-url <PACT_BROKER_BASE_URL> --provider <PROVIDER> --contract <CONTRACT_SPEC>
+
+Options:
+  -b, --broker-base-url <PACT_BROKER_BASE_URL>
+          The base URL of the Pact Broker [env: PACT_BROKER_BASE_URL=]
+  -u, --broker-username <PACT_BROKER_USERNAME>
+          Pact Broker basic auth username [env: PACT_BROKER_USERNAME=]
+  -p, --broker-password <PACT_BROKER_PASSWORD>
+          Pact Broker basic auth password [env: PACT_BROKER_PASSWORD=]
+  -k, --broker-token <PACT_BROKER_TOKEN>
+          Pact Broker bearer token [env: PACT_BROKER_TOKEN=]
+      --custom-header <HEADER>
+          Custom header(s) to send with requests (format: 'Header-Name: Value', can be used multiple times)
+      --retries <PACT_BROKER_HTTP_RETRIES>
+          The number of times to retry failed HTTP requests to the Pact Broker (retries on 5xx, 408, and 429). Delays use exponential back-off starting at 500 ms and doubling each attempt (0.5 s, 1 s, 2 s, 4 s, 8 s, …). 429 responses honour the Retry-After header when present. [env: PACT_BROKER_HTTP_RETRIES=] [default: 8]
+      --provider <PROVIDER>
+          The provider name
+  -a, --provider-app-version <PROVIDER_APP_VERSION>
+          The provider application version
+      --branch <BRANCH>
+          Repository branch of the provider version
+  -t, --tag [<tag>...]
+          Tag name for provider version. Can be specified multiple times (delimiter ,).
+      --build-url <BUILD_URL>
+          The build URL that produced the provider contracts
+  -r, --auto-detect-version-properties
+          Automatically detect the repository commit, branch and build URL from known CI environment variables or git CLI.
+      --tag-with-git-branch
+          Tag provider version with the name of the current git branch.
+      --contract <CONTRACT_SPEC>
+          A comma-separated set of key=value pairs describing one contract. Repeat --contract once per contract. Required keys: name, file. Optional keys: specification (default oas; any value the server accepts, e.g. oas, asyncapi, protobuf), content-type (default application/yaml), verification-results, verification-success (true|false|1|0), verifier, verifier-version, verification-results-content-type, verification-results-format. Unknown keys are rejected. A comma is only a separator when followed by another key=, so values may contain commas.
+  -o, --output <OUTPUT>
+          Value must be one of ["json", "text"] [default: text] [possible values: json, text]
+  -c, --ssl-certificate <SSL_CERT_FILE>
+          The path to a valid SSL certificate file [env: SSL_CERT_FILE=]
+      --skip-ssl-verification
+          Skip SSL certificate verification [env: SSL_SKIP_VERIFICATION=]
+      --ssl-trust-store <SSL_TRUST_STORE>
+          Use the system's root trust store for SSL verification [env: SSL_TRUST_STORE=] [default: true] [possible values: true, false]
+      --enable-otel
+          Enable OpenTelemetry tracing
+      --enable-otel-logs
+          Enable OpenTelemetry logging
+      --enable-otel-traces
+          Enable OpenTelemetry traces
+      --otel-exporter <otel-exporter>
+          The OpenTelemetry exporter(s) to use, comma separated (stdout, otlp) [env: OTEL_TRACES_EXPORTER=]
+      --otel-exporter-endpoint <otel-exporter-endpoint>
+          The endpoint to use for the OTLP exporter (required if --otel-exporter=otlp) [env: OTEL_EXPORTER_OTLP_ENDPOINT=]
+      --otel-exporter-protocol <otel-exporter-protocol>
+          The protocol to use for the OTLP exporter (http/protobuf, http) [env: OTEL_EXPORTER_OTLP_PROTOCOL=] [default: http] [possible values: http, http/protobuf]
+      --log-level <LEVEL>
+          Set the log level (none, off, error, warn, info, debug, trace) [default: off] [possible values: off, none, error, warn, info, debug, trace]
+  -h, --help
+          Print help
+
+```
+
+</details>
+
+Publish multiple provider contracts to PactFlow in a single request.
+
+Repeat `--contract` once per contract. Each value is a set of comma-separated `key=value` pairs.
+`name` and `file` are required; everything else is optional. Unknown keys are rejected rather than
+ignored, so typos surface immediately.
+
+| Key | Required | Default | Notes |
+| --- | --- | --- | --- |
+| `name` | yes | | Contract name, unique within the request |
+| `file` | yes | | Path to the contract file |
+| `specification` | no | `oas` | Any value the server accepts, e.g. `oas`, `asyncapi`, `protobuf` |
+| `content-type` | no | `application/yaml` | |
+| `verification-results` | no | | Path to the self-verification output |
+| `verification-success` | no | | `true`, `false`, `1` or `0` |
+| `verifier` | no | | Tool used to verify the contract |
+| `verifier-version` | no | | |
+| `verification-results-content-type` | no | | e.g. `text/plain` |
+| `verification-results-format` | no | | e.g. `junit`, `text` |
+
+A comma only separates fields when it is followed by another `key=`, so values may themselves
+contain commas — `verifier=Acme, Inc.` and `file=./specs/v1,v2/api.yaml` are both read whole.
+
+```sh
+pact-broker-cli pactflow publish-provider-contracts \
+  --broker-base-url https://yourorg.pactflow.io \
+  --broker-token "$PACTFLOW_TOKEN" \
+  --provider my-payments-service \
+  --provider-app-version 1.4.2 \
+  --branch main \
+  --contract "name=payments-api,file=./contracts/payments-api.yaml,specification=oas,content-type=application/yaml" \
+  --contract "name=fraud-events,file=./contracts/fraud-events.yaml,specification=asyncapi,content-type=application/yaml" \
+  --contract "name=payments-grpc,file=./contracts/service.proto,specification=protobuf,content-type=application/x-protobuf"
+```
+
+Self-verification results are attached per contract, so each may carry its own:
+
+```sh
+pact-broker-cli pactflow publish-provider-contracts \
+  --broker-base-url https://yourorg.pactflow.io \
+  --broker-token "$PACTFLOW_TOKEN" \
+  --provider my-payments-service \
+  --provider-app-version 1.4.2 \
+  --contract "name=payments-api,file=./contracts/payments-api.yaml,verification-results=./results/spectral.txt,verification-success=true,verifier=spectral,verifier-version=6.11.0,verification-results-content-type=text/plain,verification-results-format=text" \
+  --contract "name=fraud-events,file=./contracts/fraud-events.yaml,specification=asyncapi"
+```
+
 ## Connecting to a Pact Broker with a self signed certificate
 
 To connect to a Pact Broker that uses custom SSL cerificates, set the environment variable `SSL_CERT_FILE` to a path that contains the appropriate certificate. Read more at <https://docs.pact.io/pact_broker/advanced_topics/using-tls#for-non-jvm>

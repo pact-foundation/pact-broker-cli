@@ -31,25 +31,111 @@ pub struct ContractSpec {
     pub verification_results_format: Option<String>,
 }
 
+/// Every key accepted inside a single `--contract` value. Drives both field splitting and
+/// unknown-key rejection, so the plural command is as strict about typos as clap is for the
+/// singular `publish-provider-contract`.
+const KNOWN_KEYS: &[&str] = &[
+    "name",
+    "file",
+    "specification",
+    "content-type",
+    "verification-results",
+    "verification-success",
+    "verifier",
+    "verifier-version",
+    "verification-results-content-type",
+    "verification-results-format",
+];
+
+/// True when `fragment` opens a new field, i.e. it begins with a known key followed by `=`.
+/// Tested against every key rather than stopping at the first, so `verifier-version=1` is not
+/// mistaken for the shorter `verifier` key.
+fn starts_new_field(fragment: &str) -> bool {
+    let trimmed = fragment.trim_start();
+    KNOWN_KEYS.iter().any(|key| {
+        trimmed
+            .strip_prefix(key)
+            .is_some_and(|rest| rest.trim_start().starts_with('='))
+    })
+}
+
+/// True when `fragment` reads as an attempted `key=value` assignment — the text before its first
+/// `=` is a bare identifier. Such a fragment opens a field even when the key is unknown, so a
+/// typo like `content-tpye=x` reaches the unknown-key check instead of being silently absorbed
+/// into the preceding value.
+fn looks_like_assignment(fragment: &str) -> bool {
+    let trimmed = fragment.trim();
+    trimmed.find('=').is_some_and(|eq| {
+        let candidate = &trimmed[..eq];
+        !candidate.is_empty()
+            && candidate
+                .chars()
+                .all(|c| c.is_ascii_alphanumeric() || c == '-' || c == '_')
+    })
+}
+
+/// Split a `--contract` value on commas, treating a comma as a separator only when what follows
+/// opens a new field. Anything else is a literal comma belonging to the preceding value, so
+/// `verifier=Acme, Inc.` and `file=./specs/v1,v2/api.yaml` survive intact.
+fn split_fields(input: &str) -> Vec<String> {
+    let mut fields: Vec<String> = Vec::new();
+    for fragment in input.split(',') {
+        let opens_field = starts_new_field(fragment) || looks_like_assignment(fragment);
+        match fields.last_mut() {
+            Some(previous) if !opens_field => {
+                previous.push(',');
+                previous.push_str(fragment);
+            }
+            _ => fields.push(fragment.to_string()),
+        }
+    }
+    fields
+}
+
+fn take_required(
+    map: &mut std::collections::HashMap<String, String>,
+    key: &str,
+) -> Result<String, String> {
+    match map.remove(key) {
+        None => Err(format!("--contract requires a '{key}' key")),
+        Some(value) if value.is_empty() => Err(format!("--contract '{key}' must not be empty")),
+        Some(value) => Ok(value),
+    }
+}
+
 impl ContractSpec {
     /// Parse `"name=payments-api,file=./pay.yaml,specification=oas,content-type=application/yaml"`
     /// into a `ContractSpec`. Required keys: `name`, `file`.
     pub fn parse(input: &str) -> Result<Self, String> {
         let mut map: std::collections::HashMap<String, String> = std::collections::HashMap::new();
-        for pair in input.split(',') {
-            if let Some(eq_pos) = pair.find('=') {
-                let key = pair[..eq_pos].trim().to_string();
-                let value = pair[eq_pos + 1..].trim().to_string();
-                map.insert(key, value);
+
+        for field in split_fields(input) {
+            let field = field.trim();
+            if field.is_empty() {
+                continue;
+            }
+            let Some(eq_pos) = field.find('=') else {
+                return Err(format!(
+                    "--contract fragment '{field}' is not in key=value form"
+                ));
+            };
+            let key = field[..eq_pos].trim();
+            let value = field[eq_pos + 1..].trim();
+
+            if !KNOWN_KEYS.contains(&key) {
+                return Err(format!(
+                    "--contract has unknown key '{}'. Valid keys: {}",
+                    key,
+                    KNOWN_KEYS.join(", ")
+                ));
+            }
+            if map.insert(key.to_string(), value.to_string()).is_some() {
+                return Err(format!("--contract has a duplicate '{key}' key"));
             }
         }
 
-        let name = map
-            .remove("name")
-            .ok_or_else(|| "--contract requires 'name' key".to_string())?;
-        let file = map
-            .remove("file")
-            .ok_or_else(|| "--contract requires 'file' key".to_string())?;
+        let name = take_required(&mut map, "name")?;
+        let file = take_required(&mut map, "file")?;
         let specification = map
             .remove("specification")
             .unwrap_or_else(|| "oas".to_string());
@@ -59,7 +145,14 @@ impl ContractSpec {
         let verification_results = map.remove("verification-results");
         let verification_success = map
             .remove("verification-success")
-            .map(|v| matches!(v.to_lowercase().as_str(), "true" | "1"));
+            .map(|raw| match raw.to_lowercase().as_str() {
+                "true" | "1" => Ok(true),
+                "false" | "0" => Ok(false),
+                _ => Err(format!(
+                    "--contract verification-success must be true, false, 1 or 0 (got '{raw}')"
+                )),
+            })
+            .transpose()?;
         let verifier = map.remove("verifier");
         let verifier_version = map.remove("verifier-version");
         let verification_results_content_type = map.remove("verification-results-content-type");
@@ -77,6 +170,153 @@ impl ContractSpec {
             verification_results_content_type,
             verification_results_format,
         })
+    }
+}
+
+#[cfg(test)]
+mod contract_spec_parse_tests {
+    use super::ContractSpec;
+
+    fn spec(input: &str) -> ContractSpec {
+        ContractSpec::parse(input).expect("expected a valid spec")
+    }
+
+    fn err(input: &str) -> String {
+        ContractSpec::parse(input).expect_err("expected a parse error")
+    }
+
+    #[test]
+    fn parses_a_minimal_spec_and_applies_defaults() {
+        let s = spec("name=payments-api,file=./pay.yaml");
+        assert_eq!(s.name, "payments-api");
+        assert_eq!(s.file, "./pay.yaml");
+        assert_eq!(s.specification, "oas");
+        assert_eq!(s.content_type, "application/yaml");
+        assert_eq!(s.verification_success, None);
+        assert_eq!(s.verifier, None);
+    }
+
+    #[test]
+    fn parses_every_known_key() {
+        let s = spec(
+            "name=a,file=f.yaml,specification=asyncapi,content-type=application/json,\
+             verification-results=r.txt,verification-success=true,verifier=spectral,\
+             verifier-version=1.2.3,verification-results-content-type=text/plain,\
+             verification-results-format=junit",
+        );
+        assert_eq!(s.specification, "asyncapi");
+        assert_eq!(s.content_type, "application/json");
+        assert_eq!(s.verification_results.as_deref(), Some("r.txt"));
+        assert_eq!(s.verification_success, Some(true));
+        assert_eq!(s.verifier.as_deref(), Some("spectral"));
+        assert_eq!(s.verifier_version.as_deref(), Some("1.2.3"));
+        assert_eq!(
+            s.verification_results_content_type.as_deref(),
+            Some("text/plain")
+        );
+        assert_eq!(s.verification_results_format.as_deref(), Some("junit"));
+    }
+
+    #[test]
+    fn trims_whitespace_around_keys_and_values() {
+        let s = spec("  name = a , file = f.yaml , specification = oas ");
+        assert_eq!(s.name, "a");
+        assert_eq!(s.file, "f.yaml");
+        assert_eq!(s.specification, "oas");
+    }
+
+    #[test]
+    fn keeps_everything_after_the_first_equals_in_the_value() {
+        let s = spec("name=a,file=f.yaml,verifier-version=1.0=rc1");
+        assert_eq!(s.verifier_version.as_deref(), Some("1.0=rc1"));
+    }
+
+    // --- the 5 regressions vs the singular command ---
+
+    #[test]
+    fn keeps_a_comma_inside_a_value() {
+        let s = spec("name=a,file=f.yaml,verifier=Acme, Inc.");
+        assert_eq!(s.verifier.as_deref(), Some("Acme, Inc."));
+        assert_eq!(s.name, "a");
+        assert_eq!(s.file, "f.yaml");
+    }
+
+    #[test]
+    fn keeps_a_comma_inside_a_file_path() {
+        let s = spec("name=a,file=./specs/v1,v2/api.yaml");
+        assert_eq!(s.file, "./specs/v1,v2/api.yaml");
+    }
+
+    #[test]
+    fn keeps_a_semicolon_bearing_content_type_whole() {
+        let s = spec("name=a,file=f.yaml,content-type=text/plain;charset=utf-8");
+        assert_eq!(s.content_type, "text/plain;charset=utf-8");
+    }
+
+    #[test]
+    fn rejects_an_unknown_key() {
+        let e = err("name=a,file=f.yaml,content-tpye=application/json");
+        assert!(e.contains("content-tpye"), "message was: {e}");
+    }
+
+    #[test]
+    fn rejects_a_duplicate_key() {
+        let e = err("name=a,file=f.yaml,name=b");
+        assert!(e.contains("name"), "message was: {e}");
+    }
+
+    #[test]
+    fn rejects_an_empty_name_or_file() {
+        assert!(err("name=,file=f.yaml").contains("name"));
+        assert!(err("name=a,file=").contains("file"));
+    }
+
+    #[test]
+    fn rejects_a_fragment_with_no_equals() {
+        let e = err("just-a-file.yaml");
+        assert!(!e.is_empty(), "expected a descriptive error");
+    }
+
+    #[test]
+    fn accepts_all_valid_boolean_spellings() {
+        for (raw, expected) in [
+            ("true", true),
+            ("TRUE", true),
+            ("1", true),
+            ("false", false),
+            ("False", false),
+            ("0", false),
+        ] {
+            let s = spec(&format!("name=a,file=f.yaml,verification-success={raw}"));
+            assert_eq!(
+                s.verification_success,
+                Some(expected),
+                "verification-success={raw} should parse as {expected}"
+            );
+        }
+    }
+
+    #[test]
+    fn rejects_an_invalid_boolean_instead_of_defaulting_to_false() {
+        for raw in ["yes", "ture", "maybe", ""] {
+            let e = err(&format!("name=a,file=f.yaml,verification-success={raw}"));
+            assert!(
+                e.contains("verification-success"),
+                "verification-success={raw} should be rejected, message was: {e}"
+            );
+        }
+    }
+
+    // --- required keys ---
+
+    #[test]
+    fn rejects_a_missing_name() {
+        assert!(err("file=f.yaml").contains("name"));
+    }
+
+    #[test]
+    fn rejects_a_missing_file() {
+        assert!(err("name=a").contains("file"));
     }
 }
 
