@@ -400,11 +400,12 @@ pub fn publish_multiple(args: &ArgMatches) -> Result<Value, PactBrokerError> {
         }
     }
 
-    // Read all files eagerly — fail before any HTTP call
-    let contract_data: Vec<(ContractSpec, String, Option<String>)> = specs
+    // Read all files eagerly — fail before any HTTP call. Read as bytes rather than text: a
+    // compiled protobuf descriptor is valid contract content but not valid UTF-8.
+    let contract_data: Vec<(ContractSpec, Vec<u8>, Option<Vec<u8>>)> = specs
         .into_iter()
         .map(|spec| {
-            let content = std::fs::read_to_string(&spec.file).map_err(|e| {
+            let content = std::fs::read(&spec.file).map_err(|e| {
                 eprintln!("❌ Failed to read contract file '{}': {}", spec.file, e);
                 PactBrokerError::IoError(e.to_string())
             })?;
@@ -415,7 +416,7 @@ pub fn publish_multiple(args: &ArgMatches) -> Result<Value, PactBrokerError> {
                 )]));
             }
             let verif_content = if let Some(ref path) = spec.verification_results {
-                Some(std::fs::read_to_string(path).map_err(|e| {
+                Some(std::fs::read(path).map_err(|e| {
                     eprintln!(
                         "❌ Failed to read verification results file '{}': {}",
                         path, e
@@ -674,6 +675,7 @@ mod publish_multiple_provider_contracts_tests {
     const PAYMENTS_FIXTURE: &str = "tests/fixtures/payments-api.yaml";
     const FRAUD_FIXTURE: &str = "tests/fixtures/fraud-events.yaml";
     const PROTO_FIXTURE: &str = "tests/fixtures/service.proto";
+    const BINARY_FIXTURE: &str = "tests/fixtures/service-descriptor.binpb";
     const VERIF_RESULTS: &str = "tests/fixtures/verification-results.txt";
 
     fn mock_server_config() -> MockServerConfig {
@@ -1113,6 +1115,110 @@ mod publish_multiple_provider_contracts_tests {
             }
             other => panic!("Expected ValidationError, got: {:?}", other),
         }
+    }
+
+    // Test 6: a binary contract (compiled protobuf descriptor) publishes byte-for-byte.
+    // Reading it as text would fail outright, so this guards the bytes-not-string read.
+    #[test]
+    fn publish_contracts_supports_binary_contract_content() {
+        let descriptor_bytes = std::fs::read(BINARY_FIXTURE).unwrap();
+        assert!(
+            String::from_utf8(descriptor_bytes.clone()).is_err(),
+            "fixture must not be valid UTF-8 or this test proves nothing"
+        );
+        let descriptor_b64 = Base64.encode(&descriptor_bytes);
+
+        let request_body = json!({
+            "pacticipantVersionNumber": PROVIDER_VERSION,
+            "contracts": [
+                {
+                    "name": "payments-grpc",
+                    "content": descriptor_b64,
+                    "contentType": "application/x-protobuf",
+                    "specification": "protobuf"
+                }
+            ]
+        });
+
+        let response_body = json!({
+            "notices": [{ "text": "Contracts published successfully", "type": "success" }],
+            "contracts": ["payments-grpc"]
+        });
+
+        let pactflow_service = PactBuilder::new("pact-broker-cli", "PactFlow")
+            .interaction(
+                "GET / returns HAL index with pf:publish-provider-contracts (binary test)",
+                "",
+                |mut i| {
+                    i.given("pf:publish-provider-contracts relation exists in index");
+                    i.request
+                        .get()
+                        .path("/")
+                        .header("Accept", "application/hal+json")
+                        .header("Accept", "application/json");
+                    i.response
+                        .status(200)
+                        .header("Content-Type", "application/hal+json;charset=utf-8")
+                        .json_body(json_pattern!({
+                            "_links": {
+                                "pf:publish-provider-contracts": {
+                                    "href": term!(
+                                        format!(".*\\/provider-contracts\\/provider\\/{}\\/publish-contracts", PROVIDER_NAME),
+                                        format!("http://localhost:1234/provider-contracts/provider/{}/publish-contracts", PROVIDER_NAME)
+                                    )
+                                }
+                            }
+                        }));
+                    i
+                },
+            )
+            .interaction(
+                "POST publish-contracts with a binary protobuf descriptor",
+                "",
+                |mut i| {
+                    i.request
+                        .post()
+                        .path(format!(
+                            "/provider-contracts/provider/{}/publish-contracts",
+                            PROVIDER_NAME
+                        ))
+                        .header("Content-Type", "application/json")
+                        .header("Accept", "application/hal+json,application/problem+json")
+                        .json_body(request_body.clone());
+                    i.response
+                        .status(200)
+                        .header("Content-Type", "application/hal+json;charset=utf-8")
+                        .json_body(response_body.clone());
+                    i
+                },
+            )
+            .start_mock_server(None, Some(mock_server_config()));
+
+        let url = pactflow_service.url();
+
+        let matches = add_publish_provider_contracts_subcommand().get_matches_from(vec![
+            "publish-provider-contracts",
+            "-b",
+            url.as_str(),
+            "--provider",
+            PROVIDER_NAME,
+            "--provider-app-version",
+            PROVIDER_VERSION,
+            "--contract",
+            &format!(
+                "name=payments-grpc,file={},specification=protobuf,content-type=application/x-protobuf",
+                BINARY_FIXTURE
+            ),
+            "--output",
+            "json",
+        ]);
+
+        let result = publish_multiple(&matches);
+
+        assert!(result.is_ok(), "binary contract should publish: {result:?}");
+        let val = result.unwrap();
+        let contracts = val.get("contracts").unwrap().as_array().unwrap();
+        assert_eq!(contracts.len(), 1);
     }
 
     // Test 7: an empty contract file is caught locally rather than posted as empty content.
