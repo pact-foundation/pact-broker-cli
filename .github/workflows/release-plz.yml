@@ -42,7 +42,7 @@ jobs:
       - uses: actions-rust-lang/setup-rust-toolchain@ecabd13d1c56bd1345c230e542e9144811ad706f  # v2.0.0
 
       - name: Run release-plz release-pr
-        uses: release-plz/action@aec534bbd8631793b9b3b8f1ee6cd886c322e17f  # v0.5.133
+        uses: release-plz/action@346832d73e3415c2ebd0432cba3a2bf5881e5f7d  # v0.5.135
         with:
           command: release-pr
         env:
@@ -84,7 +84,7 @@ jobs:
       - uses: actions-rust-lang/setup-rust-toolchain@ecabd13d1c56bd1345c230e542e9144811ad706f  # v2.0.0
 
       - name: Run release-plz release
-        uses: release-plz/action@aec534bbd8631793b9b3b8f1ee6cd886c322e17f  # v0.5.133
+        uses: release-plz/action@346832d73e3415c2ebd0432cba3a2bf5881e5f7d  # v0.5.135
         with:
           command: release
         env:
