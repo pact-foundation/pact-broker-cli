@@ -92,6 +92,15 @@ fn split_fields(input: &str) -> Vec<String> {
     fields
 }
 
+/// Trim a value and discard it if nothing is left, so a blank flag or a blank git result is
+/// treated as absent rather than published as an empty string.
+fn non_blank(value: Option<&str>) -> Option<String> {
+    value
+        .map(str::trim)
+        .filter(|v| !v.is_empty())
+        .map(str::to_string)
+}
+
 fn take_required(
     map: &mut std::collections::HashMap<String, String>,
     key: &str,
@@ -157,6 +166,22 @@ impl ContractSpec {
         let verifier_version = map.remove("verifier-version");
         let verification_results_content_type = map.remove("verification-results-content-type");
         let verification_results_format = map.remove("verification-results-format");
+
+        // Without an explicit outcome the contract would be published as a *failed* self
+        // verification, so demand one rather than guessing on the user's behalf.
+        if verification_success.is_none()
+            && (verification_results.is_some()
+                || verifier.is_some()
+                || verifier_version.is_some()
+                || verification_results_content_type.is_some()
+                || verification_results_format.is_some())
+        {
+            return Err(
+                "--contract sets self-verification keys but no 'verification-success'; \
+                 add verification-success=true or verification-success=false"
+                    .to_string(),
+            );
+        }
 
         Ok(ContractSpec {
             name,
@@ -227,7 +252,7 @@ mod contract_spec_parse_tests {
 
     #[test]
     fn keeps_everything_after_the_first_equals_in_the_value() {
-        let s = spec("name=a,file=f.yaml,verifier-version=1.0=rc1");
+        let s = spec("name=a,file=f.yaml,verification-success=true,verifier-version=1.0=rc1");
         assert_eq!(s.verifier_version.as_deref(), Some("1.0=rc1"));
     }
 
@@ -235,7 +260,7 @@ mod contract_spec_parse_tests {
 
     #[test]
     fn keeps_a_comma_inside_a_value() {
-        let s = spec("name=a,file=f.yaml,verifier=Acme, Inc.");
+        let s = spec("name=a,file=f.yaml,verification-success=true,verifier=Acme, Inc.");
         assert_eq!(s.verifier.as_deref(), Some("Acme, Inc."));
         assert_eq!(s.name, "a");
         assert_eq!(s.file, "f.yaml");
@@ -307,6 +332,30 @@ mod contract_spec_parse_tests {
         }
     }
 
+    #[test]
+    fn rejects_self_verification_keys_without_an_explicit_outcome() {
+        for key in [
+            "verification-results=r.txt",
+            "verifier=spectral",
+            "verifier-version=1.2.3",
+            "verification-results-content-type=text/plain",
+            "verification-results-format=junit",
+        ] {
+            let e = err(&format!("name=a,file=f.yaml,{key}"));
+            assert!(
+                e.contains("verification-success"),
+                "{key} without an outcome should be rejected, message was: {e}"
+            );
+        }
+    }
+
+    #[test]
+    fn accepts_verification_success_on_its_own() {
+        let s = spec("name=a,file=f.yaml,verification-success=false");
+        assert_eq!(s.verification_success, Some(false));
+        assert_eq!(s.verifier, None);
+    }
+
     // --- required keys ---
 
     #[test]
@@ -359,6 +408,12 @@ pub fn publish_multiple(args: &ArgMatches) -> Result<Value, PactBrokerError> {
                 eprintln!("❌ Failed to read contract file '{}': {}", spec.file, e);
                 PactBrokerError::IoError(e.to_string())
             })?;
+            if content.is_empty() {
+                return Err(PactBrokerError::ValidationError(vec![format!(
+                    "Contract file '{}' is empty",
+                    spec.file
+                )]));
+            }
             let verif_content = if let Some(ref path) = spec.verification_results {
                 Some(std::fs::read_to_string(path).map_err(|e| {
                     eprintln!(
@@ -373,6 +428,83 @@ pub fn publish_multiple(args: &ArgMatches) -> Result<Value, PactBrokerError> {
             Ok::<_, PactBrokerError>((spec, content, verif_content))
         })
         .collect::<Result<Vec<_>, _>>()?;
+
+    // Resolve version metadata before any network call, so a misconfigured run fails fast.
+    let provider_name = non_blank(args.get_one::<String>("provider").map(String::as_str))
+        .ok_or_else(|| {
+            PactBrokerError::ValidationError(vec![
+                "The provider name must not be blank.".to_string(),
+            ])
+        })?;
+    let auto_detect = args.get_flag("auto-detect-version-properties");
+    let tag_with_git_branch = args.get_flag("tag-with-git-branch");
+
+    // At most one branch lookup, shared by --auto-detect-version-properties and
+    // --tag-with-git-branch.
+    let git_branch = if auto_detect || tag_with_git_branch {
+        non_blank(git_info::branch(false).as_deref())
+    } else {
+        None
+    };
+
+    let mut provider_app_version = non_blank(
+        args.get_one::<String>("provider-app-version")
+            .map(String::as_str),
+    );
+    let mut branch = non_blank(args.get_one::<String>("branch").map(String::as_str));
+    let mut build_url = non_blank(args.get_one::<String>("build-url").map(String::as_str));
+
+    if auto_detect {
+        if provider_app_version.is_none() {
+            provider_app_version = non_blank(git_info::commit(false).as_deref());
+            if let Some(v) = &provider_app_version {
+                println!("🔍 Auto detected git commit: {}", v);
+            }
+        }
+        if branch.is_none() {
+            branch = git_branch.clone();
+            if let Some(b) = &branch {
+                println!("🔍 Auto detected git branch: {}", b);
+            }
+        }
+        if build_url.is_none() {
+            build_url = non_blank(git_info::build_url().as_deref());
+            if let Some(u) = &build_url {
+                println!("🔍 Auto detected build URL: {}", u);
+            }
+        }
+    }
+
+    // Past this point the version is a known non-blank string, so the payload can never carry
+    // a null or empty pacticipantVersionNumber.
+    let Some(provider_app_version) = provider_app_version else {
+        return Err(PactBrokerError::ValidationError(vec![
+            if auto_detect {
+                "Could not determine the provider application version: \
+                 --auto-detect-version-properties was set but no git commit could be detected. \
+                 Pass --provider-app-version explicitly."
+            } else {
+                "The provider application version must not be blank."
+            }
+            .to_string(),
+        ]));
+    };
+
+    let mut tags: Vec<String> = args
+        .get_many::<String>("tag")
+        .unwrap_or_default()
+        .map(|t| t.to_string())
+        .collect();
+    if tag_with_git_branch {
+        let Some(detected) = git_branch.clone() else {
+            return Err(PactBrokerError::ValidationError(vec![
+                "--tag-with-git-branch was set but no git branch could be detected. \
+                 Pass --tag explicitly instead."
+                    .to_string(),
+            ]));
+        };
+        tags.push(detected);
+    }
 
     let broker_url = get_broker_url(args).trim_end_matches('/').to_string();
     let hal_client: HALClient = HALClient::with_url(
@@ -394,34 +526,8 @@ pub fn publish_multiple(args: &ArgMatches) -> Result<Value, PactBrokerError> {
 
     match publish_href_result {
         Ok(publish_href) => {
-            let provider_name = args
-                .get_one::<String>("provider")
-                .expect("PROVIDER is required");
-            let mut provider_app_version = args.get_one::<String>("provider-app-version");
-            let mut branch = args.get_one::<String>("branch");
-            let build_url = args.get_one::<String>("build-url");
-            let tag_with_git_branch = args.get_flag("tag-with-git-branch");
-            let auto_detect = args.get_flag("auto-detect-version-properties");
-
-            let (git_commit, git_branch);
-            if auto_detect {
-                git_commit = git_info::commit(false);
-                git_branch = git_info::branch(false);
-                if provider_app_version.is_none() {
-                    provider_app_version = git_commit.as_ref();
-                    if let Some(v) = provider_app_version {
-                        println!("🔍 Auto detected git commit: {}", v);
-                    }
-                }
-                if branch.is_none() {
-                    branch = git_branch.as_ref();
-                    if let Some(b) = branch {
-                        println!("🔍 Auto detected git branch: {}", b);
-                    }
-                }
-            }
-
-            let publish_href = publish_href.replace("{provider}", provider_name);
+            let publish_href =
+                publish_href.replace("{provider}", &urlencoding::encode(&provider_name));
 
             // Build the contracts array
             let contracts_array: Vec<Value> = contract_data
@@ -434,15 +540,9 @@ pub fn publish_multiple(args: &ArgMatches) -> Result<Value, PactBrokerError> {
                         "specification": spec.specification,
                     });
 
-                    if verif_content.is_some()
-                        || spec.verifier.is_some()
-                        || spec.verifier_version.is_some()
-                    {
+                    if let Some(success) = spec.verification_success {
                         let mut svr = serde_json::Map::new();
-                        svr.insert(
-                            "success".to_string(),
-                            Value::Bool(spec.verification_success.unwrap_or(false)),
-                        );
+                        svr.insert("success".to_string(), Value::Bool(success));
                         if let Some(vc) = verif_content {
                             svr.insert("content".to_string(), Value::String(Base64.encode(vc)));
                         }
@@ -470,45 +570,27 @@ pub fn publish_multiple(args: &ArgMatches) -> Result<Value, PactBrokerError> {
                 "contracts": contracts_array,
             });
 
-            if let Some(tags) = args.get_many::<String>("tag") {
-                payload["tags"] = serde_json::Value::Array(vec![]);
-                for tag in tags {
-                    payload["tags"]
-                        .as_array_mut()
-                        .unwrap()
-                        .push(serde_json::Value::String(tag.to_string()));
-                }
+            if !tags.is_empty() {
+                payload["tags"] =
+                    Value::Array(tags.iter().map(|t| Value::String(t.clone())).collect());
             }
-            if tag_with_git_branch {
-                if !payload.get("tags").is_some_and(|v| v.is_array()) {
-                    payload["tags"] = serde_json::Value::Array(vec![]);
-                }
-                payload["tags"]
-                    .as_array_mut()
-                    .unwrap()
-                    .push(serde_json::Value::String(
-                        git_info::branch(false).unwrap_or_default(),
-                    ));
-            }
-            if let Some(b) = branch {
+            if let Some(b) = &branch {
                 payload["branch"] = Value::String(b.to_string());
             }
-            if let Some(u) = build_url {
+            if let Some(u) = &build_url {
                 payload["buildUrl"] = Value::String(u.to_string());
             }
 
-            let output: Result<Option<&String>, clap::parser::MatchesError> =
-                args.try_get_one::<String>("output");
+            // clap constrains --output to these two values, so anything else is unreachable.
+            let output = args
+                .get_one::<String>("output")
+                .map_or("text", String::as_str);
 
-            let n = payload["contracts"]
-                .as_array()
-                .map(|a| a.len())
-                .unwrap_or(0);
             println!(
                 "📨 Attempting to publish {} provider contracts for provider: {} version: {}",
-                n,
+                contract_data.len(),
                 provider_name,
-                provider_app_version.map_or("unknown", |v| v)
+                provider_app_version
             );
 
             let res = tokio::runtime::Runtime::new().unwrap().block_on(async {
@@ -530,42 +612,27 @@ pub fn publish_multiple(args: &ArgMatches) -> Result<Value, PactBrokerError> {
             });
 
             match res {
-                Ok(res) => match output {
-                    Ok(Some(output)) => {
-                        if output == "pretty" {
-                            let json = serde_json::to_string_pretty(&res).unwrap();
-                            println!("{}", json);
-                        } else if output == "json" {
-                            return Ok(res.clone());
-                        } else {
-                            match serde_json::from_value::<PublishContractsResponse>(res) {
-                                Ok(parsed) => {
-                                    print!("✅ ");
-                                    process_notices(&parsed.notices);
-                                    println!(
-                                        "Published contracts: {}",
-                                        parsed.contracts.join(", ")
-                                    );
-                                }
-                                Err(err) => {
-                                    println!(
-                                        "✅ Provider contracts published successfully for: {} version: {}",
-                                        provider_name,
-                                        provider_app_version.map_or("unknown", |v| v)
-                                    );
-                                    println!(
-                                        "⚠️ Warning: Failed to process response - Error: {:?}",
-                                        err
-                                    );
-                                    return Err(PactBrokerError::ContentError(err.to_string()));
-                                }
-                            }
+                Ok(res) => {
+                    if output == "json" {
+                        return Ok(res);
+                    }
+                    match serde_json::from_value::<PublishContractsResponse>(res) {
+                        Ok(parsed) => {
+                            print!("✅ ");
+                            process_notices(&parsed.notices);
+                            println!("Published contracts: {}", parsed.contracts.join(", "));
+                        }
+                        // The server accepted the contracts; only the summary is unreadable, so
+                        // warn rather than reporting a failed publish.
+                        Err(err) => {
+                            println!(
+                                "✅ Provider contracts published successfully for: {} version: {}",
+                                provider_name, provider_app_version
+                            );
+                            println!("⚠️ Warning: Failed to process response - Error: {:?}", err);
                         }
                     }
-                    _ => {
-                        println!("{:?}", res.clone());
-                    }
-                },
+                }
                 Err(err) => {
                     match &err {
                         PactBrokerError::ValidationErrorWithNotices(messages, notices) => {
@@ -1046,5 +1113,58 @@ mod publish_multiple_provider_contracts_tests {
             }
             other => panic!("Expected ValidationError, got: {:?}", other),
         }
+    }
+
+    // Test 7: an empty contract file is caught locally rather than posted as empty content.
+    #[test]
+    fn publish_contracts_rejects_an_empty_contract_file() {
+        let empty = std::env::temp_dir().join("pact-broker-cli-empty-contract.yaml");
+        std::fs::write(&empty, b"").unwrap();
+
+        let matches = add_publish_provider_contracts_subcommand().get_matches_from(vec![
+            "publish-provider-contracts",
+            "-b",
+            "http://localhost:9999",
+            "--provider",
+            PROVIDER_NAME,
+            "--provider-app-version",
+            PROVIDER_VERSION,
+            "--contract",
+            &format!("name=payments-api,file={}", empty.display()),
+        ]);
+
+        let result = publish_multiple(&matches);
+        let _ = std::fs::remove_file(&empty);
+
+        match result.unwrap_err() {
+            PactBrokerError::ValidationError(msgs) => {
+                assert!(
+                    msgs.iter().any(|m| m.contains("empty")),
+                    "expected an empty-file error, got: {msgs:?}"
+                );
+            }
+            other => panic!("Expected ValidationError, got: {:?}", other),
+        }
+    }
+
+    // Test 8: a blank version is refused by clap, so it can never reach the payload as "".
+    #[test]
+    fn publish_contracts_rejects_a_blank_provider_app_version() {
+        let result = add_publish_provider_contracts_subcommand().try_get_matches_from(vec![
+            "publish-provider-contracts",
+            "-b",
+            "http://localhost:9999",
+            "--provider",
+            PROVIDER_NAME,
+            "--provider-app-version",
+            "",
+            "--contract",
+            &format!("name=payments-api,file={}", PAYMENTS_FIXTURE),
+        ]);
+
+        assert!(
+            result.is_err(),
+            "an empty --provider-app-version should be rejected"
+        );
     }
 }
