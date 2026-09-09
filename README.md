@@ -2399,7 +2399,7 @@ Options:
       --tag-with-git-branch
           Tag provider version with the name of the current git branch.
       --contract <CONTRACT_SPEC>
-          A comma-separated set of key=value pairs describing one contract. Repeat --contract once per contract. Required keys: name, file. Optional keys: specification (default oas; any value the server accepts, e.g. oas, asyncapi, protobuf), content-type (default application/yaml), verification-results, verification-success (true|false|1|0), verifier, verifier-version, verification-results-content-type, verification-results-format. Unknown keys are rejected. A comma is only a separator when followed by another key=, so values may contain commas.
+          A comma-separated set of key=value pairs describing one contract. Repeat --contract once per contract. Required keys: name, file. Optional keys: specification (default oas; any value the server accepts, e.g. oas, asyncapi, protobuf), content-type (default application/yaml), verification-results, verification-success (true|false|1|0), verifier, verifier-version, verification-results-content-type, verification-results-format. Setting any self-verification key requires verification-success too. Unknown keys are rejected. A comma is only a separator when followed by another key=, so values may contain commas.
   -o, --output <OUTPUT>
           Value must be one of ["json", "text"] [default: text] [possible values: json, text]
   -c, --ssl-certificate <SSL_CERT_FILE>
@@ -2442,7 +2442,7 @@ ignored, so typos surface immediately.
 | `specification` | no | `oas` | Any value the server accepts, e.g. `oas`, `asyncapi`, `protobuf` |
 | `content-type` | no | `application/yaml` | |
 | `verification-results` | no | | Path to the self-verification output |
-| `verification-success` | no | | `true`, `false`, `1` or `0` |
+| `verification-success` | no | | `true`, `false`, `1` or `0` — required if any other self-verification key is set |
 | `verifier` | no | | Tool used to verify the contract |
 | `verifier-version` | no | | |
 | `verification-results-content-type` | no | | e.g. `text/plain` |
@@ -2450,6 +2450,9 @@ ignored, so typos surface immediately.
 
 A comma only separates fields when it is followed by another `key=`, so values may themselves
 contain commas — `verifier=Acme, Inc.` and `file=./specs/v1,v2/api.yaml` are both read whole.
+
+Setting any self-verification key without `verification-success` is an error rather than a silent
+`false`, which would otherwise record the contract as having failed verification.
 
 ```sh
 pact-broker-cli pactflow publish-provider-contracts \

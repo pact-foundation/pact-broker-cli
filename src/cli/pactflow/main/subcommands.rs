@@ -104,6 +104,7 @@ pub fn add_publish_provider_contracts_subcommand() -> Command {
                 .long("provider")
                 .value_name("PROVIDER")
                 .required(true)
+                .value_parser(clap::builder::NonEmptyStringValueParser::new())
                 .help("The provider name"),
         )
         .arg(
@@ -112,6 +113,7 @@ pub fn add_publish_provider_contracts_subcommand() -> Command {
                 .long("provider-app-version")
                 .value_name("PROVIDER_APP_VERSION")
                 .required_unless_present("auto-detect-version-properties")
+                .value_parser(clap::builder::NonEmptyStringValueParser::new())
                 .help("The provider application version"),
         )
         .arg(
@@ -166,6 +168,7 @@ pub fn add_publish_provider_contracts_subcommand() -> Command {
                      verification-results, verification-success (true|false|1|0), verifier, \
                      verifier-version, verification-results-content-type, \
                      verification-results-format. \
+                     Setting any self-verification key requires verification-success too. \
                      Unknown keys are rejected. A comma is only a separator when followed by \
                      another key=, so values may contain commas.",
                 ),
