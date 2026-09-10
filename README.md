@@ -2463,9 +2463,9 @@ pact-broker-cli pactflow publish-provider-contracts \
   --provider my-payments-service \
   --provider-app-version 1.4.2 \
   --branch main \
-  --contract "name=payments-api,file=./contracts/payments-api.yaml,specification=oas,content-type=application/yaml" \
-  --contract "name=fraud-events,file=./contracts/fraud-events.yaml,specification=asyncapi,content-type=application/yaml" \
-  --contract "name=payments-grpc,file=./contracts/service.proto,specification=protobuf,content-type=application/x-protobuf"
+  --contract "name=payments-api,file=./tests/fixtures/payments-api.yaml,specification=oas,content-type=application/yaml" \
+  --contract "name=fraud-events,file=./tests/fixtures/fraud-events.yaml,specification=asyncapi,content-type=application/yaml" \
+  --contract "name=payments-grpc,file=./tests/fixtures/service.proto,specification=protobuf,content-type=application/x-protobuf"
 ```
 
 Self-verification results are attached per contract, so each may carry its own:
@@ -2476,8 +2476,8 @@ pact-broker-cli pactflow publish-provider-contracts \
   --broker-token "$PACTFLOW_TOKEN" \
   --provider my-payments-service \
   --provider-app-version 1.4.2 \
-  --contract "name=payments-api,file=./contracts/payments-api.yaml,verification-results=./results/spectral.txt,verification-success=true,verifier=spectral,verifier-version=6.11.0,verification-results-content-type=text/plain,verification-results-format=text" \
-  --contract "name=fraud-events,file=./contracts/fraud-events.yaml,specification=asyncapi"
+  --contract "name=payments-api,file=./tests/fixtures/payments-api.yaml,verification-results=./tests/fixtures/verification-results.txt,verification-success=true,verifier=spectral,verifier-version=6.11.0,verification-results-content-type=text/plain,verification-results-format=text" \
+  --contract "name=fraud-events,file=./tests/fixtures/fraud-events.yaml,specification=asyncapi"
 ```
 
 ## Connecting to a Pact Broker with a self signed certificate
