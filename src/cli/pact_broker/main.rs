@@ -659,7 +659,7 @@ impl HALClient {
             broker_url.join(path)?
         };
 
-        let request_builder = match self.auth {
+        let mut request_builder = match self.auth {
             Some(ref auth) => match auth {
                 HttpAuth::User(username, password) => self
                     .client
@@ -672,6 +672,7 @@ impl HALClient {
         }
         .header("Accept", "application/hal+json");
 
+        request_builder = self.apply_custom_headers(request_builder);
         let response = request_builder.send().await.map_err(|err| {
             PactBrokerError::IoError(format!(
                 "Failed to delete pact broker path '{}' - {}. URL: '{}'",
@@ -889,7 +890,7 @@ impl HALClient {
 
         // Add any additional headers if provided
 
-        let request_builder = if let Some(ref headers) = headers {
+        let mut request_builder = if let Some(ref headers) = headers {
             headers
                 .iter()
                 .fold(request_builder, |builder, (key, value)| {
@@ -898,6 +899,8 @@ impl HALClient {
         } else {
             request_builder
         };
+
+        request_builder = self.apply_custom_headers(request_builder);
 
         let request_builder = if method_type == Method::PATCH {
             request_builder.header("Content-Type", "application/merge-patch+json")
