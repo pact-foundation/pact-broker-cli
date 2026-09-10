@@ -662,7 +662,7 @@ pub fn publish_multiple(args: &ArgMatches) -> Result<Value, PactBrokerError> {
 #[cfg(test)]
 mod publish_multiple_provider_contracts_tests {
     use super::*;
-    use crate::cli::pactflow::main::subcommands::add_publish_provider_contracts_subcommand;
+    use crate::cli::pactflow::main::subcommands::add_publish_provider_contract_subcommand;
     use pact_consumer::prelude::*;
     use pact_models::PactSpecification;
     use serde_json::json;
@@ -762,8 +762,8 @@ mod publish_multiple_provider_contracts_tests {
 
         let url = pactflow_service.url();
 
-        let matches = add_publish_provider_contracts_subcommand().get_matches_from(vec![
-            "publish-provider-contracts",
+        let matches = add_publish_provider_contract_subcommand().get_matches_from(vec![
+            "publish-provider-contract",
             "-b",
             url.as_str(),
             "--provider",
@@ -894,8 +894,8 @@ mod publish_multiple_provider_contracts_tests {
 
         let url = pactflow_service.url();
 
-        let matches = add_publish_provider_contracts_subcommand().get_matches_from(vec![
-            "publish-provider-contracts",
+        let matches = add_publish_provider_contract_subcommand().get_matches_from(vec![
+            "publish-provider-contract",
             "-b",
             url.as_str(),
             "--provider",
@@ -930,8 +930,8 @@ mod publish_multiple_provider_contracts_tests {
     // Test 3: missing contract file returns IoError before any HTTP call
     #[test]
     fn publish_contracts_missing_file_returns_io_error() {
-        let matches = add_publish_provider_contracts_subcommand().get_matches_from(vec![
-            "publish-provider-contracts",
+        let matches = add_publish_provider_contract_subcommand().get_matches_from(vec![
+            "publish-provider-contract",
             "-b",
             "http://localhost:9999",
             "--provider",
@@ -1041,8 +1041,8 @@ mod publish_multiple_provider_contracts_tests {
 
         let url = pactflow_service.url();
 
-        let matches = add_publish_provider_contracts_subcommand().get_matches_from(vec![
-            "publish-provider-contracts",
+        let matches = add_publish_provider_contract_subcommand().get_matches_from(vec![
+            "publish-provider-contract",
             "-b",
             url.as_str(),
             "--provider",
@@ -1086,8 +1086,8 @@ mod publish_multiple_provider_contracts_tests {
     // Test 5: duplicate contract names are rejected before any HTTP call
     #[test]
     fn publish_contracts_duplicate_names_rejected() {
-        let matches = add_publish_provider_contracts_subcommand().get_matches_from(vec![
-            "publish-provider-contracts",
+        let matches = add_publish_provider_contract_subcommand().get_matches_from(vec![
+            "publish-provider-contract",
             "-b",
             "http://localhost:9999",
             "--provider",
@@ -1196,8 +1196,8 @@ mod publish_multiple_provider_contracts_tests {
 
         let url = pactflow_service.url();
 
-        let matches = add_publish_provider_contracts_subcommand().get_matches_from(vec![
-            "publish-provider-contracts",
+        let matches = add_publish_provider_contract_subcommand().get_matches_from(vec![
+            "publish-provider-contract",
             "-b",
             url.as_str(),
             "--provider",
@@ -1227,8 +1227,8 @@ mod publish_multiple_provider_contracts_tests {
         let empty = std::env::temp_dir().join("pact-broker-cli-empty-contract.yaml");
         std::fs::write(&empty, b"").unwrap();
 
-        let matches = add_publish_provider_contracts_subcommand().get_matches_from(vec![
-            "publish-provider-contracts",
+        let matches = add_publish_provider_contract_subcommand().get_matches_from(vec![
+            "publish-provider-contract",
             "-b",
             "http://localhost:9999",
             "--provider",
@@ -1256,8 +1256,8 @@ mod publish_multiple_provider_contracts_tests {
     // Test 8: a blank version is refused by clap, so it can never reach the payload as "".
     #[test]
     fn publish_contracts_rejects_a_blank_provider_app_version() {
-        let result = add_publish_provider_contracts_subcommand().try_get_matches_from(vec![
-            "publish-provider-contracts",
+        let result = add_publish_provider_contract_subcommand().try_get_matches_from(vec![
+            "publish-provider-contract",
             "-b",
             "http://localhost:9999",
             "--provider",

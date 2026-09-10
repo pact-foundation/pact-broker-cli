@@ -45,6 +45,18 @@ struct Links {
 }
 
 pub fn publish(args: &ArgMatches) -> Result<Value, PactBrokerError> {
+    // --contract selects the batch endpoint, which takes a named array rather than the single
+    // scalar contract this function builds. clap guarantees the two modes are mutually exclusive.
+    if args
+        .get_many::<String>("contract")
+        .into_iter()
+        .flatten()
+        .next()
+        .is_some()
+    {
+        return super::publish_multiple::publish_multiple(args);
+    }
+
     // Load contract file
     let contract_file = args
         .get_one::<String>("contract-file")
@@ -337,6 +349,105 @@ mod publish_provider_contract_tests {
     use pact_models::prelude::Generator;
     use pact_models::{PactSpecification, generators};
     use serde_json::json;
+
+    // --- mode boundary: CONTRACT_FILE and --contract are mutually exclusive ---
+
+    fn try_parse(argv: Vec<&str>) -> Result<clap::ArgMatches, clap::Error> {
+        add_publish_provider_contract_subcommand().try_get_matches_from(argv)
+    }
+
+    const SPEC: &str = "name=a,file=tests/fixtures/payments-api.yaml";
+
+    #[test]
+    fn rejects_a_contract_file_and_contract_flag_together() {
+        let err = try_parse(vec![
+            "publish-provider-contract",
+            "-b",
+            "http://localhost:9999",
+            "--provider",
+            "p",
+            "-a",
+            "1.0",
+            "tests/fixtures/payments-api.yaml",
+            "--contract",
+            SPEC,
+        ])
+        .expect_err("the two modes must not be combinable");
+        assert_eq!(err.kind(), clap::error::ErrorKind::ArgumentConflict);
+    }
+
+    #[test]
+    fn rejects_neither_a_contract_file_nor_a_contract_flag() {
+        let err = try_parse(vec![
+            "publish-provider-contract",
+            "-b",
+            "http://localhost:9999",
+            "--provider",
+            "p",
+            "-a",
+            "1.0",
+        ])
+        .expect_err("one of the two modes is required");
+        assert_eq!(err.kind(), clap::error::ErrorKind::MissingRequiredArgument);
+    }
+
+    #[test]
+    fn rejects_single_contract_options_alongside_contract_flag() {
+        for (flag, value) in [
+            ("--specification", Some("oas")),
+            ("--content-type", Some("application/yaml")),
+            ("--verifier", Some("spectral")),
+            ("--verifier-version", Some("1.0.0")),
+            ("--verification-results", Some("r.txt")),
+            ("--verification-results-content-type", Some("text/plain")),
+            ("--verification-results-format", Some("junit")),
+            ("--verification-exit-code", Some("0")),
+            ("--verification-success", None),
+            ("--no-verification-success", None),
+        ] {
+            let mut argv = vec![
+                "publish-provider-contract",
+                "-b",
+                "http://localhost:9999",
+                "--provider",
+                "p",
+                "-a",
+                "1.0",
+                "--contract",
+                SPEC,
+                flag,
+            ];
+            if let Some(v) = value {
+                argv.push(v);
+            }
+            let err = try_parse(argv)
+                .err()
+                .unwrap_or_else(|| panic!("{flag} should conflict with --contract"));
+            assert_eq!(
+                err.kind(),
+                clap::error::ErrorKind::ArgumentConflict,
+                "{flag} should be an ArgumentConflict"
+            );
+        }
+    }
+
+    #[test]
+    fn accepts_repeated_contract_flags_without_a_positional() {
+        try_parse(vec![
+            "publish-provider-contract",
+            "-b",
+            "http://localhost:9999",
+            "--provider",
+            "p",
+            "-a",
+            "1.0",
+            "--contract",
+            SPEC,
+            "--contract",
+            "name=b,file=tests/fixtures/fraud-events.yaml",
+        ])
+        .expect("repeating --contract is the multi-contract happy path");
+    }
 
     #[test]
     fn publish_provider_contract_success() {

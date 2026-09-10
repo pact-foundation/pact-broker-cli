@@ -1,25 +1,49 @@
 use crate::cli::add_output_arguments;
-use clap::{Arg, ArgAction, Command};
+use clap::{Arg, ArgAction, ArgGroup, Command};
 
 pub fn add_publish_provider_contract_subcommand() -> Command {
     Command::new("publish-provider-contract")
-    .about("Publish provider contract to PactFlow")
+    .about("Publish provider contract(s) to PactFlow")
     .args(crate::cli::pact_broker::main::subcommands::add_broker_auth_arguments())
     .arg(Arg::new("contract-file")
         .num_args(1)
         .value_name("CONTRACT_FILE")
+        .help("The contract file to publish. Use --contract instead to publish several contracts in one request."))
+    .arg(Arg::new("contract")
+        .long("contract")
+        .num_args(1)
+        .action(ArgAction::Append)
+        .value_name("CONTRACT_SPEC")
+        .help(
+            "A comma-separated set of key=value pairs describing one contract. \
+             Repeat --contract once per contract to publish several in a single request. \
+             Cannot be combined with CONTRACT_FILE or the single-contract options. \
+             Required keys: name, file. \
+             Optional keys: specification (default oas; any value the server accepts, \
+             e.g. oas, asyncapi, protobuf), content-type (default application/yaml), \
+             verification-results, verification-success (true|false|1|0), verifier, \
+             verifier-version, verification-results-content-type, \
+             verification-results-format. \
+             Setting any self-verification key requires verification-success too. \
+             Unknown keys are rejected. A comma is only a separator when followed by \
+             another key=, so values may contain commas.",
+        ))
+    .group(ArgGroup::new("contract-source")
+        .args(["contract-file", "contract"])
         .required(true)
-        .help("The contract file to publish"))
+        .multiple(false))
     .arg(Arg::new("provider")
         .long("provider")
         .value_name("PROVIDER")
         .required(true)
+        .value_parser(clap::builder::NonEmptyStringValueParser::new())
         .help("The provider name"))
     .arg(Arg::new("provider-app-version")
         .short('a')
         .long("provider-app-version")
         .value_name("PROVIDER_APP_VERSION")
         .required_unless_present("auto-detect-version-properties")
+        .value_parser(clap::builder::NonEmptyStringValueParser::new())
         .help("The provider application version"))
     .arg(Arg::new("branch")
         .long("branch")
@@ -36,45 +60,55 @@ pub fn add_publish_provider_contract_subcommand() -> Command {
         .long("specification")
         .value_name("SPECIFICATION")
         .default_value("oas")
-        .help("The contract specification"))
+        .conflicts_with("contract")
+        .help("The contract specification. Single-contract mode only; use specification= inside --contract otherwise."))
     .arg(Arg::new("content-type")
         .long("content-type")
         .value_name("CONTENT_TYPE")
-        .help("The content type. eg. application/yml"))
+        .conflicts_with("contract")
+        .help("The content type. eg. application/yml. Single-contract mode only."))
     .arg(Arg::new("verification-success")
         .long("verification-success")
         .action(clap::ArgAction::SetTrue)
         .conflicts_with("verification-exit-code")
-        .help("Whether or not the self verification passed successfully."))
+        .conflicts_with("contract")
+        .help("Whether or not the self verification passed successfully. Single-contract mode only."))
     .arg(Arg::new("no-verification-success")
         .long("no-verification-success")
         .action(clap::ArgAction::SetTrue)
         .conflicts_with("verification-exit-code")
-        .help("Whether or not the self verification failed."))
+        .conflicts_with("contract")
+        .help("Whether or not the self verification failed. Single-contract mode only."))
     .arg(Arg::new("verification-exit-code")
         .long("verification-exit-code")
         .value_name("N")
-        .help("The exit code of the verification process. Can be used instead of --verification-success|--no-verification-success for a simpler build script."))
+        .conflicts_with("contract")
+        .help("The exit code of the verification process. Can be used instead of --verification-success|--no-verification-success for a simpler build script. Single-contract mode only."))
     .arg(Arg::new("verification-results")
         .long("verification-results")
         .value_name("VERIFICATION_RESULTS")
-        .help("The path to the file containing the output from the verification process"))
+        .conflicts_with("contract")
+        .help("The path to the file containing the output from the verification process. Single-contract mode only."))
     .arg(Arg::new("verification-results-content-type")
         .long("verification-results-content-type")
         .value_name("VERIFICATION_RESULTS_CONTENT_TYPE")
-        .help("The content type of the verification output eg. text/plain, application/yaml"))
+        .conflicts_with("contract")
+        .help("The content type of the verification output eg. text/plain, application/yaml. Single-contract mode only."))
     .arg(Arg::new("verification-results-format")
         .long("verification-results-format")
         .value_name("VERIFICATION_RESULTS_FORMAT")
-        .help("The format of the verification output eg. junit, text"))
+        .conflicts_with("contract")
+        .help("The format of the verification output eg. junit, text. Single-contract mode only."))
     .arg(Arg::new("verifier")
         .long("verifier")
         .value_name("VERIFIER")
-        .help("The tool used to verify the provider contract"))
+        .conflicts_with("contract")
+        .help("The tool used to verify the provider contract. Single-contract mode only."))
     .arg(Arg::new("verifier-version")
         .long("verifier-version")
         .value_name("VERIFIER_VERSION")
-        .help("The version of the tool used to verify the provider contract"))
+        .conflicts_with("contract")
+        .help("The version of the tool used to verify the provider contract. Single-contract mode only."))
     .arg(Arg::new("build-url")
         .long("build-url")
         .value_name("BUILD_URL")
@@ -93,86 +127,4 @@ pub fn add_publish_provider_contract_subcommand() -> Command {
         .help("Tag provider version with the name of the current git branch. Supports Buildkite, Circle CI, Travis CI, GitHub Actions, Jenkins, Hudson, AppVeyor, GitLab, CodeShip, Bitbucket and Azure DevOps."))
     .args(add_output_arguments(["json", "text"].to_vec(), "text"))
     .args(crate::cli::add_ssl_arguments())
-}
-
-pub fn add_publish_provider_contracts_subcommand() -> Command {
-    Command::new("publish-provider-contracts")
-        .about("Publish multiple provider contracts to PactFlow in a single request")
-        .args(crate::cli::pact_broker::main::subcommands::add_broker_auth_arguments())
-        .arg(
-            Arg::new("provider")
-                .long("provider")
-                .value_name("PROVIDER")
-                .required(true)
-                .value_parser(clap::builder::NonEmptyStringValueParser::new())
-                .help("The provider name"),
-        )
-        .arg(
-            Arg::new("provider-app-version")
-                .short('a')
-                .long("provider-app-version")
-                .value_name("PROVIDER_APP_VERSION")
-                .required_unless_present("auto-detect-version-properties")
-                .value_parser(clap::builder::NonEmptyStringValueParser::new())
-                .help("The provider application version"),
-        )
-        .arg(
-            Arg::new("branch")
-                .long("branch")
-                .value_name("BRANCH")
-                .help("Repository branch of the provider version"),
-        )
-        .arg(
-            Arg::new("tag")
-                .short('t')
-                .long("tag")
-                .value_delimiter(',')
-                .num_args(0..)
-                .value_parser(clap::builder::NonEmptyStringValueParser::new())
-                .help("Tag name for provider version. Can be specified multiple times (delimiter ,)."),
-        )
-        .arg(
-            Arg::new("build-url")
-                .long("build-url")
-                .value_name("BUILD_URL")
-                .help("The build URL that produced the provider contracts"),
-        )
-        .arg(
-            Arg::new("auto-detect-version-properties")
-                .short('r')
-                .long("auto-detect-version-properties")
-                .num_args(0)
-                .action(ArgAction::SetTrue)
-                .help("Automatically detect the repository commit, branch and build URL from known CI environment variables or git CLI."),
-        )
-        .arg(
-            Arg::new("tag-with-git-branch")
-                .long("tag-with-git-branch")
-                .num_args(0)
-                .action(ArgAction::SetTrue)
-                .help("Tag provider version with the name of the current git branch."),
-        )
-        .arg(
-            Arg::new("contract")
-                .long("contract")
-                .num_args(1)
-                .action(ArgAction::Append)
-                .required(true)
-                .value_name("CONTRACT_SPEC")
-                .help(
-                    "A comma-separated set of key=value pairs describing one contract. \
-                     Repeat --contract once per contract. \
-                     Required keys: name, file. \
-                     Optional keys: specification (default oas; any value the server accepts, \
-                     e.g. oas, asyncapi, protobuf), content-type (default application/yaml), \
-                     verification-results, verification-success (true|false|1|0), verifier, \
-                     verifier-version, verification-results-content-type, \
-                     verification-results-format. \
-                     Setting any self-verification key requires verification-success too. \
-                     Unknown keys are rejected. A comma is only a separator when followed by \
-                     another key=, so values may contain commas.",
-                ),
-        )
-        .args(add_output_arguments(["json", "text"].to_vec(), "text"))
-        .args(crate::cli::add_ssl_arguments())
 }
