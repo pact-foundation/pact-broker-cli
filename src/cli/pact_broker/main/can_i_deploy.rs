@@ -1374,7 +1374,7 @@ mod can_i_deploy_tests {
                 "a request for the compatibility matrix that ignores a pacticipant",
                 "",
                 |mut i| {
-                    i.given("the pact for Foo version 1.2.4 has been successfully verified by Bar version 4.5.6");
+                    i.given("the pact for Foo version 1.2.4 has been verified by Bar version 4.5.6 and ignores Baz");
                     i.request
                         .get()
                         .path("/matrix")
@@ -1426,7 +1426,7 @@ mod can_i_deploy_tests {
                 "a request for the compatibility matrix that ignores a specific pacticipant version",
                 "",
                 |mut i| {
-                    i.given("the pact for Foo version 1.2.4 has been successfully verified by Bar version 4.5.6");
+                    i.given("the pact for Foo version 1.2.4 has been verified by Bar version 4.5.6 and ignores Baz version 9.9.9");
                     i.request
                         .get()
                         .path("/matrix")

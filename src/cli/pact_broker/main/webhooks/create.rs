@@ -431,7 +431,7 @@ mod create_webhook_tests {
         let response_body = json_pattern!({
             "description": "a webhook",
             "request": {
-                "body": json!({ "some": "body" }).to_string()
+                "body": json!({ "some": "body" })
             },
             "events": [ { "name": "contract_content_changed" } ],
             "_links": {
@@ -511,7 +511,7 @@ mod create_webhook_tests {
         let response_body = json_pattern!({
             "description": "a webhook",
             "request": {
-                "body": json!({ "some": "body" }).to_string()
+                "body": json!({ "some": "body" })
             },
             "events": event_names.iter().map(|n| json!({ "name": n })).collect::<Vec<_>>(),
             "_links": {
@@ -664,7 +664,7 @@ mod create_webhook_tests {
         let response_body = json_pattern!({
             "description": "a webhook",
             "request": {
-                "body": json!({ "some": "body" }).to_string()
+                "body": json!({ "some": "body" })
             },
             "events": [ { "name": "contract_content_changed" } ],
             "_links": {
@@ -736,7 +736,7 @@ mod create_webhook_tests {
         let response_body = json_pattern!({
             "description": "a webhook",
             "request": {
-                "body": json!({ "some": "body" }).to_string()
+                "body": json!({ "some": "body" })
             },
             "events": [ { "name": "contract_content_changed" } ],
             "_links": {
@@ -812,7 +812,7 @@ mod create_webhook_tests {
         let response_body = json_pattern!({
             "description": "a webhook",
             "request": {
-                "body": json!({ "some": "body" }).to_string()
+                "body": json!({ "some": "body" })
             },
             "events": [ { "name": "contract_content_changed" } ],
             "_links": {
@@ -907,7 +907,7 @@ mod create_webhook_tests {
         let response_body = json_pattern!({
             "description": "a webhook",
             "request": {
-                "body": json!({ "some": "body" }).to_string()
+                "body": json!({ "some": "body" })
             },
             "events": [ { "name": "contract_content_changed" } ],
             "_links": {
@@ -1005,7 +1005,7 @@ mod create_webhook_tests {
         let response_body = json_pattern!({
             "description": "a webhook",
             "request": {
-                "body": json!({ "some": "body" }).to_string()
+                "body": json!({ "some": "body" })
             },
             "events": [ { "name": "contract_content_changed" } ],
             "_links": {
