@@ -2,6 +2,17 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.8.7] _2026-09-11_
+
+### 🐛 Bug Fixes
+
+-   Ensure custom headers are propogated in delete/patch/put/post
+
+### 🧪 Testing
+
+-   Update pact files post testing against pact_broker
+
+
 ## [0.8.6] _2026-07-13_
 
 ### 🐛 Bug Fixes
