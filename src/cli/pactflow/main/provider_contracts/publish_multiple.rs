@@ -24,7 +24,7 @@ pub struct ContractSpec {
     pub specification: String,
     pub content_type: String,
     pub verification_results: Option<String>,
-    pub verification_success: Option<bool>,
+    pub verification_success: bool,
     pub verifier: Option<String>,
     pub verifier_version: Option<String>,
     pub verification_results_content_type: Option<String>,
@@ -41,6 +41,7 @@ const KNOWN_KEYS: &[&str] = &[
     "content-type",
     "verification-results",
     "verification-success",
+    "verification-exit-code",
     "verifier",
     "verifier-version",
     "verification-results-content-type",
@@ -152,7 +153,10 @@ impl ContractSpec {
             .remove("content-type")
             .unwrap_or_else(|| "application/yaml".to_string());
         let verification_results = map.remove("verification-results");
-        let verification_success = map
+        // Mirrors publish.rs:145-160 — verification-success wins, then verification-exit-code,
+        // then false. The singular's --no-verification-success has no key here because
+        // verification-success takes a value and `=false` already says it.
+        let explicit_success = map
             .remove("verification-success")
             .map(|raw| match raw.to_lowercase().as_str() {
                 "true" | "1" => Ok(true),
@@ -162,26 +166,24 @@ impl ContractSpec {
                 )),
             })
             .transpose()?;
+        let exit_code = map.remove("verification-exit-code");
+        if explicit_success.is_some() && exit_code.is_some() {
+            return Err(
+                "--contract sets both 'verification-success' and 'verification-exit-code'; \
+                 use one or the other"
+                    .to_string(),
+            );
+        }
+        // An unparseable exit code becomes false rather than an error, matching publish.rs:157.
+        let verification_success = match (explicit_success, exit_code) {
+            (Some(success), _) => success,
+            (None, Some(raw)) => raw.parse::<i32>().is_ok_and(|code| code == 0),
+            (None, None) => false,
+        };
         let verifier = map.remove("verifier");
         let verifier_version = map.remove("verifier-version");
         let verification_results_content_type = map.remove("verification-results-content-type");
         let verification_results_format = map.remove("verification-results-format");
-
-        // Without an explicit outcome the contract would be published as a *failed* self
-        // verification, so demand one rather than guessing on the user's behalf.
-        if verification_success.is_none()
-            && (verification_results.is_some()
-                || verifier.is_some()
-                || verifier_version.is_some()
-                || verification_results_content_type.is_some()
-                || verification_results_format.is_some())
-        {
-            return Err(
-                "--contract sets self-verification keys but no 'verification-success'; \
-                 add verification-success=true or verification-success=false"
-                    .to_string(),
-            );
-        }
 
         Ok(ContractSpec {
             name,
@@ -217,7 +219,7 @@ mod contract_spec_parse_tests {
         assert_eq!(s.file, "./pay.yaml");
         assert_eq!(s.specification, "oas");
         assert_eq!(s.content_type, "application/yaml");
-        assert_eq!(s.verification_success, None);
+        assert!(!s.verification_success);
         assert_eq!(s.verifier, None);
     }
 
@@ -232,7 +234,7 @@ mod contract_spec_parse_tests {
         assert_eq!(s.specification, "asyncapi");
         assert_eq!(s.content_type, "application/json");
         assert_eq!(s.verification_results.as_deref(), Some("r.txt"));
-        assert_eq!(s.verification_success, Some(true));
+        assert!(s.verification_success);
         assert_eq!(s.verifier.as_deref(), Some("spectral"));
         assert_eq!(s.verifier_version.as_deref(), Some("1.2.3"));
         assert_eq!(
@@ -314,8 +316,7 @@ mod contract_spec_parse_tests {
         ] {
             let s = spec(&format!("name=a,file=f.yaml,verification-success={raw}"));
             assert_eq!(
-                s.verification_success,
-                Some(expected),
+                s.verification_success, expected,
                 "verification-success={raw} should parse as {expected}"
             );
         }
@@ -333,27 +334,57 @@ mod contract_spec_parse_tests {
     }
 
     #[test]
-    fn rejects_self_verification_keys_without_an_explicit_outcome() {
-        for key in [
-            "verification-results=r.txt",
-            "verifier=spectral",
-            "verifier-version=1.2.3",
-            "verification-results-content-type=text/plain",
-            "verification-results-format=junit",
-        ] {
-            let e = err(&format!("name=a,file=f.yaml,{key}"));
+    fn accepts_verification_success_on_its_own() {
+        let s = spec("name=a,file=f.yaml,verification-success=false");
+        assert!(!s.verification_success);
+        assert_eq!(s.verifier, None);
+    }
+
+    // --- verification-exit-code, mirroring publish.rs:145-160 ---
+
+    #[test]
+    fn treats_a_zero_exit_code_as_success() {
+        let s = spec("name=a,file=f.yaml,verification-exit-code=0");
+        assert!(s.verification_success);
+    }
+
+    #[test]
+    fn treats_a_non_zero_exit_code_as_failure() {
+        for raw in ["1", "2", "127", "-1"] {
+            let s = spec(&format!("name=a,file=f.yaml,verification-exit-code={raw}"));
             assert!(
-                e.contains("verification-success"),
-                "{key} without an outcome should be rejected, message was: {e}"
+                !s.verification_success,
+                "exit code {raw} should be a failed verification"
+            );
+        }
+    }
+
+    // publish.rs:157 coerces an unparseable exit code to false rather than erroring; the plural
+    // matches it so a pipeline behaves identically whichever mode it uses.
+    #[test]
+    fn treats_an_unparseable_exit_code_as_failure() {
+        for raw in ["abc", "", "0.0"] {
+            let s = spec(&format!("name=a,file=f.yaml,verification-exit-code={raw}"));
+            assert!(
+                !s.verification_success,
+                "exit code '{raw}' should be a failed verification"
             );
         }
     }
 
     #[test]
-    fn accepts_verification_success_on_its_own() {
-        let s = spec("name=a,file=f.yaml,verification-success=false");
-        assert_eq!(s.verification_success, Some(false));
-        assert_eq!(s.verifier, None);
+    fn rejects_both_outcome_keys_in_one_contract() {
+        let e = err("name=a,file=f.yaml,verification-success=true,verification-exit-code=0");
+        assert!(e.contains("verification-exit-code"), "message was: {e}");
+    }
+
+    // --- the singular's looseness, adopted deliberately ---
+
+    #[test]
+    fn defaults_to_a_failed_verification_when_no_outcome_is_given() {
+        let s = spec("name=a,file=f.yaml,verifier=spectral");
+        assert!(!s.verification_success);
+        assert_eq!(s.verifier.as_deref(), Some("spectral"));
     }
 
     // --- required keys ---
@@ -540,9 +571,17 @@ pub fn publish_multiple(args: &ArgMatches) -> Result<Value, PactBrokerError> {
                         "specification": spec.specification,
                     });
 
-                    if let Some(success) = spec.verification_success {
+                    // Gate matches publish.rs:187-190: the outcome is always resolved but only
+                    // travels when there is verification evidence to attach it to.
+                    if verif_content.is_some()
+                        || spec.verifier.is_some()
+                        || spec.verifier_version.is_some()
+                    {
                         let mut svr = serde_json::Map::new();
-                        svr.insert("success".to_string(), Value::Bool(success));
+                        svr.insert(
+                            "success".to_string(),
+                            Value::Bool(spec.verification_success),
+                        );
                         if let Some(vc) = verif_content {
                             svr.insert("content".to_string(), Value::String(Base64.encode(vc)));
                         }
@@ -779,9 +818,14 @@ mod publish_multiple_provider_contracts_tests {
                 "name=payments-api,file={},specification=oas,content-type=application/yaml",
                 PAYMENTS_FIXTURE
             ),
+            // verification-success is set but no results/verifier/verifier-version accompany it,
+            // so the expected request body above carries no selfVerificationResults for this
+            // contract. That gate is inherited from publish.rs:187-190 — asserting it here keeps
+            // the behaviour deliberate. The mock server fails on any body mismatch.
             "--contract",
             &format!(
-                "name=fraud-events,file={},specification=asyncapi,content-type=application/yaml",
+                "name=fraud-events,file={},specification=asyncapi,content-type=application/yaml,\
+                 verification-success=true",
                 FRAUD_FIXTURE
             ),
             "--output",

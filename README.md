@@ -2298,7 +2298,7 @@ Options:
       --retries <PACT_BROKER_HTTP_RETRIES>
           The number of times to retry failed HTTP requests to the Pact Broker (retries on 5xx, 408, and 429). Delays use exponential back-off starting at 500 ms and doubling each attempt (0.5 s, 1 s, 2 s, 4 s, 8 s, …). 429 responses honour the Retry-After header when present. [env: PACT_BROKER_HTTP_RETRIES=] [default: 8]
       --contract <CONTRACT_SPEC>
-          A comma-separated set of key=value pairs describing one contract. Repeat --contract once per contract to publish several in a single request. Cannot be combined with CONTRACT_FILE or the single-contract options. Required keys: name, file. Optional keys: specification (default oas; any value the server accepts, e.g. oas, asyncapi, protobuf), content-type (default application/yaml), verification-results, verification-success (true|false|1|0), verifier, verifier-version, verification-results-content-type, verification-results-format. Setting any self-verification key requires verification-success too. Unknown keys are rejected. A comma is only a separator when followed by another key=, so values may contain commas.
+          A comma-separated set of key=value pairs describing one contract. Repeat --contract once per contract to publish several in a single request. Cannot be combined with CONTRACT_FILE or the single-contract options. Required keys: name, file. Optional keys: specification (default oas; any value the server accepts, e.g. oas, asyncapi, protobuf), content-type (default application/yaml), verification-results, verification-success (true|false|1|0), verification-exit-code (0 means success), verifier, verifier-version, verification-results-content-type, verification-results-format. verification-success and verification-exit-code are mutually exclusive; with neither, the outcome defaults to false. Unknown keys are rejected. A comma is only a separator when followed by another key=, so values may contain commas.
       --provider <PROVIDER>
           The provider name
   -a, --provider-app-version <PROVIDER_APP_VERSION>
@@ -2394,7 +2394,8 @@ surface immediately.
 | `specification` | no | `oas` | Any value the server accepts, e.g. `oas`, `asyncapi`, `protobuf` |
 | `content-type` | no | `application/yaml` | |
 | `verification-results` | no | | Path to the self-verification output |
-| `verification-success` | no | | `true`, `false`, `1` or `0` — required if any other self-verification key is set |
+| `verification-success` | no | `false` | `true`, `false`, `1` or `0` |
+| `verification-exit-code` | no | | Exit status of the verification process; `0` means success. Mutually exclusive with `verification-success` |
 | `verifier` | no | | Tool used to verify the contract |
 | `verifier-version` | no | | |
 | `verification-results-content-type` | no | | e.g. `text/plain` |
@@ -2403,8 +2404,24 @@ surface immediately.
 A comma only separates fields when it is followed by another `key=`, so values may themselves
 contain commas — `verifier=Acme, Inc.` and `file=./specs/v1,v2/api.yaml` are both read whole.
 
-Setting any self-verification key without `verification-success` is an error rather than a silent
-`false`, which would otherwise record the contract as having failed verification.
+### Self-verification outcome
+
+These keys behave exactly as the single-contract options `--verification-success`,
+`--no-verification-success` and `--verification-exit-code` do. The outcome resolves in order:
+
+1. `verification-success=` — its boolean value
+2. `verification-exit-code=N` — `true` when `N` is `0`; a non-numeric `N` yields `false`
+3. neither given — `false`
+
+> **Careful:** `0` means opposite things in the two keys. `verification-success=0` is *false*,
+> whereas `verification-exit-code=0` is *success*. If you are passing a shell exit status through,
+> it belongs in `verification-exit-code`; putting `$?` in `verification-success` inverts the result
+> without raising an error.
+
+The resolved outcome is only sent when the contract also carries `verification-results`, `verifier`
+or `verifier-version` — an outcome with no accompanying evidence produces no
+`selfVerificationResults` at all. There is no separate `no-verification-success` key, since
+`verification-success=false` already expresses it.
 
 ```sh
 pact-broker-cli pactflow publish-provider-contract \
@@ -2428,6 +2445,22 @@ pact-broker-cli pactflow publish-provider-contract \
   --provider-app-version 1.4.2 \
   --contract "name=payments-api,file=./tests/fixtures/payments-api.yaml,verification-results=./tests/fixtures/verification-results.txt,verification-success=true,verifier=spectral,verifier-version=6.11.0,verification-results-content-type=text/plain,verification-results-format=text" \
   --contract "name=fraud-events,file=./tests/fixtures/fraud-events.yaml,specification=asyncapi"
+```
+
+In CI it is usually easier to pass the verifier's exit status straight through with
+`verification-exit-code`, rather than branching in the shell to choose `true` or `false`. Capture it
+into a variable first — `$?` is overwritten by the next command that runs:
+
+```sh
+spectral lint ./tests/fixtures/payments-api.yaml > lint.txt
+LINT_EXIT=$?
+
+pact-broker-cli pactflow publish-provider-contract \
+  --broker-base-url https://yourorg.pactflow.io \
+  --broker-token "$PACTFLOW_TOKEN" \
+  --provider my-payments-service \
+  --provider-app-version 1.4.2 \
+  --contract "name=payments-api,file=./tests/fixtures/payments-api.yaml,verification-results=./lint.txt,verification-exit-code=$LINT_EXIT,verifier=spectral"
 ```
 
 ## Connecting to a Pact Broker with a self signed certificate
