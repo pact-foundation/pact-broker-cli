@@ -2403,10 +2403,8 @@ surface immediately.
 A comma only separates fields when it is followed by another `key=`, so values may themselves
 contain commas — `verifier=Acme, Inc.` and `file=./specs/v1,v2/api.yaml` are both read whole.
 
-Contract files are read as raw bytes, so binary contracts such as compiled protobuf descriptor
-sets publish unchanged. Setting any self-verification key without `verification-success` is an
-error rather than a silent `false`, which would otherwise record the contract as having failed
-verification.
+Setting any self-verification key without `verification-success` is an error rather than a silent
+`false`, which would otherwise record the contract as having failed verification.
 
 ```sh
 pact-broker-cli pactflow publish-provider-contract \
