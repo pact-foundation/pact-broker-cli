@@ -2277,12 +2277,12 @@ Generate a UUID for use when calling create-or-update-webhook
 
 ```console
 $ pact-broker-cli pactflow publish-provider-contract --help
-Publish provider contract to PactFlow
+Publish provider contract(s) to PactFlow
 
-Usage: pact-broker-cli pactflow publish-provider-contract [OPTIONS] --broker-base-url <PACT_BROKER_BASE_URL> --provider <PROVIDER> <CONTRACT_FILE>
+Usage: pact-broker-cli pactflow publish-provider-contract [OPTIONS] --broker-base-url <PACT_BROKER_BASE_URL> --provider <PROVIDER> <CONTRACT_FILE|--contract <CONTRACT_SPEC>>
 
 Arguments:
-  <CONTRACT_FILE>  The contract file to publish
+  [CONTRACT_FILE]  The contract file to publish. Use --contract instead to publish several contracts in one request.
 
 Options:
   -b, --broker-base-url <PACT_BROKER_BASE_URL>
@@ -2297,6 +2297,8 @@ Options:
           Custom header(s) to send with requests (format: 'Header-Name: Value', can be used multiple times)
       --retries <PACT_BROKER_HTTP_RETRIES>
           The number of times to retry failed HTTP requests to the Pact Broker (retries on 5xx, 408, and 429). Delays use exponential back-off starting at 500 ms and doubling each attempt (0.5 s, 1 s, 2 s, 4 s, 8 s, …). 429 responses honour the Retry-After header when present. [env: PACT_BROKER_HTTP_RETRIES=] [default: 8]
+      --contract <CONTRACT_SPEC>
+          A comma-separated set of key=value pairs describing one contract. Repeat --contract once per contract to publish several in a single request. Cannot be combined with CONTRACT_FILE or the single-contract options. Required keys: name, file. Optional keys: specification (default oas; any value the server accepts, e.g. oas, asyncapi, protobuf), content-type (default application/yaml), verification-results, verification-success (true|false|1|0), verification-exit-code (0 means success), verifier, verifier-version, verification-results-content-type, verification-results-format. verification-success and verification-exit-code are mutually exclusive; with neither, the outcome defaults to false. Unknown keys are rejected. A comma is only a separator when followed by another key=, so values may contain commas.
       --provider <PROVIDER>
           The provider name
   -a, --provider-app-version <PROVIDER_APP_VERSION>
@@ -2306,25 +2308,25 @@ Options:
   -t, --tag [<tag>...]
           Tag name for provider version. Can be specified multiple times (delimiter ,).
       --specification <SPECIFICATION>
-          The contract specification [default: oas]
+          The contract specification. Single-contract mode only; use specification= inside --contract otherwise. [default: oas]
       --content-type <CONTENT_TYPE>
-          The content type. eg. application/yml
+          The content type. eg. application/yml. Single-contract mode only.
       --verification-success
-          Whether or not the self verification passed successfully.
+          Whether or not the self verification passed successfully. Single-contract mode only.
       --no-verification-success
-          Whether or not the self verification failed.
+          Whether or not the self verification failed. Single-contract mode only.
       --verification-exit-code <N>
-          The exit code of the verification process. Can be used instead of --verification-success|--no-verification-success for a simpler build script.
+          The exit code of the verification process. Can be used instead of --verification-success|--no-verification-success for a simpler build script. Single-contract mode only.
       --verification-results <VERIFICATION_RESULTS>
-          The path to the file containing the output from the verification process
+          The path to the file containing the output from the verification process. Single-contract mode only.
       --verification-results-content-type <VERIFICATION_RESULTS_CONTENT_TYPE>
-          The content type of the verification output eg. text/plain, application/yaml
+          The content type of the verification output eg. text/plain, application/yaml. Single-contract mode only.
       --verification-results-format <VERIFICATION_RESULTS_FORMAT>
-          The format of the verification output eg. junit, text
+          The format of the verification output eg. junit, text. Single-contract mode only.
       --verifier <VERIFIER>
-          The tool used to verify the provider contract
+          The tool used to verify the provider contract. Single-contract mode only.
       --verifier-version <VERIFIER_VERSION>
-          The version of the tool used to verify the provider contract
+          The version of the tool used to verify the provider contract. Single-contract mode only.
       --build-url <BUILD_URL>
           The build URL that created the provider contract
   -r, --auto-detect-version-properties
@@ -2359,6 +2361,107 @@ Options:
 ```
 
 </details>
+
+The command has two modes, and exactly one must be used.
+
+**Single contract** — pass the contract as the positional `CONTRACT_FILE` and describe it with the
+individual options (`--specification`, `--content-type`, `--verifier`, and so on):
+
+```sh
+pact-broker-cli pactflow publish-provider-contract ./tests/fixtures/payments-api.yaml \
+  --broker-base-url https://yourorg.pactflow.io \
+  --broker-token "$PACTFLOW_TOKEN" \
+  --provider my-payments-service \
+  --provider-app-version 1.4.2 \
+  --branch main \
+  --specification oas \
+  --content-type application/yaml
+```
+
+**Multiple contracts in a single request** — repeat `--contract` once per contract. This mode uses
+a different PactFlow endpoint that accepts a named set of contracts, so each one carries its own
+`name`. The positional `CONTRACT_FILE` and the single-contract options above cannot be combined
+with `--contract`.
+
+Each `--contract` value is a set of comma-separated `key=value` pairs. `name` and `file` are
+required; everything else is optional. Unknown keys are rejected rather than ignored, so typos
+surface immediately.
+
+| Key | Required | Default | Notes |
+| --- | --- | --- | --- |
+| `name` | yes | | Contract name, unique within the request |
+| `file` | yes | | Path to the contract file |
+| `specification` | no | `oas` | Any value the server accepts, e.g. `oas`, `asyncapi`, `protobuf` |
+| `content-type` | no | `application/yaml` | |
+| `verification-results` | no | | Path to the self-verification output |
+| `verification-success` | no | `false` | `true`, `false`, `1` or `0` |
+| `verification-exit-code` | no | | Exit status of the verification process; `0` means success. Mutually exclusive with `verification-success` |
+| `verifier` | no | | Tool used to verify the contract |
+| `verifier-version` | no | | |
+| `verification-results-content-type` | no | | e.g. `text/plain` |
+| `verification-results-format` | no | | e.g. `junit`, `text` |
+
+A comma only separates fields when it is followed by another `key=`, so values may themselves
+contain commas — `verifier=Acme, Inc.` and `file=./specs/v1,v2/api.yaml` are both read whole.
+
+### Self-verification outcome
+
+These keys behave exactly as the single-contract options `--verification-success`,
+`--no-verification-success` and `--verification-exit-code` do. The outcome resolves in order:
+
+1. `verification-success=` — its boolean value
+2. `verification-exit-code=N` — `true` when `N` is `0`; a non-numeric `N` yields `false`
+3. neither given — `false`
+
+> **Careful:** `0` means opposite things in the two keys. `verification-success=0` is *false*,
+> whereas `verification-exit-code=0` is *success*. If you are passing a shell exit status through,
+> it belongs in `verification-exit-code`; putting `$?` in `verification-success` inverts the result
+> without raising an error.
+
+The resolved outcome is only sent when the contract also carries `verification-results`, `verifier`
+or `verifier-version` — an outcome with no accompanying evidence produces no
+`selfVerificationResults` at all. There is no separate `no-verification-success` key, since
+`verification-success=false` already expresses it.
+
+```sh
+pact-broker-cli pactflow publish-provider-contract \
+  --broker-base-url https://yourorg.pactflow.io \
+  --broker-token "$PACTFLOW_TOKEN" \
+  --provider my-payments-service \
+  --provider-app-version 1.4.2 \
+  --branch main \
+  --contract "name=payments-api,file=./tests/fixtures/payments-api.yaml,specification=oas,content-type=application/yaml" \
+  --contract "name=fraud-events,file=./tests/fixtures/fraud-events.yaml,specification=asyncapi,content-type=application/yaml" \
+  --contract "name=payments-grpc,file=./tests/fixtures/service.proto,specification=protobuf,content-type=application/x-protobuf"
+```
+
+Self-verification results are attached per contract, so each may carry its own:
+
+```sh
+pact-broker-cli pactflow publish-provider-contract \
+  --broker-base-url https://yourorg.pactflow.io \
+  --broker-token "$PACTFLOW_TOKEN" \
+  --provider my-payments-service \
+  --provider-app-version 1.4.2 \
+  --contract "name=payments-api,file=./tests/fixtures/payments-api.yaml,verification-results=./tests/fixtures/verification-results.txt,verification-success=true,verifier=spectral,verifier-version=6.11.0,verification-results-content-type=text/plain,verification-results-format=text" \
+  --contract "name=fraud-events,file=./tests/fixtures/fraud-events.yaml,specification=asyncapi"
+```
+
+In CI it is usually easier to pass the verifier's exit status straight through with
+`verification-exit-code`, rather than branching in the shell to choose `true` or `false`. Capture it
+into a variable first — `$?` is overwritten by the next command that runs:
+
+```sh
+spectral lint ./tests/fixtures/payments-api.yaml > lint.txt
+LINT_EXIT=$?
+
+pact-broker-cli pactflow publish-provider-contract \
+  --broker-base-url https://yourorg.pactflow.io \
+  --broker-token "$PACTFLOW_TOKEN" \
+  --provider my-payments-service \
+  --provider-app-version 1.4.2 \
+  --contract "name=payments-api,file=./tests/fixtures/payments-api.yaml,verification-results=./lint.txt,verification-exit-code=$LINT_EXIT,verifier=spectral"
+```
 
 ## Connecting to a Pact Broker with a self signed certificate
 
