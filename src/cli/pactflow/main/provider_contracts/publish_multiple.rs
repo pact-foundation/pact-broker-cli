@@ -1211,4 +1211,122 @@ mod publish_multiple_provider_contracts_tests {
             "an empty --provider-app-version should be rejected"
         );
     }
+
+    // Test 8: an outcome with nothing to attach it to sends no selfVerificationResults at all.
+    // Inherited from publish.rs:187-190, where the block is gated on verification results, a
+    // verifier or a verifier version rather than on the outcome itself. Covers both spellings —
+    // the mock server rejects the request if either contract gains the block.
+    #[test]
+    fn publish_contracts_omits_self_verification_results_without_evidence() {
+        let payments_content = std::fs::read_to_string(PAYMENTS_FIXTURE).unwrap();
+        let fraud_content = std::fs::read_to_string(FRAUD_FIXTURE).unwrap();
+        let payments_b64 = Base64.encode(&payments_content);
+        let fraud_b64 = Base64.encode(&fraud_content);
+
+        let request_body = json!({
+            "pacticipantVersionNumber": PROVIDER_VERSION,
+            "contracts": [
+                {
+                    "name": "payments-api",
+                    "content": payments_b64,
+                    "contentType": "application/yaml",
+                    "specification": "oas"
+                },
+                {
+                    "name": "fraud-events",
+                    "content": fraud_b64,
+                    "contentType": "application/yaml",
+                    "specification": "oas"
+                }
+            ]
+        });
+
+        let response_body = json!({
+            "notices": [{ "text": "Contracts published successfully", "type": "success" }],
+            "contracts": ["payments-api", "fraud-events"]
+        });
+
+        let pactflow_service = PactBuilder::new("pact-broker-cli", "PactFlow")
+            .interaction(
+                "GET / returns HAL index with pf:publish-provider-contracts (no-evidence test)",
+                "",
+                |mut i| {
+                    i.given("pf:publish-provider-contracts relation exists in index");
+                    i.request
+                        .get()
+                        .path("/")
+                        .header("Accept", "application/hal+json")
+                        .header("Accept", "application/json");
+                    i.response
+                        .status(200)
+                        .header("Content-Type", "application/hal+json;charset=utf-8")
+                        .json_body(json_pattern!({
+                            "_links": {
+                                "pf:publish-provider-contracts": {
+                                    "href": term!(
+                                        format!(".*\\/provider-contracts\\/provider\\/{}\\/publish-contracts", PROVIDER_NAME),
+                                        format!("http://localhost:1234/provider-contracts/provider/{}/publish-contracts", PROVIDER_NAME)
+                                    )
+                                }
+                            }
+                        }));
+                    i
+                },
+            )
+            .interaction(
+                "POST publish-contracts with outcomes but no verification evidence",
+                "",
+                |mut i| {
+                    i.request
+                        .post()
+                        .path(format!(
+                            "/provider-contracts/provider/{}/publish-contracts",
+                            PROVIDER_NAME
+                        ))
+                        .header("Content-Type", "application/json")
+                        .header("Accept", "application/hal+json,application/problem+json")
+                        .json_body(request_body.clone());
+                    i.response
+                        .status(200)
+                        .header("Content-Type", "application/hal+json;charset=utf-8")
+                        .json_body(response_body.clone());
+                    i
+                },
+            )
+            .start_mock_server(None, Some(mock_server_config()));
+
+        let url = pactflow_service.url();
+
+        let matches = add_publish_provider_contract_subcommand().get_matches_from(vec![
+            "publish-provider-contract",
+            "-b",
+            url.as_str(),
+            "--provider",
+            PROVIDER_NAME,
+            "--provider-app-version",
+            PROVIDER_VERSION,
+            "--contract",
+            &format!(
+                "name=payments-api,file={},verification-success=true",
+                PAYMENTS_FIXTURE
+            ),
+            "--contract",
+            &format!(
+                "name=fraud-events,file={},verification-exit-code=0",
+                FRAUD_FIXTURE
+            ),
+            "--output",
+            "json",
+        ]);
+
+        let result = publish_multiple(&matches);
+
+        assert!(
+            result.is_ok(),
+            "an outcome without evidence should still publish: {result:?}"
+        );
+        let val = result.unwrap();
+        let contracts = val.get("contracts").unwrap().as_array().unwrap();
+        assert_eq!(contracts.len(), 2);
+    }
 }
