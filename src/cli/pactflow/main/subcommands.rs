@@ -21,10 +21,11 @@ pub fn add_publish_provider_contract_subcommand() -> Command {
              Required keys: name, file. \
              Optional keys: specification (default oas; any value the server accepts, \
              e.g. oas, asyncapi, protobuf), content-type (default application/yaml), \
-             verification-results, verification-success (true|false|1|0), verifier, \
-             verifier-version, verification-results-content-type, \
-             verification-results-format. \
-             Setting any self-verification key requires verification-success too. \
+             verification-results, verification-success (true|false|1|0), \
+             verification-exit-code (0 means success), verifier, verifier-version, \
+             verification-results-content-type, verification-results-format. \
+             verification-success and verification-exit-code are mutually exclusive; \
+             with neither, the outcome defaults to false. \
              Unknown keys are rejected. A comma is only a separator when followed by \
              another key=, so values may contain commas.",
         ))
