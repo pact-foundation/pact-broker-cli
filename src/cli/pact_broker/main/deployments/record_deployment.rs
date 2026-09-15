@@ -133,7 +133,7 @@ mod record_deployment_tests {
         let application_instance = "blue";
         let record_deployment_path = format!(
             "/pacticipants/{}/versions/{}/deployed-versions/environment/{}",
-            pacticipant_name, version_number, "16926ef3-590f-4e3f-838e-719717aa88c9"
+            pacticipant_name, version_number, "cb632df3-0a0d-4227-aac3-60114dd36479"
         );
 
         let pact_broker_service = PactBuilder::new("pact-broker-cli", "Pact Broker")
@@ -159,7 +159,7 @@ mod record_deployment_tests {
                 i
             })
             // POST to record deployment
-            .interaction("a request to record a deployment", "", |mut i| {
+            .interaction("a request to record a deployment with target", "", |mut i| {
                 i.given("version 5556b8149bf8bac76bc30f50a8a2dd4c22c85f30 of pacticipant Foo exists with a test environment available for deployment");
                 i.request
                     .method("POST")
@@ -219,11 +219,11 @@ mod record_deployment_tests {
         let application_instance = "blue";
         let record_deployment_path = format!(
             "/pacticipants/{}/versions/{}/deployed-versions/environment/{}",
-            pacticipant_name, version_number, "16926ef3-590f-4e3f-838e-719717aa88c9"
+            pacticipant_name, version_number, "cb632df3-0a0d-4227-aac3-60114dd36479"
         );
 
         let pact_broker_service = PactBuilder::new("pact-broker-cli", "Pact Broker")
-            .interaction("a request for a pacticipant version", "", |mut i| {
+            .interaction("a request for a pacticipant version json output", "", |mut i| {
                 i.given("version 5556b8149bf8bac76bc30f50a8a2dd4c22c85f30 of pacticipant Foo exists with a test environment available for deployment");
                 i.request
                     .path(format!("/pacticipants/{}/versions/{}", pacticipant_name, version_number))
@@ -243,7 +243,7 @@ mod record_deployment_tests {
                     }));
                 i
             })
-            .interaction("a request to record a deployment", "", |mut i| {
+            .interaction("a request to record a deployment with target and json output", "", |mut i| {
                 i.given("version 5556b8149bf8bac76bc30f50a8a2dd4c22c85f30 of pacticipant Foo exists with a test environment available for deployment");
                 i.request
                     .method("POST")
@@ -302,11 +302,11 @@ mod record_deployment_tests {
         let environment_name = "test";
         let record_deployment_path = format!(
             "/pacticipants/{}/versions/{}/deployed-versions/environment/{}",
-            pacticipant_name, version_number, "16926ef3-590f-4e3f-838e-719717aa88c9"
+            pacticipant_name, version_number, "cb632df3-0a0d-4227-aac3-60114dd36479"
         );
 
         let pact_broker_service = PactBuilder::new("pact-broker-cli", "Pact Broker")
-            .interaction("a request for a pacticipant version", "", |mut i| {
+            .interaction("a request for a pacticipant version without application instance", "", |mut i| {
                 i.given("version 5556b8149bf8bac76bc30f50a8a2dd4c22c85f30 of pacticipant Foo exists with a test environment available for deployment");
                 i.request
                     .path(format!("/pacticipants/{}/versions/{}", pacticipant_name, version_number))
@@ -326,7 +326,7 @@ mod record_deployment_tests {
                     }));
                 i
             })
-            .interaction("a request to record a deployment", "", |mut i| {
+            .interaction("a request to record a deployment with uuid", "", |mut i| {
                 i.given("version 5556b8149bf8bac76bc30f50a8a2dd4c22c85f30 of pacticipant Foo exists with a test environment available for deployment");
                 i.request
                     .method("POST")
@@ -338,7 +338,7 @@ mod record_deployment_tests {
                     .status(201)
                     .header("Content-Type", "application/hal+json;charset=utf-8")
                     .json_body(json_pattern!({
-                        "uuid": "deployment-uuid"
+                        "uuid": like!("c3521ca3-943c-4eae-adf8-a882a52ecb78")
                     }));
                 i
             })

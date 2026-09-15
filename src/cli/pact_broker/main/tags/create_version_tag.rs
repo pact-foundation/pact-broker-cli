@@ -151,7 +151,7 @@ mod create_version_tag_tests {
 
         let pact_broker_service = PactBuilder::new("pact-broker-cli", "Pact Broker")
             .interaction(
-                "a request to tag the production version of Condor",
+                "a request to check the production versions of Condor",
                 "",
                 |mut i| {
                     i.given("'Condor' exists in the pact-broker");

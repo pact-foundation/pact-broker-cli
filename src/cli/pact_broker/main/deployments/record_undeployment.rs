@@ -382,8 +382,8 @@ mod record_undeployment_tests {
                 "",
                 |mut i| {
                     i.given(format!(
-                        "an version is deployed to environment with UUID {} with target {}",
-                        environment_uuid, application_instance
+                        "a version is deployed twice to environment with UUID {} with target {} and target {}",
+                        environment_uuid, application_instance, other_application_instance
                     ));
                     i.request
                         .path(currently_deployed_versions_path.as_str())
@@ -446,7 +446,7 @@ mod record_undeployment_tests {
                 "a request to mark a deployed version as not currently deployed",
                 "",
                 |mut i| {
-                    i.given("a currently deployed version exists");
+                    i.given(format!("a currently deployed version exists with application instance {}", application_instance));
                     i.request
                         .method("PATCH")
                         .path(deployed_version_path)
@@ -616,7 +616,7 @@ mod record_undeployment_tests {
                 "",
                 |mut i| {
                     i.given(format!(
-                        "an version is deployed to environment with UUID {} with target {}",
+                        "a version is deployed twice to environment with UUID {} with target {} and target null",
                         environment_uuid, application_instance
                     ));
                     i.request
@@ -651,8 +651,6 @@ mod record_undeployment_tests {
 
                                     },
                                     {
-                                        "applicationInstance": null,
-                                        "target": null,
                                         "_links": {
                                             "self": {
                                                 "href": term!("http:\\/\\/[^/]+\\/deployed-versions\\/[^/]+",format!("http://localhost/deployed-versions/{}", null_instance_deployed_version_id))
@@ -682,7 +680,7 @@ mod record_undeployment_tests {
                 "a request to mark a null-application-instance deployed version as not currently deployed",
                 "",
                 |mut i| {
-                    i.given("a currently deployed version exists");
+                    i.given("a currently deployed version exists without application instance");
                     i.request
                         .method("PATCH")
                         .path(deployed_version_path)
@@ -828,7 +826,7 @@ mod record_undeployment_tests {
                 "",
                 |mut i| {
                     i.given(format!(
-                        "an version is deployed to environment with UUID {} with target {}",
+                        "a version is deployed to environment with UUID {} with target {}",
                         environment_uuid, application_instance
                     ));
                     i.request

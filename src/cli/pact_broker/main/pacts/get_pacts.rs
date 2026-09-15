@@ -260,7 +260,7 @@ mod get_pacts_tests {
     use super::*;
     use crate::cli::pact_broker::main::types::{BrokerDetails, OutputType, SslOptions};
     use pact_consumer::prelude::*;
-    use pact_models::PactSpecification;
+    use pact_models::{PactSpecification, generators, prelude::Generator};
     use serde_json::json;
 
     #[test]
@@ -368,7 +368,6 @@ mod get_pacts_tests {
         let body = json!({
             "_links": {
             "self": {
-                "href": "http://localhost/pacts/provider/Pricing%20Service/branch",
                 "title": "All pact versions for the provider Pricing Service"
             },
             "pb:provider": {
@@ -378,6 +377,13 @@ mod get_pacts_tests {
             "pb:pacts": pacts,
             }
         });
+        let generator = generators! {
+            "BODY" => {
+            "$._links.self.href" => Generator::MockServerURL(
+                "/pacts/provider/Pricing%20Service/branch".to_string(),
+                ".*(\\/pacts\\/provider\\/Pricing%20Service\\/branch)".to_string()
+            )
+        }};
         let consumer = "Condor";
         let provider = "Pricing Service";
 
@@ -398,7 +404,9 @@ mod get_pacts_tests {
                     i.response
                         .status(200)
                         .header("Content-Type", "application/hal+json;charset=utf-8")
-                        .json_body(body);
+                        .json_body(body)
+                        .generators()
+                        .add_generators(generator);
                     i
                 },
             )
@@ -474,9 +482,8 @@ mod get_pacts_tests {
                 "pacts": pacts
             },
             "_links": {
-            "self": {
-                "href": "http://localhost/pacts/provider/Pricing%20Service/consumer/Condor/branch/feature",
-                "title": "All versions of the pact between Condor and Pricing Service"
+                "self": {
+                    "title": "All versions of the pact between Condor and Pricing Service"
             },
             "consumer": {
                 "href": "http://example.org/pacticipants/Condor",
@@ -497,6 +504,13 @@ mod get_pacts_tests {
             ]
             }
         });
+        let generator = generators! {
+            "BODY" => {
+            "$._links.self.href" => Generator::MockServerURL(
+                "/pacts/provider/Pricing%20Service/consumer/Condor/branch/feature".to_string(),
+                ".*(\\/pacts\\/provider\\/Pricing%20Service\\/consumer\\/Condor\\/branch\\/feature)".to_string()
+            )
+        }};
         let expected_body: serde_json::Value =
             serde_json::from_str(&body.to_example().to_string()).unwrap();
 
@@ -521,7 +535,9 @@ mod get_pacts_tests {
                     i.response
                         .status(200)
                         .header("Content-Type", "application/hal+json;charset=utf-8")
-                        .json_body(body);
+                        .json_body(body)
+                        .generators()
+                        .add_generators(generator);
                     i
                 },
             )
@@ -583,16 +599,25 @@ mod get_pacts_tests {
         let body = json!({
             "_links": {
             "self": {
-                "href": "http://localhost/pacts/provider/Pricing%20Service/branch/main/latest",
                 "title": "Latest pact versions for the provider Pricing Service with consumer version branch 'main'"
             },
             "pb:provider": {
-                "href": "http://example.org/pacticipants/Pricing%20Service",
                 "name": "Pricing Service"
             },
             "pb:pacts": pacts,
             }
         });
+
+        let generator = generators! {
+            "BODY" => {
+            "$._links.self.href" => Generator::MockServerURL(
+                "/pacts/provider/Pricing%20Service/branch/main/latest".to_string(),
+                ".*(\\/pacts\\/provider\\/Pricing%20Service\\/branch\\/main\\/latest)".to_string()),
+            "$._links.pb:provider.href" => Generator::MockServerURL(
+                "/pacts/provider/Pricing%20Service".to_string(),
+                ".*(\\/pacts\\/provider\\/Pricing%20Service)".to_string())
+            }
+        };
 
         let pact_broker_service = PactBuilder::new("pact-broker-cli", "Pact Broker")
             .interaction(
@@ -610,7 +635,9 @@ mod get_pacts_tests {
                     i.response
                         .status(200)
                         .header("Content-Type", "application/hal+json;charset=utf-8")
-                        .json_body(body.clone());
+                        .json_body(body.clone())
+                        .generators()
+                        .add_generators(generator);
                     i
                 },
             )
