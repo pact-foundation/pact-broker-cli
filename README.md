@@ -2298,7 +2298,7 @@ Options:
       --retries <PACT_BROKER_HTTP_RETRIES>
           The number of times to retry failed HTTP requests to the Pact Broker (retries on 5xx, 408, and 429). Delays use exponential back-off starting at 500 ms and doubling each attempt (0.5 s, 1 s, 2 s, 4 s, 8 s, …). 429 responses honour the Retry-After header when present. [env: PACT_BROKER_HTTP_RETRIES=] [default: 8]
       --contract <CONTRACT_SPEC>
-          A comma-separated set of key=value pairs describing one contract. Repeat --contract once per contract to publish several in a single request. Cannot be combined with CONTRACT_FILE or the single-contract options. Required keys: name, file. Optional keys: specification (default oas; any value the server accepts, e.g. oas, asyncapi, protobuf), content-type (default application/yaml), verification-results, verification-success (true|false|1|0), verification-exit-code (0 means success), verifier, verifier-version, verification-results-content-type, verification-results-format. verification-success and verification-exit-code are mutually exclusive; with neither, the outcome defaults to false. Unknown keys are rejected. A comma is only a separator when followed by another key=, so values may contain commas.
+          One contract, given either as a comma-separated set of key=value pairs or as a JSON object. Repeat --contract once per contract to publish several in a single request; the two forms may be mixed across repeated flags. Cannot be combined with CONTRACT_FILE or the single-contract options. Required keys: name, file. Optional keys: specification (default oas; any value the server accepts, e.g. oas, asyncapi, protobuf), content-type (default application/yaml), verification-results, verification-success (true|false|1|0), verification-exit-code (0 means success), verifier, verifier-version, verification-results-content-type, verification-results-format. verification-success and verification-exit-code are mutually exclusive; with neither, the outcome defaults to false. Unknown keys are rejected. key=value form: a comma is only a separator when followed by another key=, so values may contain commas. JSON form: a value starting with { is read as JSON, e.g. --contract '{"name":"payments-api","file":"./payments.yaml"}'; keys may be camelCase (verificationExitCode) or kebab-case (verification-exit-code), and commas and = need no escaping.
       --provider <PROVIDER>
           The provider name
   -a, --provider-app-version <PROVIDER_APP_VERSION>
@@ -2383,9 +2383,10 @@ a different PactFlow endpoint that accepts a named set of contracts, so each one
 `name`. The positional `CONTRACT_FILE` and the single-contract options above cannot be combined
 with `--contract`.
 
-Each `--contract` value is a set of comma-separated `key=value` pairs. `name` and `file` are
-required; everything else is optional. Unknown keys are rejected rather than ignored, so typos
-surface immediately.
+Each `--contract` value describes one contract, written either as comma-separated `key=value` pairs
+or as a JSON object. `name` and `file` are required; everything else is optional. Unknown keys are
+rejected rather than ignored, so typos surface immediately. The keys and defaults below apply to
+both forms.
 
 | Key | Required | Default | Notes |
 | --- | --- | --- | --- |
@@ -2403,6 +2404,40 @@ surface immediately.
 
 A comma only separates fields when it is followed by another `key=`, so values may themselves
 contain commas — `verifier=Acme, Inc.` and `file=./specs/v1,v2/api.yaml` are both read whole.
+
+### JSON form
+
+A `--contract` value whose first non-whitespace character is `{` is read as JSON instead. The two
+forms may be mixed across repeated flags:
+
+```sh
+pact-broker-cli pactflow publish-provider-contract \
+  --broker-base-url https://yourorg.pactflow.io \
+  --broker-token "$PACTFLOW_TOKEN" \
+  --provider my-payments-service \
+  --provider-app-version 1.4.2 \
+  --contract '{"name":"payments-api","file":"./tests/fixtures/payments-api.yaml","specification":"oas"}' \
+  --contract "name=fraud-events,file=./tests/fixtures/fraud-events.yaml,specification=asyncapi"
+```
+
+Keys may be written in camelCase or in the kebab-case spelling the `key=value` form uses —
+`verificationExitCode` and `verification-exit-code` are equivalent, as are `contentType` and
+`content-type`. camelCase is what the PactFlow request body itself uses, so an existing payload can
+be adapted with little editing.
+
+Because JSON delimits its own values, `,` and `=` are ordinary characters inside them and need no
+care:
+
+```sh
+  --contract '{"name":"payments-api","file":"./specs/v1,v2/api.yaml","verifier":"Acme, Inc."}'
+```
+
+Two differences follow from JSON being a typed format rather than a string one:
+
+- a repeated key is not an error — the last occurrence wins, as in any JSON tool, whereas the
+  `key=value` form rejects duplicates
+- `verificationExitCode` must be a number, so `"verificationExitCode": "abc"` is rejected, where
+  `verification-exit-code=abc` is read as a failed verification
 
 ### Self-verification outcome
 

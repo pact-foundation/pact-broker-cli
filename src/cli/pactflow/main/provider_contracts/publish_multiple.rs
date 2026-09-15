@@ -102,21 +102,72 @@ fn non_blank(value: Option<&str>) -> Option<String> {
         .map(str::to_string)
 }
 
+/// Trim `value` and reject what is left if it is blank, so `name=` and `"name": "  "` fail
+/// identically no matter which `--contract` form supplied them.
+fn require_non_empty(value: String, key: &str) -> Result<String, String> {
+    let trimmed = value.trim();
+    if trimmed.is_empty() {
+        return Err(format!("--contract '{key}' must not be empty"));
+    }
+    Ok(trimmed.to_string())
+}
+
+/// Trim a JSON string value, matching the trimming the key=value form applies before storage.
+fn trim_string(value: String) -> String {
+    value.trim().to_string()
+}
+
 fn take_required(
     map: &mut std::collections::HashMap<String, String>,
     key: &str,
 ) -> Result<String, String> {
     match map.remove(key) {
         None => Err(format!("--contract requires a '{key}' key")),
-        Some(value) if value.is_empty() => Err(format!("--contract '{key}' must not be empty")),
-        Some(value) => Ok(value),
+        Some(value) => require_non_empty(value, key),
     }
+}
+
+/// The JSON form of a `--contract` value. camelCase is canonical so a PactFlow request body can be
+/// pasted in almost verbatim; the kebab-case aliases keep the vocabulary of the `key=value` form
+/// working. `deny_unknown_fields` gives typos the same rejection `KNOWN_KEYS` gives them.
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+struct ContractJson {
+    name: String,
+    file: String,
+    specification: Option<String>,
+    #[serde(alias = "content-type")]
+    content_type: Option<String>,
+    #[serde(alias = "verification-results")]
+    verification_results: Option<String>,
+    #[serde(alias = "verification-success")]
+    verification_success: Option<bool>,
+    #[serde(alias = "verification-exit-code")]
+    verification_exit_code: Option<i32>,
+    verifier: Option<String>,
+    #[serde(alias = "verifier-version")]
+    verifier_version: Option<String>,
+    #[serde(alias = "verification-results-content-type")]
+    verification_results_content_type: Option<String>,
+    #[serde(alias = "verification-results-format")]
+    verification_results_format: Option<String>,
 }
 
 impl ContractSpec {
     /// Parse `"name=payments-api,file=./pay.yaml,specification=oas,content-type=application/yaml"`
     /// into a `ContractSpec`. Required keys: `name`, `file`.
+    ///
+    /// A value beginning with `{` is read as JSON instead — see [`Self::from_json`].
     pub fn parse(input: &str) -> Result<Self, String> {
+        // A value opening with `{` cannot parse as key=value — the text before its first `=` would
+        // have to be a bare identifier — so routing it to JSON reinterprets only what already
+        // errors. Dispatching before split_fields is also what makes `,` and `=` ordinary
+        // characters inside JSON values.
+        let trimmed = input.trim();
+        if trimmed.starts_with('{') {
+            return Self::from_json(trimmed);
+        }
+
         let mut map: std::collections::HashMap<String, String> = std::collections::HashMap::new();
 
         for field in split_fields(input) {
@@ -196,6 +247,51 @@ impl ContractSpec {
             verifier_version,
             verification_results_content_type,
             verification_results_format,
+        })
+    }
+
+    /// Parse `{"name":"payments-api","file":"./pay.yaml"}` into a `ContractSpec`. Keys may be
+    /// camelCase or kebab-case. The defaults, the emptiness rules and the outcome resolution are
+    /// shared with [`Self::parse`], so the two `--contract` forms cannot drift apart.
+    fn from_json(input: &str) -> Result<Self, String> {
+        let json: ContractJson =
+            serde_json::from_str(input).map_err(|e| format!("--contract JSON error: {e}"))?;
+
+        let name = require_non_empty(json.name, "name")?;
+        let file = require_non_empty(json.file, "file")?;
+
+        if json.verification_success.is_some() && json.verification_exit_code.is_some() {
+            return Err(
+                "--contract sets both 'verification-success' and 'verification-exit-code'; \
+                 use one or the other"
+                    .to_string(),
+            );
+        }
+        let verification_success = match (json.verification_success, json.verification_exit_code) {
+            (Some(success), _) => success,
+            (None, Some(code)) => code == 0,
+            (None, None) => false,
+        };
+
+        Ok(ContractSpec {
+            name,
+            file,
+            specification: json
+                .specification
+                .map(trim_string)
+                .unwrap_or_else(|| "oas".to_string()),
+            content_type: json
+                .content_type
+                .map(trim_string)
+                .unwrap_or_else(|| "application/yaml".to_string()),
+            verification_results: json.verification_results.map(trim_string),
+            verification_success,
+            verifier: json.verifier.map(trim_string),
+            verifier_version: json.verifier_version.map(trim_string),
+            verification_results_content_type: json
+                .verification_results_content_type
+                .map(trim_string),
+            verification_results_format: json.verification_results_format.map(trim_string),
         })
     }
 }
@@ -397,6 +493,128 @@ mod contract_spec_parse_tests {
     #[test]
     fn rejects_a_missing_file() {
         assert!(err("name=a").contains("file"));
+    }
+
+    // --- JSON form ---
+
+    #[test]
+    fn parses_a_minimal_json_object_and_applies_defaults() {
+        let s = spec(r#"{"name":"payments-api","file":"./pay.yaml"}"#);
+        assert_eq!(s.name, "payments-api");
+        assert_eq!(s.file, "./pay.yaml");
+        assert_eq!(s.specification, "oas");
+        assert_eq!(s.content_type, "application/yaml");
+        assert!(!s.verification_success);
+        assert_eq!(s.verifier, None);
+    }
+
+    /// The strongest available guarantee that the two forms agree: identical content in either
+    /// notation must produce the very same `ContractSpec`.
+    #[test]
+    fn json_and_key_value_produce_the_same_spec() {
+        let from_json = spec(
+            r#"{"name":"a","file":"f.yaml","specification":"asyncapi",
+                "contentType":"application/json","verificationResults":"r.txt",
+                "verificationSuccess":true,"verifier":"spectral","verifierVersion":"1.2.3",
+                "verificationResultsContentType":"text/plain",
+                "verificationResultsFormat":"junit"}"#,
+        );
+        let from_pairs = spec(
+            "name=a,file=f.yaml,specification=asyncapi,content-type=application/json,\
+             verification-results=r.txt,verification-success=true,verifier=spectral,\
+             verifier-version=1.2.3,verification-results-content-type=text/plain,\
+             verification-results-format=junit",
+        );
+        assert_eq!(from_json, from_pairs);
+    }
+
+    #[test]
+    fn accepts_kebab_case_json_keys() {
+        let kebab = spec(
+            r#"{"name":"a","file":"f.yaml","content-type":"application/json",
+                "verification-exit-code":0,"verifier-version":"1.2.3"}"#,
+        );
+        let camel = spec(
+            r#"{"name":"a","file":"f.yaml","contentType":"application/json",
+                "verificationExitCode":0,"verifierVersion":"1.2.3"}"#,
+        );
+        assert_eq!(kebab, camel);
+        assert!(kebab.verification_success);
+    }
+
+    #[test]
+    fn rejects_an_unknown_json_key() {
+        let e = err(r#"{"name":"a","file":"f.yaml","contentTpye":"x"}"#);
+        assert!(e.contains("contentTpye"), "message was: {e}");
+    }
+
+    #[test]
+    fn reports_the_position_of_malformed_json() {
+        let e = err(r#"{"name":"a","file":}"#);
+        assert!(
+            e.contains("line") && e.contains("column"),
+            "message should carry serde's position, was: {e}"
+        );
+    }
+
+    #[test]
+    fn rejects_an_empty_name_or_file_in_json() {
+        assert!(err(r#"{"name":"","file":"f.yaml"}"#).contains("name"));
+        assert!(err(r#"{"name":"a","file":"   "}"#).contains("file"));
+    }
+
+    // Unlike the key=value form, a missing key surfaces serde's own "missing field" message.
+    // Naming the JSON field is at least as useful as naming the flag, so this divergence stands.
+    #[test]
+    fn rejects_a_missing_required_key_in_json() {
+        assert!(err(r#"{"file":"f.yaml"}"#).contains("name"));
+        assert!(err(r#"{"name":"a"}"#).contains("file"));
+    }
+
+    #[test]
+    fn rejects_both_outcome_keys_in_one_json_contract() {
+        let e = err(
+            r#"{"name":"a","file":"f.yaml","verificationSuccess":true,"verificationExitCode":0}"#,
+        );
+        assert!(
+            e.contains("verification-success") && e.contains("verification-exit-code"),
+            "message was: {e}"
+        );
+    }
+
+    #[test]
+    fn resolves_the_json_exit_code_like_the_key_value_form() {
+        let zero = spec(r#"{"name":"a","file":"f.yaml","verificationExitCode":0}"#);
+        assert!(zero.verification_success);
+        for code in ["1", "127", "-1"] {
+            let s = spec(&format!(
+                r#"{{"name":"a","file":"f.yaml","verificationExitCode":{code}}}"#
+            ));
+            assert!(
+                !s.verification_success,
+                "exit code {code} should be a failed verification"
+            );
+        }
+    }
+
+    #[test]
+    fn routes_to_json_despite_leading_whitespace() {
+        let s = spec("   {\"name\":\"a\",\"file\":\"f.yaml\"}");
+        assert_eq!(s.name, "a");
+    }
+
+    /// `,` and `=` drive `split_fields` and `looks_like_assignment` in the key=value form.
+    /// Dispatching to `from_json` before either runs is what makes them ordinary text here.
+    #[test]
+    fn treats_separator_characters_as_literal_text_in_json() {
+        let s = spec(r#"{"name":"a","file":"./a=b,c.yaml","verifier":"Acme, Inc."}"#);
+        assert_eq!(s.file, "./a=b,c.yaml");
+        assert_eq!(s.verifier.as_deref(), Some("Acme, Inc."));
+    }
+
+    #[test]
+    fn still_rejects_a_value_that_is_neither_json_nor_key_value() {
+        assert!(err("just-a-file.yaml").contains("not in key=value form"));
     }
 }
 
@@ -1324,6 +1542,139 @@ mod publish_multiple_provider_contracts_tests {
         assert!(
             result.is_ok(),
             "an outcome without evidence should still publish: {result:?}"
+        );
+        let val = result.unwrap();
+        let contracts = val.get("contracts").unwrap().as_array().unwrap();
+        assert_eq!(contracts.len(), 2);
+    }
+
+    // Test 9: the two --contract notations mix freely within one publish. The expected body is
+    // Test 2's verbatim, so a JSON contract that resolved differently from its key=value twin
+    // fails here rather than reaching PactFlow.
+    #[test]
+    fn publish_contracts_accepts_json_and_key_value_in_one_request() {
+        let payments_content = std::fs::read_to_string(PAYMENTS_FIXTURE).unwrap();
+        let fraud_content = std::fs::read_to_string(FRAUD_FIXTURE).unwrap();
+        let verif_content = std::fs::read_to_string(VERIF_RESULTS).unwrap();
+        let payments_b64 = Base64.encode(&payments_content);
+        let fraud_b64 = Base64.encode(&fraud_content);
+        let verif_b64 = Base64.encode(&verif_content);
+
+        let request_body = json!({
+            "pacticipantVersionNumber": PROVIDER_VERSION,
+            "contracts": [
+                {
+                    "name": "payments-api",
+                    "content": payments_b64,
+                    "contentType": "application/yaml",
+                    "specification": "oas",
+                    "selfVerificationResults": {
+                        "success": true,
+                        "content": verif_b64,
+                        "contentType": "text/plain",
+                        "format": "text",
+                        "verifier": "spectral",
+                        "verifierVersion": "1.0.0"
+                    }
+                },
+                {
+                    "name": "fraud-events",
+                    "content": fraud_b64,
+                    "contentType": "application/yaml",
+                    "specification": "asyncapi"
+                }
+            ]
+        });
+
+        let response_body = json!({
+            "notices": [{ "text": "Contracts published", "type": "success" }],
+            "contracts": ["payments-api", "fraud-events"]
+        });
+
+        let pactflow_service = PactBuilder::new("pact-broker-cli", "PactFlow")
+            .interaction(
+                "GET / returns HAL index with pf:publish-provider-contracts (mixed form test)",
+                "",
+                |mut i| {
+                    i.given("pf:publish-provider-contracts relation exists in index");
+                    i.request
+                        .get()
+                        .path("/")
+                        .header("Accept", "application/hal+json")
+                        .header("Accept", "application/json");
+                    i.response
+                        .status(200)
+                        .header("Content-Type", "application/hal+json;charset=utf-8")
+                        .json_body(json_pattern!({
+                            "_links": {
+                                "pf:publish-provider-contracts": {
+                                    "href": term!(
+                                        format!(".*\\/provider-contracts\\/provider\\/{}\\/publish-contracts", PROVIDER_NAME),
+                                        format!("http://localhost:1234/provider-contracts/provider/{}/publish-contracts", PROVIDER_NAME)
+                                    )
+                                }
+                            }
+                        }));
+                    i
+                },
+            )
+            .interaction(
+                "POST publish-contracts accepts a JSON contract alongside a key=value one",
+                "",
+                |mut i| {
+                    i.request
+                        .post()
+                        .path(format!(
+                            "/provider-contracts/provider/{}/publish-contracts",
+                            PROVIDER_NAME
+                        ))
+                        .header("Content-Type", "application/json")
+                        .header("Accept", "application/hal+json,application/problem+json")
+                        .json_body(request_body.clone());
+                    i.response
+                        .status(200)
+                        .header("Content-Type", "application/hal+json;charset=utf-8")
+                        .json_body(response_body.clone());
+                    i
+                },
+            )
+            .start_mock_server(None, Some(mock_server_config()));
+
+        let url = pactflow_service.url();
+
+        let matches = add_publish_provider_contract_subcommand().get_matches_from(vec![
+            "publish-provider-contract",
+            "-b",
+            url.as_str(),
+            "--provider",
+            PROVIDER_NAME,
+            "--provider-app-version",
+            PROVIDER_VERSION,
+            // JSON form, camelCase keys
+            "--contract",
+            &format!(
+                r#"{{"name":"payments-api","file":"{}","specification":"oas",
+                     "verificationResults":"{}","verificationSuccess":true,
+                     "verificationResultsContentType":"text/plain",
+                     "verificationResultsFormat":"text","verifier":"spectral",
+                     "verifierVersion":"1.0.0"}}"#,
+                PAYMENTS_FIXTURE, VERIF_RESULTS
+            ),
+            // key=value form, same request
+            "--contract",
+            &format!(
+                "name=fraud-events,file={},specification=asyncapi",
+                FRAUD_FIXTURE
+            ),
+            "--output",
+            "json",
+        ]);
+
+        let result = publish_multiple(&matches);
+
+        assert!(
+            result.is_ok(),
+            "mixing --contract forms should publish: {result:?}"
         );
         let val = result.unwrap();
         let contracts = val.get("contracts").unwrap().as_array().unwrap();

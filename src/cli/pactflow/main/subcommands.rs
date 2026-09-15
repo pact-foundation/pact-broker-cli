@@ -15,8 +15,9 @@ pub fn add_publish_provider_contract_subcommand() -> Command {
         .action(ArgAction::Append)
         .value_name("CONTRACT_SPEC")
         .help(
-            "A comma-separated set of key=value pairs describing one contract. \
-             Repeat --contract once per contract to publish several in a single request. \
+            "One contract, given either as a comma-separated set of key=value pairs or as a \
+             JSON object. Repeat --contract once per contract to publish several in a single \
+             request; the two forms may be mixed across repeated flags. \
              Cannot be combined with CONTRACT_FILE or the single-contract options. \
              Required keys: name, file. \
              Optional keys: specification (default oas; any value the server accepts, \
@@ -25,9 +26,13 @@ pub fn add_publish_provider_contract_subcommand() -> Command {
              verification-exit-code (0 means success), verifier, verifier-version, \
              verification-results-content-type, verification-results-format. \
              verification-success and verification-exit-code are mutually exclusive; \
-             with neither, the outcome defaults to false. \
-             Unknown keys are rejected. A comma is only a separator when followed by \
-             another key=, so values may contain commas.",
+             with neither, the outcome defaults to false. Unknown keys are rejected. \
+             key=value form: a comma is only a separator when followed by another key=, \
+             so values may contain commas. \
+             JSON form: a value starting with { is read as JSON, e.g. \
+             --contract '{\"name\":\"payments-api\",\"file\":\"./payments.yaml\"}'; keys may be \
+             camelCase (verificationExitCode) or kebab-case (verification-exit-code), and \
+             commas and = need no escaping.",
         ))
     .group(ArgGroup::new("contract-source")
         .args(["contract-file", "contract"])
