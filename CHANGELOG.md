@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.8.8] _2026-09-16_
+
+### 🐛 Bug Fixes
+
+-   Create or update webhook logic #157
+
+
 ## [0.8.7] _2026-09-11_
 
 ### 🐛 Bug Fixes
