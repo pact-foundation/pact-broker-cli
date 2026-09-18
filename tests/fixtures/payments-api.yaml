@@ -1,0 +1,22 @@
+openapi: "3.0.3"
+info:
+  title: Payments API
+  version: "1.0.0"
+paths:
+  /payments:
+    post:
+      summary: Submit a payment
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                amount:
+                  type: number
+                currency:
+                  type: string
+      responses:
+        "200":
+          description: Payment accepted
