@@ -68,18 +68,18 @@ itertools = "0.15"
 log = "0.4"
 maplit = "1.0"
 mime = "0.3"
-opentelemetry = "0.32"
-opentelemetry-appender-tracing = "0.32"
-opentelemetry-http = "0.32"
-opentelemetry-otlp = { version = "0.32", features = [
+opentelemetry = "0.33"
+opentelemetry-appender-tracing = "0.33"
+opentelemetry-http = "0.33"
+opentelemetry-otlp = { version = "0.33", features = [
   "grpc-tonic",
   "logs",
   "tls",
   "tls-roots",
   "trace"
 ] }
-opentelemetry_sdk = "0.32"
-opentelemetry-stdout = { version = "0.32", features = ["logs", "trace"] }
+opentelemetry_sdk = "0.33"
+opentelemetry-stdout = { version = "0.33", features = ["logs", "trace"] }
 pact_models = "1"
 regex = "1"
 reqwest = { version = "0.13", default-features = false, features = [
