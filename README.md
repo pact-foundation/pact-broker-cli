@@ -193,6 +193,9 @@ Options:
       --merge
           If a pact already exists for this consumer version and provider, merge the contents. Useful when running Pact tests concurrently on different build nodes.
 
+      --implements-multi-providers <implements-multi-providers>
+          Comma-separated list of named provider contracts (in a multi-contract set) that this consumer pact targets. Sent as a JSON array to the broker (e.g. 'payments-api,refunds-api' → ["payments-api","refunds-api"]). When set, only the named contracts will be scheduled for comparison.
+
   -o, --output <OUTPUT>
           Value must be one of ["json", "text", "pretty"]
           
