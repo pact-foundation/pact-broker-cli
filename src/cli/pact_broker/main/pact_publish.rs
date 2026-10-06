@@ -460,8 +460,12 @@ pub fn publish_pacts(args: &ArgMatches) -> Result<Value, i32> {
                           "onConflict": on_conflict
                         });
                         if let Some(names_csv) = implements_multi_providers {
-                          let names: Vec<&str> = names_csv.split(',').map(|s| s.trim()).filter(|s| !s.is_empty()).collect();
-                          contract_obj["implementsMultiProviders"] = json!(names);
+                            let names: Vec<&str> = names_csv
+                                .split(',')
+                                .map(|s| s.trim())
+                                .filter(|s| !s.is_empty())
+                                .collect();
+                            contract_obj["implementsMultiProviders"] = json!(names);
                         }
                         payload["contracts"] = serde_json::Value::Array(vec![contract_obj]);
                         println!();
@@ -1027,7 +1031,7 @@ mod publish_contracts_tests {
             "--branch",
             branch,
             "--implements-multi-providers",
-            "payments-api, refunds-api",   // note spaces — should be trimmed
+            "payments-api, refunds-api", // note spaces — should be trimmed
         ]);
 
         let result = publish_pacts(&matches);
