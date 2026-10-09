@@ -33,6 +33,8 @@ pub mod environments;
 pub mod pact_publish;
 pub mod pacticipants;
 pub mod pacts;
+#[cfg(test)]
+mod path_encoding_tests;
 pub mod provider_states;
 pub mod subcommands;
 pub mod tags;
