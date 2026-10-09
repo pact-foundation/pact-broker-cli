@@ -1,5 +1,6 @@
 use crate::cli::pact_broker::main::{
     HALClient, PactBrokerError,
+    broker_path::BrokerPath,
     utils::{get_auth, get_broker_url, get_custom_headers, get_retries, get_ssl_options},
 };
 
@@ -17,6 +18,38 @@ pub fn create_or_update_version(args: &clap::ArgMatches) -> Result<String, PactB
         .unwrap_or_default()
         .cloned()
         .collect::<Vec<_>>();
+    let version_href = BrokerPath::new(&broker_url)
+        .literal("pacticipants")
+        .value("--pacticipant", pacticipant_name)
+        .literal("versions")
+        .value("--version", version_number)
+        .build()?;
+    let branch_href = branch_name
+        .map(|branch| {
+            BrokerPath::new(&broker_url)
+                .literal("pacticipants")
+                .value("--pacticipant", pacticipant_name)
+                .literal("branches")
+                .value("--branch", branch)
+                .literal("versions")
+                .value("--version", version_number)
+                .build()
+        })
+        .transpose()?;
+    let tag_hrefs = tags
+        .iter()
+        .map(|tag| {
+            BrokerPath::new(&broker_url)
+                .literal("pacticipants")
+                .value("--pacticipant", pacticipant_name)
+                .literal("versions")
+                .value("--version", version_number)
+                .literal("tags")
+                .value("--tag", tag)
+                .build()
+                .map(|href| (tag, href))
+        })
+        .collect::<Result<Vec<_>, _>>()?;
 
     tokio::runtime::Runtime::new().unwrap().block_on(async {
         let hal_client: HALClient = HALClient::with_url(
@@ -26,21 +59,13 @@ pub fn create_or_update_version(args: &clap::ArgMatches) -> Result<String, PactB
             custom_headers.clone(),
         )
         .with_retry_count(get_retries(args));
-        let version_href = format!(
-            "{}/pacticipants/{}/versions/{}",
-            broker_url, pacticipant_name, version_number
-        );
 
         // create branch version
-        if let Some(branch) = branch_name {
-            let branch_href = format!(
-                "{}/pacticipants/{}/branches/{}/versions/{}",
-                broker_url, pacticipant_name, branch, version_number
-            );
+        if let (Some(branch), Some(branch_href)) = (branch_name, &branch_href) {
             let branch_data = serde_json::json!({ "name": branch });
             let branch_data_str = branch_data.to_string();
             let res = hal_client
-                .put_json(&branch_href, &branch_data_str, None)
+                .put_json(branch_href, &branch_data_str, None)
                 .await;
             res?;
             println!(
@@ -51,14 +76,10 @@ pub fn create_or_update_version(args: &clap::ArgMatches) -> Result<String, PactB
 
         // create tags
 
-        for tag in &tags {
-            let tag_href = format!(
-                "{}/pacticipants/{}/versions/{}/tags/{}",
-                broker_url, pacticipant_name, version_number, tag
-            );
+        for (tag, tag_href) in &tag_hrefs {
             let tag_data = serde_json::json!({ "name": tag });
             let tag_data_str = tag_data.to_string();
-            let res = hal_client.put_json(&tag_href, &tag_data_str, None).await;
+            let res = hal_client.put_json(tag_href, &tag_data_str, None).await;
             res?;
             println!("Tag '{}' created for version '{}'", tag, version_number);
         }
@@ -244,5 +265,84 @@ mod create_or_update_version_tests {
         let output = result.unwrap();
         println!("Output: {}", output);
         assert!(output.contains("Version created or updated successfully"));
+    }
+
+    use crate::cli::pact_broker::main::PactBrokerError;
+    use crate::cli::pact_broker::main::test_utils::spawn_recording_broker;
+
+    fn run(broker_url: &str, extra: &[&str]) -> Result<String, PactBrokerError> {
+        let mut args = vec!["create-or-update-version", "-b", broker_url];
+        args.extend_from_slice(extra);
+        create_or_update_version(&add_create_or_update_version_subcommand().get_matches_from(args))
+    }
+
+    #[test]
+    fn encodes_branch_containing_slash() {
+        let (broker_url, requests) = spawn_recording_broker();
+        run(
+            &broker_url,
+            &[
+                "--pacticipant",
+                "my consumer",
+                "--version",
+                "1.0.0",
+                "--branch",
+                "fix/foo",
+            ],
+        )
+        .unwrap();
+        assert_eq!(
+            *requests.lock().unwrap(),
+            vec!["PUT /pacticipants/my%20consumer/branches/fix%2Ffoo/versions/1.0.0"]
+        );
+    }
+
+    #[test]
+    fn encodes_branch_under_context_path_with_trailing_slash() {
+        let (broker_url, requests) = spawn_recording_broker();
+        run(
+            &format!("{broker_url}/ctx/"),
+            &[
+                "--pacticipant",
+                "c",
+                "--version",
+                "v",
+                "--branch",
+                "fix/foo",
+                "--tag",
+                "feat/bar",
+            ],
+        )
+        .unwrap();
+        assert_eq!(
+            *requests.lock().unwrap(),
+            vec![
+                "PUT /ctx/pacticipants/c/branches/fix%2Ffoo/versions/v",
+                "PUT /ctx/pacticipants/c/versions/v/tags/feat%2Fbar",
+            ]
+        );
+    }
+
+    #[test]
+    fn rejects_invalid_value_before_sending_any_request() {
+        let (broker_url, requests) = spawn_recording_broker();
+        let result = run(
+            &broker_url,
+            &[
+                "--pacticipant",
+                "c",
+                "--version",
+                "v",
+                "--branch",
+                "ok",
+                "--tag",
+                "x.json",
+            ],
+        );
+        assert!(
+            matches!(result, Err(PactBrokerError::InvalidPathValue(_))),
+            "{result:?}"
+        );
+        assert!(requests.lock().unwrap().is_empty());
     }
 }

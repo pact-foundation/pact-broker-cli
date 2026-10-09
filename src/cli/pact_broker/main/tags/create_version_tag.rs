@@ -1,5 +1,6 @@
 use crate::cli::pact_broker::main::{
     HALClient, PactBrokerError,
+    broker_path::BrokerPath,
     utils::{get_auth, get_broker_url, get_custom_headers, get_retries, get_ssl_options},
 };
 
@@ -18,11 +19,30 @@ pub fn create_version_tag(args: &clap::ArgMatches) -> Result<String, PactBrokerE
         .collect::<Vec<_>>();
     let auto_create_version = args.get_flag("auto-create-version");
     let tag_with_git_branch = args.get_flag("tag-with-git-branch");
+    let version_href = BrokerPath::new(&broker_url)
+        .literal("pacticipants")
+        .value("--pacticipant", pacticipant_name)
+        .literal("versions")
+        .value("--version", version_number)
+        .build()?;
+    let tag_hrefs = tags
+        .iter()
+        .map(|tag| {
+            BrokerPath::new(&broker_url)
+                .literal("pacticipants")
+                .value("--pacticipant", pacticipant_name)
+                .literal("versions")
+                .value("--version", version_number)
+                .literal("tags")
+                .value("--tag", tag)
+                .build()
+                .map(|href| (tag, href))
+        })
+        .collect::<Result<Vec<_>, _>>()?;
     // ensure version exists if auto-create is not set
     let res = tokio::runtime::Runtime::new().unwrap().block_on(async {
             let hal_client: HALClient = HALClient::with_url(&broker_url, Some(auth.clone()), ssl_options.clone(), custom_headers.clone())
                 .with_retry_count(get_retries(args));
-            let version_href = format!("{}/pacticipants/{}/versions/{}", broker_url, pacticipant_name, version_number);
             let version_exists = hal_client.fetch(&version_href).await.is_ok();
             if !auto_create_version {
                 if !version_exists {
@@ -47,19 +67,15 @@ pub fn create_version_tag(args: &clap::ArgMatches) -> Result<String, PactBrokerE
                     custom_headers.clone(),
                 )
                 .with_retry_count(get_retries(args));
-                for tag in tags {
+                for (tag, tag_href) in &tag_hrefs {
                     print!(
                         "Tagging version '{}' of pacticipant '{}' with tag '{}'",
                         version_number, pacticipant_name, tag
                     );
-                    let tag_href = format!(
-                        "{}/pacticipants/{}/versions/{}/tags/{}",
-                        broker_url, pacticipant_name, version_number, tag
-                    );
                     let tag_data = serde_json::json!({ "name": tag });
                     let tag_data_str = tag_data.to_string();
                     let tag_post_result = hal_client
-                        .put_json(&tag_href, &tag_data_str, None)
+                        .put_json(tag_href, &tag_data_str, None)
                         .await
                         .map_err(|e| {
                             PactBrokerError::IoError(format!(
@@ -315,5 +331,61 @@ mod create_version_tag_tests {
         assert!(result.is_ok());
         let msg = result.unwrap();
         assert!(msg.contains("Successfully tagged version"));
+    }
+}
+
+#[cfg(test)]
+mod create_version_tag_url_tests {
+    use super::create_version_tag;
+    use crate::cli::pact_broker::main::PactBrokerError;
+    use crate::cli::pact_broker::main::subcommands::add_create_version_tag_subcommand;
+    use crate::cli::pact_broker::main::test_utils::spawn_recording_broker;
+
+    #[test]
+    fn encodes_tag_containing_slash() {
+        let (broker_url, requests) = spawn_recording_broker();
+        let matches = add_create_version_tag_subcommand().get_matches_from(vec![
+            "create-version-tag",
+            "-b",
+            broker_url.as_str(),
+            "--pacticipant",
+            "c",
+            "--version",
+            "1.0.0",
+            "--tag",
+            "feat/bar",
+            "--auto-create-version",
+        ]);
+        create_version_tag(&matches).unwrap();
+        assert_eq!(
+            *requests.lock().unwrap(),
+            vec![
+                "GET /pacticipants/c/versions/1.0.0",
+                "PUT /pacticipants/c/versions/1.0.0/tags/feat%2Fbar",
+            ]
+        );
+    }
+
+    #[test]
+    fn rejects_invalid_tag_before_sending_any_request() {
+        let (broker_url, requests) = spawn_recording_broker();
+        let matches = add_create_version_tag_subcommand().get_matches_from(vec![
+            "create-version-tag",
+            "-b",
+            broker_url.as_str(),
+            "--pacticipant",
+            "c",
+            "--version",
+            "v",
+            "--tag",
+            "ok,..",
+            "--auto-create-version",
+        ]);
+        let result = create_version_tag(&matches);
+        assert!(
+            matches!(result, Err(PactBrokerError::InvalidPathValue(_))),
+            "{result:?}"
+        );
+        assert!(requests.lock().unwrap().is_empty());
     }
 }
