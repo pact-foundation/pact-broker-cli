@@ -20,12 +20,11 @@ pub struct CustomHeaders {
     pub headers: std::collections::HashMap<String, String>,
 }
 use pact_models::pact::{Pact, load_pact_from_json};
-use regex::{Captures, Regex};
 use reqwest::{Method, Url};
 use serde::{Deserialize, Serialize};
 use serde_json::{Value, json};
 use serde_with::skip_serializing_none;
-use tracing::{debug, error, info, trace, warn};
+use tracing::{debug, error, info, trace};
 pub mod branches;
 pub mod broker_path;
 pub mod can_i_deploy;
@@ -779,23 +778,9 @@ impl HALClient {
         match link.href {
             Some(ref href) => {
                 debug!("templated URL = {}", href);
-                let re = Regex::new(r"\{(\w+)}").unwrap();
-                let final_url = re.replace_all(href, |caps: &Captures| {
-                    let lookup = caps.get(1).unwrap().as_str();
-                    trace!("Looking up value for key '{}'", lookup);
-                    match values.get(lookup) {
-                        Some(val) => urlencoding::encode(val.as_str()).to_string(),
-                        None => {
-                            warn!(
-                                "No value was found for key '{}', mapped values are {:?}",
-                                lookup, values
-                            );
-                            format!("{{{}}}", lookup)
-                        }
-                    }
-                });
+                let final_url = broker_path::expand_path_template(href, values)?;
                 debug!("final URL = {}", final_url);
-                Ok(final_url.to_string())
+                Ok(final_url)
             }
             None => Err(PactBrokerError::LinkError(format!(
                 "Expected a HAL+JSON response from the pact broker, but got a link with no HREF. URL: '{}', LINK: '{}'",

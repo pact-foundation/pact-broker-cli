@@ -1,5 +1,10 @@
 //! Builds Pact Broker URL paths from runtime values.
 
+use std::collections::HashMap;
+
+use regex::Regex;
+use tracing::{trace, warn};
+
 use crate::cli::pact_broker::main::PactBrokerError;
 
 /// Extensions the Pact Broker strips from the end of a request path, converting
@@ -31,6 +36,43 @@ pub fn encode_path_value(arg: &str, value: &str, is_last: bool) -> Result<String
         ))),
         None => Ok(urlencoding::encode(value).into_owned()),
     }
+}
+
+/// Substitutes `{key}` placeholders in a broker HAL href.
+///
+/// Placeholders in the path are validated with [`encode_path_value`]; one ending
+/// where the path ends is the final segment. Placeholders after `?` or `#` are
+/// only encoded. A key missing from `values` is left as `{key}`.
+pub fn expand_path_template(
+    template: &str,
+    values: &HashMap<String, String>,
+) -> Result<String, PactBrokerError> {
+    let placeholder = Regex::new(r"\{(\w+)}").unwrap();
+    let path_end = template.find(['?', '#']).unwrap_or(template.len());
+    let mut expanded = String::with_capacity(template.len());
+    let mut cursor = 0;
+    for captures in placeholder.captures_iter(template) {
+        let whole = captures.get(0).unwrap();
+        let key = captures.get(1).unwrap().as_str();
+        expanded.push_str(&template[cursor..whole.start()]);
+        trace!("Looking up value for key '{}'", key);
+        match values.get(key) {
+            Some(value) if whole.start() < path_end => {
+                expanded.push_str(&encode_path_value(key, value, whole.end() == path_end)?)
+            }
+            Some(value) => expanded.push_str(&urlencoding::encode(value)),
+            None => {
+                warn!(
+                    "No value was found for key '{}', mapped values are {:?}",
+                    key, values
+                );
+                expanded.push_str(whole.as_str());
+            }
+        }
+        cursor = whole.end();
+    }
+    expanded.push_str(&template[cursor..]);
+    Ok(expanded)
 }
 
 /// A broker URL path assembled from fixed segments and runtime values.
@@ -202,6 +244,65 @@ mod tests {
                 .value("--tag", "release.json")
                 .build()
                 .is_err()
+        );
+    }
+
+    fn values(pairs: &[(&str, &str)]) -> std::collections::HashMap<String, String> {
+        pairs
+            .iter()
+            .map(|(k, v)| (k.to_string(), v.to_string()))
+            .collect()
+    }
+
+    #[test]
+    fn expands_and_encodes_template_values() {
+        let expanded = expand_path_template(
+            "http://broker/pacticipants/{pacticipant}/branches/{branch}",
+            &values(&[("pacticipant", "my consumer"), ("branch", "fix/foo")]),
+        )
+        .unwrap();
+        assert_eq!(
+            expanded,
+            "http://broker/pacticipants/my%20consumer/branches/fix%2Ffoo"
+        );
+    }
+
+    #[test]
+    fn template_placeholder_is_last_at_end_or_before_query_or_fragment() {
+        for template in ["/tags/{tag}", "/tags/{tag}?x=1", "/tags/{tag}#frag"] {
+            assert!(
+                expand_path_template(template, &values(&[("tag", "a.json")])).is_err(),
+                "{template}"
+            );
+        }
+        assert!(expand_path_template("/tags/{tag}/x", &values(&[("tag", "a.json")])).is_ok());
+    }
+
+    #[test]
+    fn template_query_placeholders_are_encoded_without_path_validation() {
+        assert_eq!(
+            expand_path_template("/x?q={q}&r={r}", &values(&[("q", ""), ("r", "a b.json")]))
+                .unwrap(),
+            "/x?q=&r=a%20b.json"
+        );
+    }
+
+    #[test]
+    fn template_rejects_invalid_path_values_naming_the_key() {
+        assert_eq!(
+            err_message(expand_path_template(
+                "/p/{pacticipant}/x",
+                &values(&[("pacticipant", "..")])
+            )),
+            "pacticipant value '..' cannot be sent: '.' and '..' are URL dot-segments"
+        );
+    }
+
+    #[test]
+    fn template_leaves_missing_keys_in_place() {
+        assert_eq!(
+            expand_path_template("/p/{a}/{b}", &values(&[("a", "x")])).unwrap(),
+            "/p/x/{b}"
         );
     }
 }

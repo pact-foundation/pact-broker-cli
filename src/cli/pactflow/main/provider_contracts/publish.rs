@@ -1,3 +1,5 @@
+use std::collections::HashMap;
+
 use base64::Engine;
 use base64::engine::general_purpose::STANDARD as Base64;
 use clap::ArgMatches;
@@ -6,7 +8,9 @@ use serde_json::{Value, json};
 
 use crate::cli::{
     pact_broker::main::{
-        HALClient, Notice, PactBrokerError, process_notices,
+        HALClient, Notice, PactBrokerError,
+        broker_path::expand_path_template,
+        process_notices,
         utils::{
             get_auth, get_broker_relation, get_broker_url, get_custom_headers, get_retries,
             get_ssl_options,
@@ -126,7 +130,10 @@ pub fn publish(args: &ArgMatches) -> Result<Value, PactBrokerError> {
                     );
                 }
             }
-            let publish_contract_href = publish_contract_href.replace("{provider}", provider_name);
+            let publish_contract_href = expand_path_template(
+                &publish_contract_href,
+                &HashMap::from([("provider".to_string(), provider_name.to_string())]),
+            )?;
 
             // Verification results
             let verification_exit_code = args.get_one::<String>("verification-exit-code");
