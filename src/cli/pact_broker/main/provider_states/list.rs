@@ -2,6 +2,7 @@
 
 use crate::cli::pact_broker::main::{
     HALClient, PactBrokerError,
+    broker_path::BrokerPath,
     types::{BrokerDetails, OutputType},
 };
 use clap::ArgMatches;
@@ -50,7 +51,7 @@ pub fn list_provider_states(
         .with_retry_count(broker_details.retries);
 
         // Build the path based on provided parameters
-        let path = build_provider_states_path(provider, branch, environment);
+        let path = build_provider_states_path(provider, branch, environment)?;
 
         // Fetch the provider states
         let response = hal_client.fetch(&path).await?;
@@ -86,30 +87,19 @@ fn build_provider_states_path(
     provider: &str,
     branch: Option<&str>,
     environment: Option<&str>,
-) -> String {
-    let base_path = format!(
-        "/pacts/provider/{}/provider-states",
-        urlencoding::encode(provider)
-    );
-
+) -> Result<String, PactBrokerError> {
+    let path = BrokerPath::new("")
+        .literal("pacts")
+        .literal("provider")
+        .value("--provider", provider)
+        .literal("provider-states");
     match (branch, environment) {
-        (Some(branch_name), None) => {
-            format!("{}/branch/{}", base_path, urlencoding::encode(branch_name))
-        }
-        (None, Some(env_name)) => {
-            format!(
-                "{}/environment/{}",
-                base_path,
-                urlencoding::encode(env_name)
-            )
-        }
-        (None, None) => base_path,
-        (Some(_), Some(_)) => {
-            // Both branch and environment specified - this is an error case
-            // We'll default to main branch behavior
-            base_path
-        }
+        (Some(branch_name), None) => path.literal("branch").value("--branch", branch_name),
+        (None, Some(env_name)) => path.literal("environment").value("--environment", env_name),
+        // Both set is rejected by clap; fall back to the main branch.
+        (None, None) | (Some(_), Some(_)) => path,
     }
+    .build()
 }
 
 /// Format provider states as JSON
@@ -199,27 +189,30 @@ mod tests {
     fn test_build_provider_states_path() {
         // Test main branch path
         assert_eq!(
-            build_provider_states_path("MyProvider", None, None),
+            build_provider_states_path("MyProvider", None, None).unwrap(),
             "/pacts/provider/MyProvider/provider-states"
         );
 
         // Test branch-specific path
         assert_eq!(
-            build_provider_states_path("MyProvider", Some("feature-branch"), None),
+            build_provider_states_path("MyProvider", Some("feature-branch"), None).unwrap(),
             "/pacts/provider/MyProvider/provider-states/branch/feature-branch"
         );
 
         // Test environment-specific path
         assert_eq!(
-            build_provider_states_path("MyProvider", None, Some("production")),
+            build_provider_states_path("MyProvider", None, Some("production")).unwrap(),
             "/pacts/provider/MyProvider/provider-states/environment/production"
         );
 
         // Test URL encoding
         assert_eq!(
-            build_provider_states_path("My Provider", Some("feature/branch"), None),
+            build_provider_states_path("My Provider", Some("feature/branch"), None).unwrap(),
             "/pacts/provider/My%20Provider/provider-states/branch/feature%2Fbranch"
         );
+
+        assert!(build_provider_states_path("..", None, None).is_err());
+        assert!(build_provider_states_path("p", Some("x.json"), None).is_err());
     }
 
     #[test]

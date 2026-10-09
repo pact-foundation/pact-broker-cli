@@ -1,7 +1,7 @@
 use crate::{
     cli::pact_broker::main::types::{BrokerDetails, OutputType},
     cli::pact_broker::main::utils::{follow_templated_broker_relation, generate_table},
-    cli::pact_broker::main::{HALClient, PactBrokerError},
+    cli::pact_broker::main::{HALClient, PactBrokerError, broker_path::BrokerPath},
 };
 use serde_json::{Value, json};
 use std::collections::HashMap;
@@ -31,7 +31,7 @@ pub fn get_pacts(
         .with_retry_count(broker_details.retries);
 
         // Build the appropriate HAL relation and template parameters
-        let (relation, path) = build_pacts_path(provider, consumer, branch, latest);
+        let (relation, path) = build_pacts_path(provider, consumer, branch, latest)?;
 
         // Create template parameters for the HAL relation
         let mut template_params = HashMap::new();
@@ -82,71 +82,32 @@ fn build_pacts_path(
     consumer: Option<&str>,
     branch: Option<&str>,
     latest: bool,
-) -> (String, String) {
-    match (consumer, branch, latest) {
-        // Provider + Consumer + Branch + Latest
-        (Some(_), Some(_), true) => (
-            "pb:latest-branch-pact-versions".to_string(),
-            format!(
-                "/pacts/provider/{}/consumer/{}/branch/{}/latest",
-                provider,
-                consumer.unwrap(),
-                branch.unwrap()
-            ),
-        ),
-        // Provider + Consumer + Branch (no latest)
-        (Some(_), Some(_), false) => (
-            "pb:branch-pact-versions".to_string(),
-            format!(
-                "/pacts/provider/{}/consumer/{}/branch/{}",
-                provider,
-                consumer.unwrap(),
-                branch.unwrap()
-            ),
-        ),
-        // Provider + Consumer + Main Branch + Latest
-        (Some(_), None, true) => (
-            "pb:latest-main-branch-pact-versions".to_string(),
-            format!(
-                "/pacts/provider/{}/consumer/{}/branch/latest",
-                provider,
-                consumer.unwrap()
-            ),
-        ),
-        // Provider + Consumer + Main Branch (no latest)
-        (Some(_), None, false) => (
-            "pb:main-branch-pact-versions".to_string(),
-            format!(
-                "/pacts/provider/{}/consumer/{}/branch",
-                provider,
-                consumer.unwrap()
-            ),
-        ),
-        // Provider + Branch + Latest (any consumer)
-        (None, Some(_), true) => (
-            "pb:latest-provider-pacts-with-branch".to_string(),
-            format!(
-                "/pacts/provider/{}/branch/{}/latest",
-                provider,
-                branch.unwrap()
-            ),
-        ),
-        // Provider + Branch (any consumer, no latest)
-        (None, Some(_), false) => (
-            "pb:provider-pacts-with-branch".to_string(),
-            format!("/pacts/provider/{}/branch/{}", provider, branch.unwrap()),
-        ),
-        // Provider + Main Branch + Latest (any consumer)
-        (None, None, true) => (
-            "pb:latest-provider-pacts-with-main-branch".to_string(),
-            format!("/pacts/provider/{}/branch/latest", provider),
-        ),
-        // Provider + Main Branch (any consumer, no latest)
-        (None, None, false) => (
-            "pb:provider-pacts-with-main-branch".to_string(),
-            format!("/pacts/provider/{}/branch", provider),
-        ),
+) -> Result<(String, String), PactBrokerError> {
+    let mut path = BrokerPath::new("")
+        .literal("pacts")
+        .literal("provider")
+        .value("--provider", provider);
+    if let Some(consumer) = consumer {
+        path = path.literal("consumer").value("--consumer", consumer);
     }
+    path = path.literal("branch");
+    if let Some(branch) = branch {
+        path = path.value("--branch", branch);
+    }
+    if latest {
+        path = path.literal("latest");
+    }
+    let relation = match (consumer, branch, latest) {
+        (Some(_), Some(_), true) => "pb:latest-branch-pact-versions",
+        (Some(_), Some(_), false) => "pb:branch-pact-versions",
+        (Some(_), None, true) => "pb:latest-main-branch-pact-versions",
+        (Some(_), None, false) => "pb:main-branch-pact-versions",
+        (None, Some(_), true) => "pb:latest-provider-pacts-with-branch",
+        (None, Some(_), false) => "pb:provider-pacts-with-branch",
+        (None, None, true) => "pb:latest-provider-pacts-with-main-branch",
+        (None, None, false) => "pb:provider-pacts-with-main-branch",
+    };
+    Ok((relation.to_string(), path.build()?))
 }
 
 async fn download_pacts(
@@ -265,14 +226,15 @@ mod get_pacts_tests {
 
     #[test]
     fn test_build_pacts_path_provider_only() {
-        let (relation, path) = build_pacts_path("TestProvider", None, None, false);
+        let (relation, path) = build_pacts_path("TestProvider", None, None, false).unwrap();
         assert_eq!(relation, "pb:provider-pacts-with-main-branch");
         assert_eq!(path, "/pacts/provider/TestProvider/branch");
     }
 
     #[test]
     fn test_build_pacts_path_provider_and_consumer() {
-        let (relation, path) = build_pacts_path("TestProvider", Some("TestConsumer"), None, false);
+        let (relation, path) =
+            build_pacts_path("TestProvider", Some("TestConsumer"), None, false).unwrap();
         assert_eq!(relation, "pb:main-branch-pact-versions");
         assert_eq!(
             path,
@@ -283,7 +245,7 @@ mod get_pacts_tests {
     #[test]
     fn test_build_pacts_path_provider_consumer_and_branch() {
         let (relation, path) =
-            build_pacts_path("TestProvider", Some("TestConsumer"), Some("feature"), false);
+            build_pacts_path("TestProvider", Some("TestConsumer"), Some("feature"), false).unwrap();
         assert_eq!(relation, "pb:branch-pact-versions");
         assert_eq!(
             path,
@@ -294,7 +256,7 @@ mod get_pacts_tests {
     #[test]
     fn test_build_pacts_path_provider_consumer_branch_latest() {
         let (relation, path) =
-            build_pacts_path("TestProvider", Some("TestConsumer"), Some("feature"), true);
+            build_pacts_path("TestProvider", Some("TestConsumer"), Some("feature"), true).unwrap();
         assert_eq!(relation, "pb:latest-branch-pact-versions");
         assert_eq!(
             path,
@@ -304,21 +266,23 @@ mod get_pacts_tests {
 
     #[test]
     fn test_build_pacts_path_provider_and_branch() {
-        let (relation, path) = build_pacts_path("TestProvider", None, Some("feature"), false);
+        let (relation, path) =
+            build_pacts_path("TestProvider", None, Some("feature"), false).unwrap();
         assert_eq!(relation, "pb:provider-pacts-with-branch");
         assert_eq!(path, "/pacts/provider/TestProvider/branch/feature");
     }
 
     #[test]
     fn test_build_pacts_path_provider_branch_latest() {
-        let (relation, path) = build_pacts_path("TestProvider", None, Some("feature"), true);
+        let (relation, path) =
+            build_pacts_path("TestProvider", None, Some("feature"), true).unwrap();
         assert_eq!(relation, "pb:latest-provider-pacts-with-branch");
         assert_eq!(path, "/pacts/provider/TestProvider/branch/feature/latest");
     }
 
     #[test]
     fn test_build_pacts_path_provider_latest_main() {
-        let (relation, path) = build_pacts_path("TestProvider", None, None, true);
+        let (relation, path) = build_pacts_path("TestProvider", None, None, true).unwrap();
         assert_eq!(relation, "pb:latest-provider-pacts-with-main-branch");
         assert_eq!(path, "/pacts/provider/TestProvider/branch/latest");
     }
@@ -674,5 +638,22 @@ mod get_pacts_tests {
         let output = result.unwrap();
         let output_json: serde_json::Value = serde_json::from_str(&output).unwrap();
         assert_eq!(output_json, expected_transformed_response);
+    }
+
+    #[test]
+    fn test_build_pacts_path_encodes_values() {
+        let (_, path) = build_pacts_path("My Provider", Some("c/1"), Some("feat/x"), true).unwrap();
+        assert_eq!(
+            path,
+            "/pacts/provider/My%20Provider/consumer/c%2F1/branch/feat%2Fx/latest"
+        );
+        let (_, path) = build_pacts_path("p", None, Some("{provider}"), false).unwrap();
+        assert_eq!(path, "/pacts/provider/p/branch/%7Bprovider%7D");
+    }
+
+    #[test]
+    fn test_build_pacts_path_rejects_final_segment_extension() {
+        assert!(build_pacts_path("p", None, Some("x.json"), false).is_err());
+        assert!(build_pacts_path("p", None, Some("x.json"), true).is_ok());
     }
 }
