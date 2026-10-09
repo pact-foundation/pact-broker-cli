@@ -332,6 +332,7 @@ pub fn publish_pacts(args: &ArgMatches) -> Result<Value, i32> {
             } else {
                 "overwrite"
             };
+            let implements_multi_providers = args.get_one::<String>("implements-multi-providers");
             let output: Result<Option<&String>, clap::parser::MatchesError> =
                 args.try_get_one::<String>("output");
             // publish the pacts
@@ -450,14 +451,23 @@ pub fn publish_pacts(args: &ArgMatches) -> Result<Value, i32> {
                             );
                         }
 
-                        payload["contracts"] = serde_json::Value::Array(vec![json!({
+                        let mut contract_obj = json!({
                           "consumerName": consumer_name,
                           "providerName": provider_name,
                           "specification": "pact",
                           "contentType": "application/json",
                           "content": Base64.encode(pact_json_data.to_string()),
                           "onConflict": on_conflict
-                        })]);
+                        });
+                        if let Some(names_csv) = implements_multi_providers {
+                            let names: Vec<&str> = names_csv
+                                .split(',')
+                                .map(|s| s.trim())
+                                .filter(|s| !s.is_empty())
+                                .collect();
+                            contract_obj["implementsMultiProviders"] = json!(names);
+                        }
+                        payload["contracts"] = serde_json::Value::Array(vec![contract_obj]);
                         println!();
                         println!(
                             "📨 Attempting to publish pact for consumer: {} against provider: {}",
@@ -901,6 +911,132 @@ mod publish_contracts_tests {
         let value = result.unwrap();
 
         assert!(value.is_object());
+    }
+
+    #[test]
+    fn publish_contracts_with_implements_multi_providers() {
+        let config = MockServerConfig {
+            pact_specification: PactSpecification::V2,
+            ..MockServerConfig::default()
+        };
+        let pacticipant_name = "Foo";
+        let provider_name = "Bar";
+        let version_number = "abc123";
+        let branch = "main";
+        let pact_file_path = "tests/fixtures/foo-bar.json";
+
+        let mut pact_file = File::open(pact_file_path).expect("Fixture pact file missing");
+        let mut pact_json_str = String::new();
+        pact_file.read_to_string(&mut pact_json_str).unwrap();
+        let mut pact_json: serde_json::Value = serde_json::from_str(&pact_json_str).unwrap();
+        let mut metadata = pact_json
+            .get("metadata")
+            .cloned()
+            .unwrap_or_else(|| json!({}));
+        if let Some(obj) = metadata.as_object_mut() {
+            obj.insert(
+                "pactRust".to_string(),
+                json!({ "models": pact_models::PACT_RUST_VERSION }),
+            );
+            pact_json["metadata"] = Value::Object(obj.clone());
+        } else {
+            pact_json["metadata"] = json!({
+            "pactRust": { "models": pact_models::PACT_RUST_VERSION },
+            });
+        }
+        let expected_content = Base64.encode(pact_json.to_string());
+
+        // implements_multi_providers must be a JSON array, not a string
+        let request_body = json!({
+            "pacticipantName": pacticipant_name,
+            "pacticipantVersionNumber": version_number,
+            "branch": branch,
+            "contracts": [
+                {
+                    "consumerName": pacticipant_name,
+                    "providerName": provider_name,
+                    "specification": "pact",
+                    "contentType": "application/json",
+                    "content": expected_content,
+                    "onConflict": "overwrite",
+                    "implementsMultiProviders": ["payments-api", "refunds-api"]
+                }
+            ]
+        });
+
+        let contract_path_generator = generators! {
+            "BODY" => {
+            "$._links.pb:pb:publish-contracts.href" => Generator::MockServerURL(
+                            "/contracts/publish".to_string(),
+                            ".*\\/contracts\\/publish".to_string()
+            )
+            }
+        };
+
+        let pact_broker_service = PactBuilder::new("pact-broker-cli", "Pact Broker")
+            .interaction("a request for the index resource", "", |mut i| {
+                i.given("the pb:publish-contracts relations exists in the index resource");
+                i.request
+                    .path("/")
+                    .header("Accept", "application/hal+json")
+                    .header("Accept", "application/json");
+                i.response
+                    .header("Content-Type", "application/hal+json;charset=utf-8")
+                    .json_body(json_pattern!({
+                        "_links": {
+                            "pb:publish-contracts": {
+                                "href": term!("http:\\/\\/[^/]+\\/contracts\\/publish", "http://localhost:1234/contracts/publish"),
+                                "title": "Publish contracts",
+                                "templated": false
+                            }
+                        }
+                    }))
+                    .generators()
+                    .add_generators(contract_path_generator);
+                i
+            })
+            .interaction("a request to publish contracts with implementsMultiProviders", "", |mut i| {
+                i.request
+                    .post()
+                    .path("/contracts/publish")
+                    .header("Content-Type", "application/json")
+                    .json_body(request_body.clone());
+                i.response
+                    .status(200)
+                    .header("Content-Type", "application/hal+json;charset=utf-8")
+                    .json_body(json_pattern!({
+                        "_embedded": {
+                            "pacticipant": { "name": pacticipant_name },
+                            "version": { "number": version_number }
+                        },
+                        "logs": each_like!({ "level": "info", "message": "some message" }),
+                        "_links": {
+                            "pb:pacticipant-version-tags": each_like!({ "name": "tag" }),
+                            "pb:contracts": each_like!({ "href": like!("http://some-pact") })
+                        }
+                    }));
+                i
+            })
+            .start_mock_server(None, Some(config));
+
+        let mock_server_url = pact_broker_service.url();
+
+        let matches = add_publish_pacts_subcommand().get_matches_from(vec![
+            "publish",
+            pact_file_path,
+            "-b",
+            mock_server_url.as_str(),
+            "--consumer-app-version",
+            version_number,
+            "--branch",
+            branch,
+            "--implements-multi-providers",
+            "payments-api, refunds-api", // note spaces — should be trimmed
+        ]);
+
+        let result = publish_pacts(&matches);
+        assert!(result.is_ok());
+        assert!(result.unwrap().is_object());
     }
 
     #[test]

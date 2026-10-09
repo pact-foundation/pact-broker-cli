@@ -4,6 +4,7 @@ use clap::ArgMatches;
 use serde::{Deserialize, Serialize};
 use serde_json::{Value, json};
 
+use super::verification::{SelfVerificationInputs, missing_self_verification_keys};
 use crate::cli::{
     pact_broker::main::{
         HALClient, Notice, PactBrokerError, process_notices,
@@ -45,6 +46,18 @@ struct Links {
 }
 
 pub fn publish(args: &ArgMatches) -> Result<Value, PactBrokerError> {
+    // --contract selects the batch endpoint, which takes a named array rather than the single
+    // scalar contract this function builds. clap guarantees the two modes are mutually exclusive.
+    if args
+        .get_many::<String>("contract")
+        .into_iter()
+        .flatten()
+        .next()
+        .is_some()
+    {
+        return super::publish_multiple::publish_multiple(args);
+    }
+
     // Load contract file
     let contract_file = args
         .get_one::<String>("contract-file")
@@ -53,6 +66,27 @@ pub fn publish(args: &ArgMatches) -> Result<Value, PactBrokerError> {
         println!("❌ Failed to read contract file: {}", e);
         PactBrokerError::IoError(e.to_string())
     })?;
+
+    // Checked before any request is made, so an incomplete set of flags fails without a broker.
+    let missing = missing_self_verification_keys(&SelfVerificationInputs {
+        results: args.get_one::<String>("verification-results").is_some(),
+        results_content_type: args
+            .get_one::<String>("verification-results-content-type")
+            .is_some(),
+        verifier: args.get_one::<String>("verifier").is_some(),
+        verifier_version: args.get_one::<String>("verifier-version").is_some(),
+    });
+    if !missing.is_empty() {
+        return Err(PactBrokerError::ValidationError(vec![format!(
+            "Self-verification needs --verification-results, --verification-results-content-type \
+             and --verifier together; missing: {}",
+            missing
+                .iter()
+                .map(|key| format!("--{key}"))
+                .collect::<Vec<_>>()
+                .join(", ")
+        )]));
+    }
 
     let broker_url = get_broker_url(args).trim_end_matches('/').to_string();
     let auth = get_auth(args);
@@ -338,6 +372,105 @@ mod publish_provider_contract_tests {
     use pact_models::{PactSpecification, generators};
     use serde_json::json;
 
+    // --- mode boundary: CONTRACT_FILE and --contract are mutually exclusive ---
+
+    fn try_parse(argv: Vec<&str>) -> Result<clap::ArgMatches, clap::Error> {
+        add_publish_provider_contract_subcommand().try_get_matches_from(argv)
+    }
+
+    const SPEC: &str = "name=a,file=tests/fixtures/payments-api.yaml";
+
+    #[test]
+    fn rejects_a_contract_file_and_contract_flag_together() {
+        let err = try_parse(vec![
+            "publish-provider-contract",
+            "-b",
+            "http://localhost:9999",
+            "--provider",
+            "p",
+            "-a",
+            "1.0",
+            "tests/fixtures/payments-api.yaml",
+            "--contract",
+            SPEC,
+        ])
+        .expect_err("the two modes must not be combinable");
+        assert_eq!(err.kind(), clap::error::ErrorKind::ArgumentConflict);
+    }
+
+    #[test]
+    fn rejects_neither_a_contract_file_nor_a_contract_flag() {
+        let err = try_parse(vec![
+            "publish-provider-contract",
+            "-b",
+            "http://localhost:9999",
+            "--provider",
+            "p",
+            "-a",
+            "1.0",
+        ])
+        .expect_err("one of the two modes is required");
+        assert_eq!(err.kind(), clap::error::ErrorKind::MissingRequiredArgument);
+    }
+
+    #[test]
+    fn rejects_single_contract_options_alongside_contract_flag() {
+        for (flag, value) in [
+            ("--specification", Some("oas")),
+            ("--content-type", Some("application/yaml")),
+            ("--verifier", Some("spectral")),
+            ("--verifier-version", Some("1.0.0")),
+            ("--verification-results", Some("r.txt")),
+            ("--verification-results-content-type", Some("text/plain")),
+            ("--verification-results-format", Some("junit")),
+            ("--verification-exit-code", Some("0")),
+            ("--verification-success", None),
+            ("--no-verification-success", None),
+        ] {
+            let mut argv = vec![
+                "publish-provider-contract",
+                "-b",
+                "http://localhost:9999",
+                "--provider",
+                "p",
+                "-a",
+                "1.0",
+                "--contract",
+                SPEC,
+                flag,
+            ];
+            if let Some(v) = value {
+                argv.push(v);
+            }
+            let err = try_parse(argv)
+                .err()
+                .unwrap_or_else(|| panic!("{flag} should conflict with --contract"));
+            assert_eq!(
+                err.kind(),
+                clap::error::ErrorKind::ArgumentConflict,
+                "{flag} should be an ArgumentConflict"
+            );
+        }
+    }
+
+    #[test]
+    fn accepts_repeated_contract_flags_without_a_positional() {
+        try_parse(vec![
+            "publish-provider-contract",
+            "-b",
+            "http://localhost:9999",
+            "--provider",
+            "p",
+            "-a",
+            "1.0",
+            "--contract",
+            SPEC,
+            "--contract",
+            "name=b,file=tests/fixtures/fraud-events.yaml",
+        ])
+        .expect("repeating --contract is the multi-contract happy path");
+    }
+
     #[test]
     fn publish_provider_contract_success() {
         // Arrange
@@ -505,6 +638,10 @@ mod publish_provider_contract_tests {
             "1",
             "--verification-results",
             "tests/fixtures/non-existent-file.txt",
+            "--verification-results-content-type",
+            "text/plain",
+            "--verifier",
+            "spectral",
         ]);
 
         // Act
@@ -518,6 +655,35 @@ mod publish_provider_contract_tests {
                 // Expected IoError when verification results file does not exist
             }
             _ => panic!("Expected IoError but got: {:?}", error),
+        }
+    }
+
+    #[test]
+    fn publish_provider_contract_rejects_incomplete_self_verification_before_any_request() {
+        let matches = add_publish_provider_contract_subcommand().get_matches_from(vec![
+            "publish-provider-contract",
+            "tests/fixtures/provider-contract.yaml",
+            "-b",
+            "http://localhost:1",
+            "--provider",
+            "Bar",
+            "--provider-app-version",
+            "1",
+            "--verifier-version",
+            "1.0.0",
+        ]);
+
+        match publish(&matches) {
+            Err(crate::cli::pact_broker::main::PactBrokerError::ValidationError(errors)) => {
+                let message = errors.join(" ");
+                assert!(message.contains("--verification-results"), "was: {message}");
+                assert!(
+                    message.contains("--verification-results-content-type"),
+                    "was: {message}"
+                );
+                assert!(message.contains("--verifier"), "was: {message}");
+            }
+            other => panic!("Expected ValidationError but got: {:?}", other),
         }
     }
 }
