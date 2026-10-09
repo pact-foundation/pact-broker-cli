@@ -5,6 +5,7 @@ use serde_json::Value;
 use crate::cli::pact_broker::main::HttpAuth;
 use crate::cli::pact_broker::main::{
     HALClient, PactBrokerError,
+    broker_path::BrokerPath,
     types::{OutputType, SslOptions},
     utils::{
         follow_broker_relation, follow_templated_broker_relation, get_auth, get_broker_relation,
@@ -175,16 +176,14 @@ fn describe_version_by_environment(
 
         if deployed_only || !released_only {
             // Get currently deployed versions
-            let deployed_path = format!(
-                "/environments/{}/deployed-versions/currently-deployed",
-                environment_uuid
-            );
+            let deployed_href = BrokerPath::new(broker_url)
+                .literal("environments")
+                .value("environment uuid", &environment_uuid)
+                .literal("deployed-versions")
+                .literal("currently-deployed")
+                .build()?;
 
-            if let Ok(deployed_response) = hal_client
-                .clone()
-                .fetch(&format!("{}{}", broker_url, deployed_path))
-                .await
-            {
+            if let Ok(deployed_response) = hal_client.clone().fetch(&deployed_href).await {
                 let deployed_versions =
                     filter_versions_by_pacticipant(&deployed_response, pacticipant_name);
                 all_versions.extend(deployed_versions);
@@ -193,16 +192,14 @@ fn describe_version_by_environment(
 
         if released_only || !deployed_only {
             // Get currently supported released versions
-            let released_path = format!(
-                "/environments/{}/released-versions/currently-supported",
-                environment_uuid
-            );
+            let released_href = BrokerPath::new(broker_url)
+                .literal("environments")
+                .value("environment uuid", &environment_uuid)
+                .literal("released-versions")
+                .literal("currently-supported")
+                .build()?;
 
-            if let Ok(released_response) = hal_client
-                .clone()
-                .fetch(&format!("{}{}", broker_url, released_path))
-                .await
-            {
+            if let Ok(released_response) = hal_client.clone().fetch(&released_href).await {
                 let released_versions =
                     filter_versions_by_pacticipant(&released_response, pacticipant_name);
                 all_versions.extend(released_versions);

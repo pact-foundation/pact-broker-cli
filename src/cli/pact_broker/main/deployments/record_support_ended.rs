@@ -3,6 +3,7 @@ use serde_json::json;
 use crate::cli::{
     pact_broker::main::{
         HALClient, PactBrokerError,
+        broker_path::BrokerPath,
         utils::{get_auth, get_broker_url, get_custom_headers, get_retries, get_ssl_options},
     },
     utils,
@@ -73,7 +74,10 @@ pub fn record_support_ended(args: &clap::ArgMatches) -> Result<String, PactBroke
 
                                 // 3. Call the environment link and check the specified version exists, get the version link
                                 let res = hal_client.clone()
-                                .fetch(&(broker_url.clone() + "/environments/" + environment_uuid + "?"))
+                                .fetch(&BrokerPath::new(&broker_url)
+                                    .literal("environments")
+                                    .value("environment uuid", environment_uuid)
+                                    .build()?)
                                 .await;
                             match res {
                                 Ok(result) => {

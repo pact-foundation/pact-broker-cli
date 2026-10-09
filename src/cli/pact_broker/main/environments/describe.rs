@@ -1,6 +1,7 @@
 use crate::cli::{
     pact_broker::main::{
         HALClient, PactBrokerError,
+        broker_path::BrokerPath,
         utils::{get_auth, get_broker_url, get_custom_headers, get_retries, get_ssl_options},
     },
     utils,
@@ -13,6 +14,10 @@ pub fn describe_environment(args: &clap::ArgMatches) -> Result<String, PactBroke
     let custom_headers = get_custom_headers(args);
     let ssl_options = get_ssl_options(args);
 
+    let environment_href = BrokerPath::new(&broker_url)
+        .literal("environments")
+        .value("--uuid", &uuid)
+        .build()?;
     tokio::runtime::Runtime::new().unwrap().block_on(async {
         let hal_client: HALClient = HALClient::with_url(
             &broker_url,
@@ -21,9 +26,7 @@ pub fn describe_environment(args: &clap::ArgMatches) -> Result<String, PactBroke
             custom_headers.clone(),
         )
         .with_retry_count(get_retries(args));
-        let res = hal_client
-            .fetch(&(broker_url + "/environments/" + &uuid))
-            .await;
+        let res = hal_client.fetch(&environment_href).await;
 
         let default_output = "text".to_string();
         let output = args.get_one::<String>("output").unwrap_or(&default_output);
@@ -199,5 +202,31 @@ mod describe_environment_tests {
 
         let result = describe_environment(&matches);
         assert!(result.is_err());
+    }
+}
+
+#[cfg(test)]
+mod describe_environment_url_tests {
+    use super::describe_environment;
+    use crate::cli::pact_broker::main::PactBrokerError;
+    use crate::cli::pact_broker::main::subcommands::add_describe_environment_subcommand;
+    use crate::cli::pact_broker::main::test_utils::spawn_recording_broker;
+
+    #[test]
+    fn rejects_dot_segment_uuid() {
+        let (broker_url, requests) = spawn_recording_broker();
+        let matches = add_describe_environment_subcommand().get_matches_from(vec![
+            "describe-environment",
+            "-b",
+            broker_url.as_str(),
+            "--uuid",
+            "..",
+        ]);
+        let result = describe_environment(&matches);
+        assert!(
+            matches!(result, Err(PactBrokerError::InvalidPathValue(_))),
+            "{result:?}"
+        );
+        assert!(requests.lock().unwrap().is_empty());
     }
 }

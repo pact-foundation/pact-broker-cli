@@ -3,6 +3,7 @@ use serde_json::{Value, json};
 use crate::cli::{
     pact_broker::main::{
         HALClient, PactBrokerError,
+        broker_path::BrokerPath,
         utils::{
             follow_broker_relation, get_auth, get_broker_relation, get_broker_url,
             get_custom_headers, get_retries, get_ssl_options,
@@ -85,7 +86,12 @@ pub fn record_undeployment(args: &clap::ArgMatches) -> Result<String, PactBroker
 
         let environment_result = hal_client
             .clone()
-            .fetch(&(broker_url.clone() + "/environments/" + &environment_uuid))
+            .fetch(
+                &BrokerPath::new(&broker_url)
+                    .literal("environments")
+                    .value("environment uuid", &environment_uuid)
+                    .build()?,
+            )
             .await?;
 
         let currently_deployed_link = relation_href(

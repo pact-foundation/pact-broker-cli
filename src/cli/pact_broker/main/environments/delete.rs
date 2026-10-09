@@ -1,6 +1,7 @@
 use crate::cli::{
     pact_broker::main::{
         HALClient, PactBrokerError,
+        broker_path::BrokerPath,
         utils::{get_auth, get_broker_url, get_custom_headers, get_retries, get_ssl_options},
     },
     utils,
@@ -12,6 +13,10 @@ pub fn delete_environment(args: &clap::ArgMatches) -> Result<String, PactBrokerE
     let auth = get_auth(args);
     let custom_headers = get_custom_headers(args);
     let ssl_options = get_ssl_options(args);
+    let environment_href = BrokerPath::new(&broker_url)
+        .literal("environments")
+        .value("--uuid", &uuid)
+        .build()?;
     tokio::runtime::Runtime::new().unwrap().block_on(async {
         let hal_client: HALClient = HALClient::with_url(
             &broker_url,
@@ -20,17 +25,11 @@ pub fn delete_environment(args: &clap::ArgMatches) -> Result<String, PactBrokerE
             custom_headers.clone(),
         )
         .with_retry_count(get_retries(args));
-        let res = hal_client
-            .clone()
-            .fetch(&(broker_url.clone() + "/environments/" + &uuid))
-            .await;
+        let res = hal_client.clone().fetch(&environment_href).await;
         match res {
             Ok(_) => {
                 let name = res.clone().unwrap()["name"].to_string();
-                let res = hal_client
-                    .clone()
-                    .delete(&(broker_url.clone() + "/environments/" + &uuid))
-                    .await;
+                let res = hal_client.clone().delete(&environment_href).await;
                 match res {
                     Ok(_) => {
                         let message = format!(
