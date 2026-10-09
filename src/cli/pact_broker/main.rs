@@ -1,7 +1,6 @@
 //! Structs and functions for interacting with a Pact Broker
 
 use std::collections::HashMap;
-use std::ops::Not;
 use std::panic::RefUnwindSafe;
 use std::str::from_utf8;
 
@@ -623,48 +622,26 @@ impl HALClient {
         self.parse_broker_response(path.to_string(), response).await
     }
 
+    /// Resolves `path` against the broker URL. Absolute paths and full URLs resolve
+    /// against the host; relative paths resolve under the broker's context path.
     fn resolve_path(&self, path: &str) -> Result<Url, PactBrokerError> {
         let broker_url = self.url.parse::<Url>()?;
-        let context_path = broker_url.path();
-        let url = if path.is_empty() {
-            broker_url
-        } else if !context_path.is_empty() && context_path != "/" {
-            if path.starts_with(context_path) {
-                let mut base_url = broker_url.clone();
-                base_url.set_path("/");
-                base_url.join(path)?
-            } else if path.starts_with("/") {
-                let mut base_url = broker_url.clone();
-                base_url.set_path(path);
-                base_url
-            } else {
-                let mut base_url = broker_url.clone();
-                let mut cp = context_path.to_string();
-                cp.push('/');
-                base_url.set_path(cp.as_str());
-                base_url.join(path)?
-            }
-        } else {
-            broker_url.join(path)?
-        };
-        Ok(url)
+        if path.is_empty() {
+            return Ok(broker_url);
+        }
+        let context_path = broker_url.path().trim_end_matches('/').to_string();
+        if path.starts_with('/') || context_path.is_empty() {
+            return Ok(broker_url.join(path)?);
+        }
+        let mut base_url = broker_url;
+        base_url.set_path(&format!("{context_path}/"));
+        Ok(base_url.join(path)?)
     }
 
     pub async fn delete(self, path: &str) -> Result<Value, PactBrokerError> {
         info!("Deleting path '{}' from pact broker", path);
 
-        let broker_url = self.url.parse::<Url>()?;
-        let context_path = broker_url.path();
-        let url = if context_path.is_empty().not()
-            && context_path != "/"
-            && path.starts_with(context_path)
-        {
-            let mut base_url = broker_url.clone();
-            base_url.set_path("/");
-            base_url.join(path)?
-        } else {
-            broker_url.join(path)?
-        };
+        let url = self.resolve_path(path)?;
 
         let mut request_builder = match self.auth {
             Some(ref auth) => match auth {
@@ -1714,6 +1691,8 @@ mod tests {
             .to(be_ok().value(Url::parse("http://localhost-ip4:1234/base-path/").unwrap()));
         expect!(client.resolve_path("/base-path/sub-path"))
             .to(be_ok().value(Url::parse("http://localhost-ip4:1234/base-path/sub-path").unwrap()));
+        expect!(client.resolve_path("/any?q=1"))
+            .to(be_ok().value(Url::parse("http://localhost-ip4:1234/any?q=1").unwrap()));
 
         let client = HALClient::with_url(
             "http://localhost-ip4:1234/base-path",
@@ -1738,6 +1717,14 @@ mod tests {
             .to(be_ok().value(Url::parse("http://localhost-ip4:1234/base-path/").unwrap()));
         expect!(client.resolve_path("/base-path/sub-path"))
             .to(be_ok().value(Url::parse("http://localhost-ip4:1234/base-path/sub-path").unwrap()));
+        expect!(client.resolve_path("/any?q=1"))
+            .to(be_ok().value(Url::parse("http://localhost-ip4:1234/any?q=1").unwrap()));
+        expect!(client.resolve_path("/base-path/any?q=1"))
+            .to(be_ok().value(Url::parse("http://localhost-ip4:1234/base-path/any?q=1").unwrap()));
+        expect!(client.resolve_path("any?q=1"))
+            .to(be_ok().value(Url::parse("http://localhost-ip4:1234/base-path/any?q=1").unwrap()));
+        expect!(client.resolve_path("/base-pathology"))
+            .to(be_ok().value(Url::parse("http://localhost-ip4:1234/base-pathology").unwrap()));
     }
 
     #[test_log::test(tokio::test)]
