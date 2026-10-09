@@ -1,5 +1,8 @@
+use std::collections::HashMap;
+
 use crate::cli::pact_broker::main::{
     HALClient, PactBrokerError,
+    broker_path::{BrokerPath, expand_path_template},
     utils::{
         get_auth, get_broker_relation, get_broker_url, get_custom_headers, get_retries,
         get_ssl_options,
@@ -107,12 +110,13 @@ pub fn create_webhook(args: &clap::ArgMatches) -> Result<String, PactBrokerError
             .with_retry_count(get_retries(args));
         let webhook_endpoint_info: Result<(String, WebhookOperation), PactBrokerError> =
             if direct_create {
-                let endpoint = format!(
-                    "{}/webhooks/provider/{}/consumer/{}",
-                    broker_url,
-                    urlencoding::encode(provider.unwrap()),
-                    urlencoding::encode(consumer.unwrap())
-                );
+                let endpoint = BrokerPath::new(&broker_url)
+                    .literal("webhooks")
+                    .literal("provider")
+                    .value("--provider", provider.unwrap())
+                    .literal("consumer")
+                    .value("--consumer", consumer.unwrap())
+                    .build()?;
                 Ok((endpoint, WebhookOperation::Create))
             } else if let Some(uuid) = webhook_uuid.filter(|uuid| !uuid.is_empty()) {
                 let pb_webhook_href_path = get_broker_relation(
@@ -121,10 +125,10 @@ pub fn create_webhook(args: &clap::ArgMatches) -> Result<String, PactBrokerError
                     broker_url.to_string(),
                 )
                 .await?;
-                let endpoint = pb_webhook_href_path.replace(
-                    "{uuid}",
-                    &urlencoding::encode(uuid),
-                );
+                let endpoint = expand_path_template(
+                    &pb_webhook_href_path,
+                    &HashMap::from([("uuid".to_string(), uuid.to_string())]),
+                )?;
                 Ok((endpoint, WebhookOperation::Update))
             } else {
                 let endpoint = get_broker_relation(
@@ -960,5 +964,17 @@ mod create_webhook_tests {
         assert!(result.is_ok());
         let json = result.unwrap();
         assert!(json.contains("a webhook"));
+    }
+}
+
+#[cfg(test)]
+mod webhook_uuid_url_tests {
+    use crate::cli::pact_broker::main::broker_path::expand_path_template;
+    use std::collections::HashMap;
+
+    #[test]
+    fn webhook_uuid_is_validated_as_final_segment() {
+        let values = HashMap::from([("uuid".to_string(), "..".to_string())]);
+        assert!(expand_path_template("http://b/webhooks/{uuid}", &values).is_err());
     }
 }
