@@ -623,15 +623,24 @@ impl HALClient {
         self.parse_broker_response(path.to_string(), response).await
     }
 
-    /// Resolves `path` against the broker URL. Absolute paths and full URLs resolve
-    /// against the host; relative paths resolve under the broker's context path.
+    /// Resolves `path` against the broker URL. Absolute paths resolve against the
+    /// broker host, full URLs stand as given, and relative paths resolve under the
+    /// broker's context path.
     fn resolve_path(&self, path: &str) -> Result<Url, PactBrokerError> {
         let broker_url = self.url.parse::<Url>()?;
         if path.is_empty() {
             return Ok(broker_url);
         }
+        if path.starts_with('/') {
+            // `join` would read a leading `//` as a host.
+            return Ok(Url::parse(&format!(
+                "{}{}",
+                &broker_url[..Position::BeforePath],
+                path
+            ))?);
+        }
         let context_path = broker_url.path().trim_end_matches('/').to_string();
-        if path.starts_with('/') || context_path.is_empty() {
+        if context_path.is_empty() {
             return Ok(broker_url.join(path)?);
         }
         let mut base_url = broker_url;
@@ -835,12 +844,11 @@ impl HALClient {
         let method_type = method.clone();
         debug!("Sending JSON to {} using {}: {}", url, method, body);
 
-        let base_url = &self.url.parse::<Url>()?;
         let url = if url.starts_with("/") {
-            base_url.join(url)?
+            self.resolve_path(url)?
         } else {
             let url = url.parse::<Url>()?;
-            base_url.join(&url[Position::BeforePath..])?
+            self.resolve_path(&url[Position::BeforePath..])?
         };
 
         let request_builder = match self.auth {
@@ -1726,6 +1734,8 @@ mod tests {
             .to(be_ok().value(Url::parse("http://localhost-ip4:1234/base-path/any?q=1").unwrap()));
         expect!(client.resolve_path("/base-pathology"))
             .to(be_ok().value(Url::parse("http://localhost-ip4:1234/base-pathology").unwrap()));
+        expect!(client.resolve_path("//evil/x?q=1"))
+            .to(be_ok().value(Url::parse("http://localhost-ip4:1234//evil/x?q=1").unwrap()));
     }
 
     #[test_log::test(tokio::test)]
@@ -2162,5 +2172,29 @@ mod href_query_tests {
             .await
             .unwrap();
         assert_eq!(*requests.lock().unwrap(), vec!["PUT /things/x?y=1"]);
+    }
+
+    #[tokio::test]
+    async fn double_slash_paths_stay_on_the_broker_host() {
+        let (base, requests) = spawn_recorder().await;
+        let client = HALClient::with_url(&format!("{base}/ctx"), None, SslOptions::default(), None);
+        client
+            .clone()
+            .put_json(&format!("{base}//evil/x?y=1"), "{}", None)
+            .await
+            .unwrap();
+        client
+            .clone()
+            .put_json("//evil/y", "{}", None)
+            .await
+            .unwrap();
+        client
+            .delete_url(&link(&format!("{base}//evil/z"), false), &HashMap::new())
+            .await
+            .unwrap();
+        assert_eq!(
+            *requests.lock().unwrap(),
+            vec!["PUT //evil/x?y=1", "PUT //evil/y", "DELETE //evil/z"]
+        );
     }
 }
