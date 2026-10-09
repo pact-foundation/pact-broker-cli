@@ -6,7 +6,7 @@ use crate::{
 use serde_json::{Value, json};
 use std::collections::HashMap;
 use std::fs;
-use std::path::Path;
+use std::path::{Path, PathBuf};
 
 #[allow(clippy::too_many_arguments)]
 pub fn get_pacts(
@@ -110,6 +110,39 @@ fn build_pacts_path(
     Ok((relation.to_string(), path.build()?))
 }
 
+/// Builds the download path for a pact from broker-supplied names, which must not
+/// be able to place the file outside `download_dir`.
+fn pact_file_path(
+    download_dir: &str,
+    consumer: &str,
+    provider: &str,
+    version: &str,
+) -> Result<PathBuf, PactBrokerError> {
+    fn component(name: &str) -> String {
+        match name {
+            "." | ".." => "_".to_string(),
+            _ => name.replace(['/', '\\'], "_"),
+        }
+    }
+    let file_name = format!(
+        "{}-{}-{}.json",
+        component(consumer),
+        component(provider),
+        component(version)
+    );
+    let dir = Path::new(download_dir);
+    let path = dir.join(&file_name);
+    // On Windows a name such as `C:x` carries a drive prefix, and `join` lets it
+    // replace `dir`.
+    if path.parent() != Some(dir) {
+        return Err(PactBrokerError::IoError(format!(
+            "Refusing to write pact file '{}' outside {}",
+            file_name, download_dir
+        )));
+    }
+    Ok(path)
+}
+
 async fn download_pacts(
     pacts_data: &Value,
     hal_client: &HALClient,
@@ -185,11 +218,10 @@ async fn download_pacts(
             .unwrap_or("unknown");
 
         // Generate filename
-        let filename = format!("{}-{}-{}.json", consumer_name, provider_name, version);
-        let file_path = Path::new(download_dir).join(&filename);
+        let file_path = pact_file_path(download_dir, consumer_name, provider_name, version)?;
 
         // Download the pact content
-        tracing::info!("Downloading pact: {}", filename);
+        tracing::info!("Downloading pact: {}", file_path.display());
 
         // Save to file
         let content_str = serde_json::to_string_pretty(&pact_content).map_err(|e| {
@@ -197,7 +229,11 @@ async fn download_pacts(
         })?;
 
         fs::write(&file_path, content_str).map_err(|e| {
-            PactBrokerError::IoError(format!("Failed to write pact file {}: {}", filename, e))
+            PactBrokerError::IoError(format!(
+                "Failed to write pact file {}: {}",
+                file_path.display(),
+                e
+            ))
         })?;
 
         println!("  → {}", file_path.display());
@@ -655,5 +691,38 @@ mod get_pacts_tests {
     fn test_build_pacts_path_rejects_final_segment_extension() {
         assert!(build_pacts_path("p", None, Some("x.json"), false).is_err());
         assert!(build_pacts_path("p", None, Some("x.json"), true).is_ok());
+    }
+
+    #[test]
+    fn pact_file_path_keeps_ordinary_names() {
+        assert_eq!(
+            pact_file_path("out", "My Consumer", "My Provider", "1.0.0").unwrap(),
+            std::path::Path::new("out").join("My Consumer-My Provider-1.0.0.json")
+        );
+    }
+
+    #[test]
+    fn pact_file_path_stays_inside_download_dir() {
+        let cases = [
+            ("../evil", "p", "1", ".._evil-p-1.json"),
+            ("a/b", "p", "1", "a_b-p-1.json"),
+            ("..\\x", "p", "1", ".._x-p-1.json"),
+            ("..", "..", ".", "_-_-_.json"),
+            ("c", "p", "../../etc/passwd", "c-p-.._.._etc_passwd.json"),
+        ];
+        for (consumer, provider, version, expected) in cases {
+            let path = pact_file_path("out", consumer, provider, version).unwrap();
+            assert_eq!(
+                path,
+                std::path::Path::new("out").join(expected),
+                "{consumer} {provider} {version}"
+            );
+        }
+    }
+
+    #[cfg(windows)]
+    #[test]
+    fn pact_file_path_refuses_drive_prefixed_names() {
+        assert!(pact_file_path("out", "C:evil", "p", "1").is_err());
     }
 }
