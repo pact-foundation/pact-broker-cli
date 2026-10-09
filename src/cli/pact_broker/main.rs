@@ -27,6 +27,7 @@ use serde_json::{Value, json};
 use serde_with::skip_serializing_none;
 use tracing::{debug, error, info, trace, warn};
 pub mod branches;
+pub mod broker_path;
 pub mod can_i_deploy;
 pub mod deployments;
 pub mod environments;
@@ -149,6 +150,9 @@ pub enum PactBrokerError {
     /// Invalid URL
     #[error("Invalid URL - {0}")]
     UrlError(String),
+    /// A value cannot be placed in a URL path without changing which resource it addresses
+    #[error("{0}")]
+    InvalidPathValue(String),
     /// Validation error
     #[error("failed validation - {0:?}")]
     ValidationError(Vec<String>),
@@ -166,6 +170,7 @@ impl PartialEq<String> for PactBrokerError {
             PactBrokerError::IoError(s) => buffer.push_str(s),
             PactBrokerError::NotFound(s) => buffer.push_str(s),
             PactBrokerError::UrlError(s) => buffer.push_str(s),
+            PactBrokerError::InvalidPathValue(s) => buffer.push_str(s),
             PactBrokerError::ValidationError(errors) => {
                 buffer.push_str(errors.iter().join(", ").as_str())
             }
@@ -185,6 +190,7 @@ impl PartialEq<&str> for PactBrokerError {
             PactBrokerError::IoError(s) => s.clone(),
             PactBrokerError::NotFound(s) => s.clone(),
             PactBrokerError::UrlError(s) => s.clone(),
+            PactBrokerError::InvalidPathValue(s) => s.clone(),
             PactBrokerError::ValidationError(errors) => errors.iter().join(", "),
             PactBrokerError::ValidationErrorWithNotices(errors, _) => errors.iter().join(", "),
         };
