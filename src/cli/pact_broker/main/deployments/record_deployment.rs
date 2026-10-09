@@ -4,6 +4,7 @@ use serde_json::{Value, json};
 use crate::cli::{
     pact_broker::main::{
         HALClient, PactBrokerError,
+        broker_path::BrokerPath,
         utils::{get_auth, get_broker_url, get_custom_headers, get_retries, get_ssl_options},
     },
     utils,
@@ -18,17 +19,19 @@ pub fn record_deployment(args: &clap::ArgMatches) -> Result<String, PactBrokerEr
     let auth = get_auth(args);
     let custom_headers = get_custom_headers(args);
     let ssl_options = get_ssl_options(args);
+    let version_href = BrokerPath::new(&broker_url)
+        .literal("pacticipants")
+        .value("--pacticipant", pacticipant.unwrap())
+        .literal("versions")
+        .value("--version", version.unwrap())
+        .build()?;
     tokio::runtime::Runtime::new().unwrap().block_on(async {
                 let hal_client: HALClient = HALClient::with_url(&broker_url, Some(auth.clone()), ssl_options.clone(), custom_headers.clone())
                     .with_retry_count(get_retries(args));
 
                 let res = hal_client.clone()
                     .fetch(
-                        &(broker_url.clone()
-                            + "/pacticipants/"
-                            + pacticipant.unwrap()
-                            + "/versions/"
-                            + version.unwrap()),
+                        &version_href,
                     )
                     .await;
 
@@ -426,5 +429,33 @@ mod record_deployment_tests {
         assert!(err.contains("Environment"));
         assert!(err.contains("foo"));
         assert!(err.contains("does not exist"));
+    }
+}
+
+#[cfg(test)]
+mod record_deployment_url_tests {
+    use super::record_deployment;
+    use crate::cli::pact_broker::main::subcommands::add_record_deployment_subcommand;
+    use crate::cli::pact_broker::main::test_utils::spawn_recording_broker;
+
+    #[test]
+    fn encodes_pacticipant_and_version() {
+        let (broker_url, requests) = spawn_recording_broker();
+        let matches = add_record_deployment_subcommand().get_matches_from(vec![
+            "record-deployment",
+            "-b",
+            broker_url.as_str(),
+            "--pacticipant",
+            "my consumer",
+            "--version",
+            "fix/1",
+            "--environment",
+            "test",
+        ]);
+        let _ = record_deployment(&matches);
+        assert_eq!(
+            requests.lock().unwrap().first().map(String::as_str),
+            Some("GET /pacticipants/my%20consumer/versions/fix%2F1")
+        );
     }
 }

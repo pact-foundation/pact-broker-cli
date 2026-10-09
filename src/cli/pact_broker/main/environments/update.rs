@@ -1,6 +1,7 @@
 use crate::cli::{
     pact_broker::main::{
         HALClient, PactBrokerError,
+        broker_path::BrokerPath,
         utils::{get_auth, get_broker_url, get_custom_headers, get_retries, get_ssl_options},
     },
     utils,
@@ -20,7 +21,10 @@ pub fn update_environment(args: &clap::ArgMatches) -> Result<String, PactBrokerE
     let auth = get_auth(args);
     let custom_headers = get_custom_headers(args);
     let ssl_options = get_ssl_options(args);
-    let environments_href = format!("{}/environments/{}", broker_url, uuid.clone());
+    let environments_href = BrokerPath::new(&broker_url)
+        .literal("environments")
+        .value("--uuid", &uuid)
+        .build()?;
     tokio::runtime::Runtime::new().unwrap().block_on(async {
         let hal_client: HALClient = HALClient::with_url(
             &broker_url,
