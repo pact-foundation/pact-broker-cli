@@ -450,7 +450,9 @@ pub async fn get_broker_relation(
     match index_res {
         Ok(_) => {
             let index_res_clone = index_res.clone().unwrap();
-            let relation_value = index_res_clone.get("_links").unwrap().get(&relation);
+            let relation_value = index_res_clone
+                .get("_links")
+                .and_then(|links| links.get(&relation));
 
             if relation_value.is_none() {
                 return Err(PactBrokerError::NotFound(format!(
@@ -459,12 +461,14 @@ pub async fn get_broker_relation(
                 )));
             }
 
-            Ok(relation_value
+            relation_value
                 .unwrap()
                 .get("href")
-                .unwrap()
-                .to_string()
-                .replace("\"", ""))
+                .and_then(Value::as_str)
+                .map(str::to_string)
+                .ok_or_else(|| {
+                    PactBrokerError::LinkError(format!("Relation '{}' has no href", relation))
+                })
         }
         Err(err) => Err(err),
     }
@@ -532,4 +536,41 @@ pub(crate) fn handle_error(err: PactBrokerError) -> PactBrokerError {
         }
     }
     err
+}
+
+#[cfg(test)]
+mod get_broker_relation_tests {
+    use axum::Router;
+    use tokio::net::TcpListener;
+
+    use super::get_broker_relation;
+    use crate::cli::pact_broker::main::{HALClient, PactBrokerError, types::SslOptions};
+
+    async fn relation_from_index(index: &'static str) -> Result<String, PactBrokerError> {
+        let router = Router::new()
+            .fallback(move || async move { ([("content-type", "application/hal+json")], index) });
+        let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
+        let base = format!("http://{}", listener.local_addr().unwrap());
+        tokio::spawn(async move { axum::serve(listener, router).await.unwrap() });
+
+        let client = HALClient::with_url(&base, None, SslOptions::default(), None);
+        get_broker_relation(client, "pb:thing".to_string(), base).await
+    }
+
+    #[tokio::test]
+    async fn returns_href_without_json_escaping() {
+        let href = relation_from_index(r#"{"_links":{"pb:thing":{"href":"/a\\b/\"c\"/{uuid}"}}}"#)
+            .await
+            .unwrap();
+        assert_eq!(href, r#"/a\b/"c"/{uuid}"#);
+    }
+
+    #[tokio::test]
+    async fn index_without_links_is_not_found() {
+        let result = relation_from_index(r#"{"name":"not a HAL index"}"#).await;
+        assert!(
+            matches!(result, Err(PactBrokerError::NotFound(_))),
+            "{result:?}"
+        );
+    }
 }
