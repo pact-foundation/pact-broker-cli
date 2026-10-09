@@ -159,12 +159,12 @@ mod tests {
         ];
         for (value, expected) in cases {
             assert_eq!(
-                encode_path_value("--x", value, false).unwrap(),
+                encode_path_value("x", value, false).unwrap(),
                 expected,
                 "{value}"
             );
             assert_eq!(
-                encode_path_value("--x", value, true).unwrap(),
+                encode_path_value("x", value, true).unwrap(),
                 expected,
                 "{value}"
             );
@@ -175,16 +175,16 @@ mod tests {
     fn rejects_empty_and_dot_segments_in_any_position() {
         for is_last in [false, true] {
             assert_eq!(
-                err_message(encode_path_value("--tag", "", is_last)),
-                "--tag value '' cannot be sent: empty values produce an empty URL path segment"
+                err_message(encode_path_value("tag", "", is_last)),
+                "tag value '' cannot be sent: empty values produce an empty URL path segment"
             );
             assert_eq!(
-                err_message(encode_path_value("--pacticipant", "..", is_last)),
-                "--pacticipant value '..' cannot be sent: '.' and '..' are URL dot-segments"
+                err_message(encode_path_value("pacticipant", "..", is_last)),
+                "pacticipant value '..' cannot be sent: '.' and '..' are URL dot-segments"
             );
-            assert!(encode_path_value("--pacticipant", ".", is_last).is_err());
+            assert!(encode_path_value("pacticipant", ".", is_last).is_err());
         }
-        assert!(encode_path_value("--x", "...", true).is_ok());
+        assert!(encode_path_value("x", "...", true).is_ok());
     }
 
     #[test]
@@ -192,26 +192,26 @@ mod tests {
         for ext in [".json", ".csv", ".svg", ".yaml"] {
             let value = format!("release{ext}");
             assert_eq!(
-                err_message(encode_path_value("--branch", &value, true)),
+                err_message(encode_path_value("branch", &value, true)),
                 format!(
-                    "--branch value '{value}' cannot be sent: the Pact Broker strips a trailing '{ext}' from the final URL path segment"
+                    "branch value '{value}' cannot be sent: the Pact Broker strips a trailing '{ext}' from the final URL path segment"
                 )
             );
-            assert_eq!(encode_path_value("--branch", &value, false).unwrap(), value);
+            assert_eq!(encode_path_value("branch", &value, false).unwrap(), value);
         }
-        assert!(encode_path_value("--branch", "release.JSON", true).is_ok());
-        assert!(encode_path_value("--branch", "release.yml", true).is_ok());
+        assert!(encode_path_value("branch", "release.JSON", true).is_ok());
+        assert!(encode_path_value("branch", "release.yml", true).is_ok());
     }
 
     #[test]
     fn builds_paths_from_literals_and_values() {
         let path = BrokerPath::new("http://broker/ctx/")
             .literal("pacticipants")
-            .value("--pacticipant", "my consumer")
+            .value("pacticipant", "my consumer")
             .literal("branches")
-            .value("--branch", "fix/foo")
+            .value("branch", "fix/foo")
             .literal("versions")
-            .value("--version", "1.0.0")
+            .value("version", "1.0.0")
             .build()
             .unwrap();
         assert_eq!(
@@ -221,7 +221,7 @@ mod tests {
         assert_eq!(
             BrokerPath::new("")
                 .literal("pacts")
-                .value("--provider", "p")
+                .value("provider", "p")
                 .build()
                 .unwrap(),
             "/pacts/p"
@@ -233,7 +233,7 @@ mod tests {
         assert!(
             BrokerPath::new("")
                 .literal("branches")
-                .value("--branch", "release.json")
+                .value("branch", "release.json")
                 .literal("versions")
                 .build()
                 .is_ok()
@@ -241,7 +241,7 @@ mod tests {
         assert!(
             BrokerPath::new("")
                 .literal("tags")
-                .value("--tag", "release.json")
+                .value("tag", "release.json")
                 .build()
                 .is_err()
         );

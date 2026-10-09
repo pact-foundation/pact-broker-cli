@@ -21,9 +21,9 @@ pub fn record_deployment(args: &clap::ArgMatches) -> Result<String, PactBrokerEr
     let ssl_options = get_ssl_options(args);
     let version_href = BrokerPath::new(&broker_url)
         .literal("pacticipants")
-        .value("--pacticipant", pacticipant.unwrap())
+        .value("pacticipant", pacticipant.unwrap())
         .literal("versions")
-        .value("--version", version.unwrap())
+        .value("version", version.unwrap())
         .build()?;
     tokio::runtime::Runtime::new().unwrap().block_on(async {
                 let hal_client: HALClient = HALClient::with_url(&broker_url, Some(auth.clone()), ssl_options.clone(), custom_headers.clone())

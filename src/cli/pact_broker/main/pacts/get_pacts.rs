@@ -86,13 +86,13 @@ fn build_pacts_path(
     let mut path = BrokerPath::new("")
         .literal("pacts")
         .literal("provider")
-        .value("--provider", provider);
+        .value("provider", provider);
     if let Some(consumer) = consumer {
-        path = path.literal("consumer").value("--consumer", consumer);
+        path = path.literal("consumer").value("consumer", consumer);
     }
     path = path.literal("branch");
     if let Some(branch) = branch {
-        path = path.value("--branch", branch);
+        path = path.value("branch", branch);
     }
     if latest {
         path = path.literal("latest");
