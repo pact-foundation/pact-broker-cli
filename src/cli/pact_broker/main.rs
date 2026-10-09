@@ -24,6 +24,7 @@ use serde::{Deserialize, Serialize};
 use serde_json::{Value, json};
 use serde_with::skip_serializing_none;
 use tracing::{debug, error, info, trace};
+use url::Position;
 pub mod branches;
 pub mod broker_path;
 pub mod can_i_deploy;
@@ -559,7 +560,7 @@ impl HALClient {
 
         let base_url = self.url.parse::<Url>()?;
         let joined_url = base_url.join(&link_url)?;
-        self.fetch(joined_url.path()).await
+        self.fetch(&joined_url[Position::BeforePath..]).await
     }
     pub async fn delete_url(
         self,
@@ -588,7 +589,7 @@ impl HALClient {
         debug!("link_url: {}", link_url);
         let joined_url = base_url.join(&link_url)?;
         debug!("joined_url: {}", joined_url);
-        self.delete(joined_url.path()).await
+        self.delete(&joined_url[Position::BeforePath..]).await
     }
 
     pub async fn fetch(&self, path: &str) -> Result<Value, PactBrokerError> {
@@ -839,7 +840,7 @@ impl HALClient {
             base_url.join(url)?
         } else {
             let url = url.parse::<Url>()?;
-            base_url.join(url.path())?
+            base_url.join(&url[Position::BeforePath..])?
         };
 
         let request_builder = match self.auth {
@@ -2075,5 +2076,91 @@ mod retry_middleware_tests {
             "all retries exhausted should return error, got: {:?}",
             result
         );
+    }
+}
+
+#[cfg(test)]
+mod href_query_tests {
+    use std::collections::HashMap;
+    use std::sync::{Arc, Mutex};
+
+    use axum::Router;
+    use axum::http::{Method, Uri};
+    use tokio::net::TcpListener;
+
+    use super::{HALClient, Link, SslOptions};
+
+    async fn spawn_recorder() -> (String, Arc<Mutex<Vec<String>>>) {
+        let requests = Arc::new(Mutex::new(Vec::new()));
+        let recorded = requests.clone();
+        let router = Router::new().fallback(move |method: Method, uri: Uri| {
+            let recorded = recorded.clone();
+            async move {
+                let target = uri.path_and_query().map(|pq| pq.as_str()).unwrap_or("");
+                recorded.lock().unwrap().push(format!("{method} {target}"));
+                (
+                    [("content-type", "application/hal+json")],
+                    "{\"_links\":{}}",
+                )
+            }
+        });
+        let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
+        let addr = listener.local_addr().unwrap();
+        tokio::spawn(async move { axum::serve(listener, router).await.unwrap() });
+        (format!("http://{addr}"), requests)
+    }
+
+    fn link(href: &str, templated: bool) -> Link {
+        Link {
+            name: "test".to_string(),
+            href: Some(href.to_string()),
+            templated,
+            title: None,
+        }
+    }
+
+    #[tokio::test]
+    async fn fetch_url_keeps_query_string() {
+        let (base, requests) = spawn_recorder().await;
+        let client = HALClient::with_url(&base, None, SslOptions::default(), None);
+        let values = HashMap::from([("name".to_string(), "a b".to_string())]);
+        client
+            .clone()
+            .fetch_url(&link("/things/{name}?expand=true", true), &values)
+            .await
+            .unwrap();
+        client
+            .fetch_url(&link(&format!("{base}/plain?x=1"), false), &HashMap::new())
+            .await
+            .unwrap();
+        assert_eq!(
+            *requests.lock().unwrap(),
+            vec!["GET /things/a%20b?expand=true", "GET /plain?x=1"]
+        );
+    }
+
+    #[tokio::test]
+    async fn delete_url_keeps_query_string() {
+        let (base, requests) = spawn_recorder().await;
+        let client = HALClient::with_url(&format!("{base}/ctx"), None, SslOptions::default(), None);
+        client
+            .delete_url(&link("/ctx/things/x?force=true", false), &HashMap::new())
+            .await
+            .unwrap();
+        assert_eq!(
+            *requests.lock().unwrap(),
+            vec!["DELETE /ctx/things/x?force=true"]
+        );
+    }
+
+    #[tokio::test]
+    async fn put_json_keeps_query_string() {
+        let (base, requests) = spawn_recorder().await;
+        let client = HALClient::with_url(&base, None, SslOptions::default(), None);
+        client
+            .put_json(&format!("{base}/things/x?y=1"), "{}", None)
+            .await
+            .unwrap();
+        assert_eq!(*requests.lock().unwrap(), vec!["PUT /things/x?y=1"]);
     }
 }
