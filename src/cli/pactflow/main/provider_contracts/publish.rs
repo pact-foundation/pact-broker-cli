@@ -528,3 +528,51 @@ mod publish_provider_contract_tests {
         }
     }
 }
+
+#[cfg(test)]
+mod publish_provider_contract_url_tests {
+    use crate::cli::pact_broker::main::PactBrokerError;
+    use crate::cli::pact_broker::main::test_utils::spawn_recording_broker_with_index;
+    use crate::cli::pactflow::main::provider_contracts::publish::publish;
+    use crate::cli::pactflow::main::subcommands::add_publish_provider_contract_subcommand;
+
+    fn run(provider: &str) -> (Result<serde_json::Value, PactBrokerError>, Vec<String>) {
+        let (broker_url, requests) = spawn_recording_broker_with_index(
+            r#"{"pf:publish-provider-contract":{"href":"BASE/provider-contracts/provider/{provider}/publish","templated":true}}"#,
+        );
+        let matches = add_publish_provider_contract_subcommand().get_matches_from(vec![
+            "publish-provider-contract",
+            "tests/fixtures/provider-contract.yaml",
+            "-b",
+            broker_url.as_str(),
+            "--provider",
+            provider,
+            "--provider-app-version",
+            "1.0.0",
+        ]);
+        let result = publish(&matches);
+        (result, requests.lock().unwrap().clone())
+    }
+
+    #[test]
+    fn publish_encodes_provider() {
+        assert_eq!(
+            run("my provider/x").1,
+            vec![
+                "GET /",
+                "POST /provider-contracts/provider/my%20provider%2Fx/publish"
+            ]
+        );
+    }
+
+    #[test]
+    fn publish_rejects_dot_segment_provider() {
+        let (result, requests) = run("..");
+        let message = result.unwrap_err().to_string();
+        assert!(
+            message.contains("provider value '..' cannot be sent"),
+            "{message}"
+        );
+        assert_eq!(requests, vec!["GET /"]);
+    }
+}
