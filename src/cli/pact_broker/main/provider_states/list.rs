@@ -91,11 +91,11 @@ fn build_provider_states_path(
     let path = BrokerPath::new("")
         .literal("pacts")
         .literal("provider")
-        .value("--provider", provider)
+        .value("provider", provider)
         .literal("provider-states");
     match (branch, environment) {
-        (Some(branch_name), None) => path.literal("branch").value("--branch", branch_name),
-        (None, Some(env_name)) => path.literal("environment").value("--environment", env_name),
+        (Some(branch_name), None) => path.literal("branch").value("branch", branch_name),
+        (None, Some(env_name)) => path.literal("environment").value("environment", env_name),
         // Both set is rejected by clap; fall back to the main branch.
         (None, None) | (Some(_), Some(_)) => path,
     }

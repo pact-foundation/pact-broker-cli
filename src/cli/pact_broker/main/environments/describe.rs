@@ -16,7 +16,7 @@ pub fn describe_environment(args: &clap::ArgMatches) -> Result<String, PactBroke
 
     let environment_href = BrokerPath::new(&broker_url)
         .literal("environments")
-        .value("--uuid", &uuid)
+        .value("uuid", &uuid)
         .build()?;
     tokio::runtime::Runtime::new().unwrap().block_on(async {
         let hal_client: HALClient = HALClient::with_url(

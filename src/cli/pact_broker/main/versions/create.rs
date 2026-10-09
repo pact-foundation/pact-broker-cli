@@ -20,19 +20,19 @@ pub fn create_or_update_version(args: &clap::ArgMatches) -> Result<String, PactB
         .collect::<Vec<_>>();
     let version_href = BrokerPath::new(&broker_url)
         .literal("pacticipants")
-        .value("--pacticipant", pacticipant_name)
+        .value("pacticipant", pacticipant_name)
         .literal("versions")
-        .value("--version", version_number)
+        .value("version", version_number)
         .build()?;
     let branch_href = branch_name
         .map(|branch| {
             BrokerPath::new(&broker_url)
                 .literal("pacticipants")
-                .value("--pacticipant", pacticipant_name)
+                .value("pacticipant", pacticipant_name)
                 .literal("branches")
-                .value("--branch", branch)
+                .value("branch", branch)
                 .literal("versions")
-                .value("--version", version_number)
+                .value("version", version_number)
                 .build()
         })
         .transpose()?;
@@ -41,11 +41,11 @@ pub fn create_or_update_version(args: &clap::ArgMatches) -> Result<String, PactB
         .map(|tag| {
             BrokerPath::new(&broker_url)
                 .literal("pacticipants")
-                .value("--pacticipant", pacticipant_name)
+                .value("pacticipant", pacticipant_name)
                 .literal("versions")
-                .value("--version", version_number)
+                .value("version", version_number)
                 .literal("tags")
-                .value("--tag", tag)
+                .value("tag", tag)
                 .build()
                 .map(|href| (tag, href))
         })

@@ -21,20 +21,20 @@ pub fn create_version_tag(args: &clap::ArgMatches) -> Result<String, PactBrokerE
     let tag_with_git_branch = args.get_flag("tag-with-git-branch");
     let version_href = BrokerPath::new(&broker_url)
         .literal("pacticipants")
-        .value("--pacticipant", pacticipant_name)
+        .value("pacticipant", pacticipant_name)
         .literal("versions")
-        .value("--version", version_number)
+        .value("version", version_number)
         .build()?;
     let tag_hrefs = tags
         .iter()
         .map(|tag| {
             BrokerPath::new(&broker_url)
                 .literal("pacticipants")
-                .value("--pacticipant", pacticipant_name)
+                .value("pacticipant", pacticipant_name)
                 .literal("versions")
-                .value("--version", version_number)
+                .value("version", version_number)
                 .literal("tags")
-                .value("--tag", tag)
+                .value("tag", tag)
                 .build()
                 .map(|href| (tag, href))
         })

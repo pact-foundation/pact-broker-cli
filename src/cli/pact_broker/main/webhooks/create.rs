@@ -113,9 +113,9 @@ pub fn create_webhook(args: &clap::ArgMatches) -> Result<String, PactBrokerError
                 let endpoint = BrokerPath::new(&broker_url)
                     .literal("webhooks")
                     .literal("provider")
-                    .value("--provider", provider.unwrap())
+                    .value("provider", provider.unwrap())
                     .literal("consumer")
-                    .value("--consumer", consumer.unwrap())
+                    .value("consumer", consumer.unwrap())
                     .build()?;
                 Ok((endpoint, WebhookOperation::Create))
             } else if let Some(uuid) = webhook_uuid.filter(|uuid| !uuid.is_empty()) {
