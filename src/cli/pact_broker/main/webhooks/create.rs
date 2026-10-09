@@ -969,8 +969,49 @@ mod create_webhook_tests {
 
 #[cfg(test)]
 mod webhook_uuid_url_tests {
+    use super::create_webhook;
+    use crate::cli::pact_broker::main::PactBrokerError;
     use crate::cli::pact_broker::main::broker_path::expand_path_template;
+    use crate::cli::pact_broker::main::subcommands::add_create_or_update_webhook_subcommand;
+    use crate::cli::pact_broker::main::test_utils::spawn_recording_broker_with_index;
     use std::collections::HashMap;
+
+    fn run(uuid: &str) -> (Result<String, PactBrokerError>, Vec<String>) {
+        let (broker_url, requests) = spawn_recording_broker_with_index(
+            r#"{"pb:webhook":{"href":"BASE/webhooks/{uuid}","templated":true}}"#,
+        );
+        let matches = add_create_or_update_webhook_subcommand().get_matches_from(vec![
+            "create-or-update-webhook",
+            "https://example.com/hook",
+            "-b",
+            broker_url.as_str(),
+            "--uuid",
+            uuid,
+            "--request",
+            "POST",
+            "--contract-published",
+        ]);
+        let result = create_webhook(&matches);
+        let requests = requests.lock().unwrap().clone();
+        (result, requests)
+    }
+
+    #[test]
+    fn create_or_update_webhook_encodes_uuid() {
+        let (_, requests) = run("a/b");
+        assert_eq!(requests, vec!["GET /", "PUT /webhooks/a%2Fb"]);
+    }
+
+    #[test]
+    fn create_or_update_webhook_rejects_dot_segment_uuid() {
+        let (result, requests) = run("..");
+        let message = result.unwrap_err().to_string();
+        assert!(
+            message.contains("uuid value '..' cannot be sent"),
+            "{message}"
+        );
+        assert_eq!(requests, vec!["GET /"]);
+    }
 
     #[test]
     fn webhook_uuid_is_validated_as_final_segment() {
