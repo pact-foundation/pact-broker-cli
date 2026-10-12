@@ -48,15 +48,39 @@ struct Links {
     pb_pacticipant_version_tags: Vec<Value>,
 }
 
+const ALLOWED_CONTRACT_URL_HOST: &str = "api.swaggerhub.com";
+
+/// True only for an `https` URL on exactly `ALLOWED_CONTRACT_URL_HOST` with no
+/// embedded credentials. Anything else is treated as a local file path.
+fn is_supported_contract_url(input: &str) -> bool {
+    url::Url::parse(input).is_ok_and(|parsed| {
+        parsed.scheme() == "https"
+            && parsed.username().is_empty()
+            && parsed.password().is_none()
+            && parsed.host_str() == Some(ALLOWED_CONTRACT_URL_HOST)
+    })
+}
+
+/// Returns the value for `contract.content`: a supported URL as-is (never
+/// downloaded by the CLI), otherwise the base64-encoded contents of the file.
+fn load_contract_content(input: &str) -> Result<String, PactBrokerError> {
+    if is_supported_contract_url(input) {
+        return Ok(input.to_string());
+    }
+    std::fs::read_to_string(input)
+        .map(|content| Base64.encode(content))
+        .map_err(|e| {
+            println!("❌ Failed to read contract file: {}", e);
+            PactBrokerError::IoError(e.to_string())
+        })
+}
+
 pub fn publish(args: &ArgMatches) -> Result<Value, PactBrokerError> {
-    // Load contract file
-    let contract_file = args
+    // Load contract file, or accept a SwaggerHub URL
+    let contract_input = args
         .get_one::<String>("contract-file")
         .expect("CONTRACT_FILE is required");
-    let contract_content = std::fs::read_to_string(contract_file).map_err(|e| {
-        println!("❌ Failed to read contract file: {}", e);
-        PactBrokerError::IoError(e.to_string())
-    })?;
+    let contract_content = load_contract_content(contract_input)?;
 
     let broker_url = get_broker_url(args).trim_end_matches('/').to_string();
     let auth = get_auth(args);
@@ -174,7 +198,7 @@ pub fn publish(args: &ArgMatches) -> Result<Value, PactBrokerError> {
 
             // Build contract params
             let mut contract_params = json!({
-                "content": Base64.encode(contract_content),
+                "content": contract_content,
                 "specification": specification,
                 "contentType": content_type,
             });
@@ -525,6 +549,60 @@ mod publish_provider_contract_tests {
                 // Expected IoError when verification results file does not exist
             }
             _ => panic!("Expected IoError but got: {:?}", error),
+        }
+    }
+}
+
+#[cfg(test)]
+mod contract_content_tests {
+    use super::load_contract_content;
+    use crate::cli::pact_broker::main::PactBrokerError;
+
+    #[test]
+    fn file_input_is_read_and_base64_encoded() {
+        assert_eq!(
+            load_contract_content("tests/fixtures/provider-contract.yaml").unwrap(),
+            "c29tZToKICBjb250cmFjdA=="
+        );
+    }
+
+    #[test]
+    fn missing_file_is_io_error() {
+        assert!(matches!(
+            load_contract_content("tests/fixtures/nope.yaml"),
+            Err(PactBrokerError::IoError(_))
+        ));
+    }
+
+    #[test]
+    fn accepted_urls_are_returned_unchanged_and_unencoded() {
+        for url in [
+            "https://api.swaggerhub.com/apis/OWNER/petstore-api/1.0.0",
+            "https://api.swaggerhub.com/apis/O/a/1?x=y#z",
+            "HTTPS://API.SWAGGERHUB.COM/apis/O/a/1",
+        ] {
+            assert_eq!(load_contract_content(url).unwrap(), url);
+        }
+    }
+
+    #[test]
+    fn other_urls_are_treated_as_file_paths() {
+        for url in [
+            "https://",
+            "https:///apis/x",
+            "http://api.swaggerhub.com/apis/O/a/1",
+            "ftp://api.swaggerhub.com/apis/O/a/1",
+            "https://example.com/apis/O/a/1",
+            "https://api.swaggerhub.com.evil.com/a",
+            "https://evil.api.swaggerhub.com/a",
+            "https://api.swaggerhub.com@evil.com/a",
+            "https://user@api.swaggerhub.com/a",
+            "https://user:pw@api.swaggerhub.com/a",
+        ] {
+            assert!(
+                matches!(load_contract_content(url), Err(PactBrokerError::IoError(_))),
+                "{url}"
+            );
         }
     }
 }
