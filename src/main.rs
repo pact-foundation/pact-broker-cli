@@ -18,7 +18,11 @@ pub fn handle_matches(
     let raw_args = if let Some(args) = raw_args {
         args
     } else {
-        std::env::args().skip(1).collect()
+        // `env::args` panics on non-UTF-8 input before clap can report it.
+        std::env::args_os()
+            .skip(1)
+            .map(|arg| arg.to_string_lossy().into_owned())
+            .collect()
     };
     match matches {
         Ok(results) => {

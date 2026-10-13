@@ -1,7 +1,6 @@
 //! Structs and functions for interacting with a Pact Broker
 
 use std::collections::HashMap;
-use std::ops::Not;
 use std::panic::RefUnwindSafe;
 use std::str::from_utf8;
 
@@ -20,19 +19,22 @@ pub struct CustomHeaders {
     pub headers: std::collections::HashMap<String, String>,
 }
 use pact_models::pact::{Pact, load_pact_from_json};
-use regex::{Captures, Regex};
 use reqwest::{Method, Url};
 use serde::{Deserialize, Serialize};
 use serde_json::{Value, json};
 use serde_with::skip_serializing_none;
-use tracing::{debug, error, info, trace, warn};
+use tracing::{debug, error, info, trace};
+use url::Position;
 pub mod branches;
+pub mod broker_path;
 pub mod can_i_deploy;
 pub mod deployments;
 pub mod environments;
 pub mod pact_publish;
 pub mod pacticipants;
 pub mod pacts;
+#[cfg(test)]
+mod path_encoding_tests;
 pub mod provider_states;
 pub mod subcommands;
 pub mod tags;
@@ -149,6 +151,9 @@ pub enum PactBrokerError {
     /// Invalid URL
     #[error("Invalid URL - {0}")]
     UrlError(String),
+    /// A value cannot be placed in a URL path without changing which resource it addresses
+    #[error("{0}")]
+    InvalidPathValue(String),
     /// Validation error
     #[error("failed validation - {0:?}")]
     ValidationError(Vec<String>),
@@ -166,6 +171,7 @@ impl PartialEq<String> for PactBrokerError {
             PactBrokerError::IoError(s) => buffer.push_str(s),
             PactBrokerError::NotFound(s) => buffer.push_str(s),
             PactBrokerError::UrlError(s) => buffer.push_str(s),
+            PactBrokerError::InvalidPathValue(s) => buffer.push_str(s),
             PactBrokerError::ValidationError(errors) => {
                 buffer.push_str(errors.iter().join(", ").as_str())
             }
@@ -185,6 +191,7 @@ impl PartialEq<&str> for PactBrokerError {
             PactBrokerError::IoError(s) => s.clone(),
             PactBrokerError::NotFound(s) => s.clone(),
             PactBrokerError::UrlError(s) => s.clone(),
+            PactBrokerError::InvalidPathValue(s) => s.clone(),
             PactBrokerError::ValidationError(errors) => errors.iter().join(", "),
             PactBrokerError::ValidationErrorWithNotices(errors, _) => errors.iter().join(", "),
         };
@@ -553,7 +560,7 @@ impl HALClient {
 
         let base_url = self.url.parse::<Url>()?;
         let joined_url = base_url.join(&link_url)?;
-        self.fetch(joined_url.path()).await
+        self.fetch(&joined_url[Position::BeforePath..]).await
     }
     pub async fn delete_url(
         self,
@@ -582,7 +589,7 @@ impl HALClient {
         debug!("link_url: {}", link_url);
         let joined_url = base_url.join(&link_url)?;
         debug!("joined_url: {}", joined_url);
-        self.delete(joined_url.path()).await
+        self.delete(&joined_url[Position::BeforePath..]).await
     }
 
     pub async fn fetch(&self, path: &str) -> Result<Value, PactBrokerError> {
@@ -616,48 +623,35 @@ impl HALClient {
         self.parse_broker_response(path.to_string(), response).await
     }
 
+    /// Resolves `path` against the broker URL. Absolute paths resolve against the
+    /// broker host, full URLs stand as given, and relative paths resolve under the
+    /// broker's context path.
     fn resolve_path(&self, path: &str) -> Result<Url, PactBrokerError> {
         let broker_url = self.url.parse::<Url>()?;
-        let context_path = broker_url.path();
-        let url = if path.is_empty() {
-            broker_url
-        } else if !context_path.is_empty() && context_path != "/" {
-            if path.starts_with(context_path) {
-                let mut base_url = broker_url.clone();
-                base_url.set_path("/");
-                base_url.join(path)?
-            } else if path.starts_with("/") {
-                let mut base_url = broker_url.clone();
-                base_url.set_path(path);
-                base_url
-            } else {
-                let mut base_url = broker_url.clone();
-                let mut cp = context_path.to_string();
-                cp.push('/');
-                base_url.set_path(cp.as_str());
-                base_url.join(path)?
-            }
-        } else {
-            broker_url.join(path)?
-        };
-        Ok(url)
+        if path.is_empty() {
+            return Ok(broker_url);
+        }
+        if path.starts_with('/') {
+            // `join` would read a leading `//` as a host.
+            return Ok(Url::parse(&format!(
+                "{}{}",
+                &broker_url[..Position::BeforePath],
+                path
+            ))?);
+        }
+        let context_path = broker_url.path().trim_end_matches('/').to_string();
+        if context_path.is_empty() {
+            return Ok(broker_url.join(path)?);
+        }
+        let mut base_url = broker_url;
+        base_url.set_path(&format!("{context_path}/"));
+        Ok(base_url.join(path)?)
     }
 
     pub async fn delete(self, path: &str) -> Result<Value, PactBrokerError> {
         info!("Deleting path '{}' from pact broker", path);
 
-        let broker_url = self.url.parse::<Url>()?;
-        let context_path = broker_url.path();
-        let url = if context_path.is_empty().not()
-            && context_path != "/"
-            && path.starts_with(context_path)
-        {
-            let mut base_url = broker_url.clone();
-            base_url.set_path("/");
-            base_url.join(path)?
-        } else {
-            broker_url.join(path)?
-        };
+        let url = self.resolve_path(path)?;
 
         let mut request_builder = match self.auth {
             Some(ref auth) => match auth {
@@ -773,23 +767,9 @@ impl HALClient {
         match link.href {
             Some(ref href) => {
                 debug!("templated URL = {}", href);
-                let re = Regex::new(r"\{(\w+)}").unwrap();
-                let final_url = re.replace_all(href, |caps: &Captures| {
-                    let lookup = caps.get(1).unwrap().as_str();
-                    trace!("Looking up value for key '{}'", lookup);
-                    match values.get(lookup) {
-                        Some(val) => urlencoding::encode(val.as_str()).to_string(),
-                        None => {
-                            warn!(
-                                "No value was found for key '{}', mapped values are {:?}",
-                                lookup, values
-                            );
-                            format!("{{{}}}", lookup)
-                        }
-                    }
-                });
+                let final_url = broker_path::expand_path_template(href, values)?;
                 debug!("final URL = {}", final_url);
-                Ok(final_url.to_string())
+                Ok(final_url)
             }
             None => Err(PactBrokerError::LinkError(format!(
                 "Expected a HAL+JSON response from the pact broker, but got a link with no HREF. URL: '{}', LINK: '{}'",
@@ -864,12 +844,11 @@ impl HALClient {
         let method_type = method.clone();
         debug!("Sending JSON to {} using {}: {}", url, method, body);
 
-        let base_url = &self.url.parse::<Url>()?;
         let url = if url.starts_with("/") {
-            base_url.join(url)?
+            self.resolve_path(url)?
         } else {
             let url = url.parse::<Url>()?;
-            base_url.join(url.path())?
+            self.resolve_path(&url[Position::BeforePath..])?
         };
 
         let request_builder = match self.auth {
@@ -1721,6 +1700,8 @@ mod tests {
             .to(be_ok().value(Url::parse("http://localhost-ip4:1234/base-path/").unwrap()));
         expect!(client.resolve_path("/base-path/sub-path"))
             .to(be_ok().value(Url::parse("http://localhost-ip4:1234/base-path/sub-path").unwrap()));
+        expect!(client.resolve_path("/any?q=1"))
+            .to(be_ok().value(Url::parse("http://localhost-ip4:1234/any?q=1").unwrap()));
 
         let client = HALClient::with_url(
             "http://localhost-ip4:1234/base-path",
@@ -1745,6 +1726,16 @@ mod tests {
             .to(be_ok().value(Url::parse("http://localhost-ip4:1234/base-path/").unwrap()));
         expect!(client.resolve_path("/base-path/sub-path"))
             .to(be_ok().value(Url::parse("http://localhost-ip4:1234/base-path/sub-path").unwrap()));
+        expect!(client.resolve_path("/any?q=1"))
+            .to(be_ok().value(Url::parse("http://localhost-ip4:1234/any?q=1").unwrap()));
+        expect!(client.resolve_path("/base-path/any?q=1"))
+            .to(be_ok().value(Url::parse("http://localhost-ip4:1234/base-path/any?q=1").unwrap()));
+        expect!(client.resolve_path("any?q=1"))
+            .to(be_ok().value(Url::parse("http://localhost-ip4:1234/base-path/any?q=1").unwrap()));
+        expect!(client.resolve_path("/base-pathology"))
+            .to(be_ok().value(Url::parse("http://localhost-ip4:1234/base-pathology").unwrap()));
+        expect!(client.resolve_path("//evil/x?q=1"))
+            .to(be_ok().value(Url::parse("http://localhost-ip4:1234//evil/x?q=1").unwrap()));
     }
 
     #[test_log::test(tokio::test)]
@@ -2094,6 +2085,116 @@ mod retry_middleware_tests {
             result.is_err(),
             "all retries exhausted should return error, got: {:?}",
             result
+        );
+    }
+}
+
+#[cfg(test)]
+mod href_query_tests {
+    use std::collections::HashMap;
+    use std::sync::{Arc, Mutex};
+
+    use axum::Router;
+    use axum::http::{Method, Uri};
+    use tokio::net::TcpListener;
+
+    use super::{HALClient, Link, SslOptions};
+
+    async fn spawn_recorder() -> (String, Arc<Mutex<Vec<String>>>) {
+        let requests = Arc::new(Mutex::new(Vec::new()));
+        let recorded = requests.clone();
+        let router = Router::new().fallback(move |method: Method, uri: Uri| {
+            let recorded = recorded.clone();
+            async move {
+                let target = uri.path_and_query().map(|pq| pq.as_str()).unwrap_or("");
+                recorded.lock().unwrap().push(format!("{method} {target}"));
+                (
+                    [("content-type", "application/hal+json")],
+                    "{\"_links\":{}}",
+                )
+            }
+        });
+        let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
+        let addr = listener.local_addr().unwrap();
+        tokio::spawn(async move { axum::serve(listener, router).await.unwrap() });
+        (format!("http://{addr}"), requests)
+    }
+
+    fn link(href: &str, templated: bool) -> Link {
+        Link {
+            name: "test".to_string(),
+            href: Some(href.to_string()),
+            templated,
+            title: None,
+        }
+    }
+
+    #[tokio::test]
+    async fn fetch_url_keeps_query_string() {
+        let (base, requests) = spawn_recorder().await;
+        let client = HALClient::with_url(&base, None, SslOptions::default(), None);
+        let values = HashMap::from([("name".to_string(), "a b".to_string())]);
+        client
+            .clone()
+            .fetch_url(&link("/things/{name}?expand=true", true), &values)
+            .await
+            .unwrap();
+        client
+            .fetch_url(&link(&format!("{base}/plain?x=1"), false), &HashMap::new())
+            .await
+            .unwrap();
+        assert_eq!(
+            *requests.lock().unwrap(),
+            vec!["GET /things/a%20b?expand=true", "GET /plain?x=1"]
+        );
+    }
+
+    #[tokio::test]
+    async fn delete_url_keeps_query_string() {
+        let (base, requests) = spawn_recorder().await;
+        let client = HALClient::with_url(&format!("{base}/ctx"), None, SslOptions::default(), None);
+        client
+            .delete_url(&link("/ctx/things/x?force=true", false), &HashMap::new())
+            .await
+            .unwrap();
+        assert_eq!(
+            *requests.lock().unwrap(),
+            vec!["DELETE /ctx/things/x?force=true"]
+        );
+    }
+
+    #[tokio::test]
+    async fn put_json_keeps_query_string() {
+        let (base, requests) = spawn_recorder().await;
+        let client = HALClient::with_url(&base, None, SslOptions::default(), None);
+        client
+            .put_json(&format!("{base}/things/x?y=1"), "{}", None)
+            .await
+            .unwrap();
+        assert_eq!(*requests.lock().unwrap(), vec!["PUT /things/x?y=1"]);
+    }
+
+    #[tokio::test]
+    async fn double_slash_paths_stay_on_the_broker_host() {
+        let (base, requests) = spawn_recorder().await;
+        let client = HALClient::with_url(&format!("{base}/ctx"), None, SslOptions::default(), None);
+        client
+            .clone()
+            .put_json(&format!("{base}//evil/x?y=1"), "{}", None)
+            .await
+            .unwrap();
+        client
+            .clone()
+            .put_json("//evil/y", "{}", None)
+            .await
+            .unwrap();
+        client
+            .delete_url(&link(&format!("{base}//evil/z"), false), &HashMap::new())
+            .await
+            .unwrap();
+        assert_eq!(
+            *requests.lock().unwrap(),
+            vec!["PUT //evil/x?y=1", "PUT //evil/y", "DELETE //evil/z"]
         );
     }
 }

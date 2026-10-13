@@ -2,6 +2,35 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.9.0] _2026-10-09_
+
+### 🚀 Features
+
+-   Add BrokerPath for encoded URL paths
+
+### 🐛 Bug Fixes
+
+-   Validate values expanded into HAL templates
+-   Encode branch and tag names in version URLs
+-   Encode deployment and environment paths
+-   Encode get-pacts, provider-states and webhooks
+-   Report non-UTF-8 arguments without panicking
+-   Keep query strings on broker hrefs
+-   Read broker relation hrefs verbatim
+-   Keep double-slash hrefs on the broker host
+-   Keep pact downloads inside --download-dir
+
+### 🚜 Refactor
+
+-   Name invalid path values by their key
+-   Resolve broker paths with Url::join
+
+### 🧪 Testing
+
+-   Cover webhook uuid and PactFlow provider paths
+-   Cover path encoding for every command
+
+
 ## [0.8.8] _2026-09-16_
 
 ### 🐛 Bug Fixes

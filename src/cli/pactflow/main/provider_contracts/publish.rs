@@ -1,3 +1,5 @@
+use std::collections::HashMap;
+
 use base64::Engine;
 use base64::engine::general_purpose::STANDARD as Base64;
 use clap::ArgMatches;
@@ -7,7 +9,9 @@ use serde_json::{Value, json};
 use super::verification::{SelfVerificationInputs, missing_self_verification_keys};
 use crate::cli::{
     pact_broker::main::{
-        HALClient, Notice, PactBrokerError, process_notices,
+        HALClient, Notice, PactBrokerError,
+        broker_path::expand_path_template,
+        process_notices,
         utils::{
             get_auth, get_broker_relation, get_broker_url, get_custom_headers, get_retries,
             get_ssl_options,
@@ -160,7 +164,10 @@ pub fn publish(args: &ArgMatches) -> Result<Value, PactBrokerError> {
                     );
                 }
             }
-            let publish_contract_href = publish_contract_href.replace("{provider}", provider_name);
+            let publish_contract_href = expand_path_template(
+                &publish_contract_href,
+                &HashMap::from([("provider".to_string(), provider_name.to_string())]),
+            )?;
 
             // Verification results
             let verification_exit_code = args.get_one::<String>("verification-exit-code");
@@ -685,5 +692,53 @@ mod publish_provider_contract_tests {
             }
             other => panic!("Expected ValidationError but got: {:?}", other),
         }
+    }
+}
+
+#[cfg(test)]
+mod publish_provider_contract_url_tests {
+    use crate::cli::pact_broker::main::PactBrokerError;
+    use crate::cli::pact_broker::main::test_utils::spawn_recording_broker_with_index;
+    use crate::cli::pactflow::main::provider_contracts::publish::publish;
+    use crate::cli::pactflow::main::subcommands::add_publish_provider_contract_subcommand;
+
+    fn run(provider: &str) -> (Result<serde_json::Value, PactBrokerError>, Vec<String>) {
+        let (broker_url, requests) = spawn_recording_broker_with_index(
+            r#"{"pf:publish-provider-contract":{"href":"BASE/provider-contracts/provider/{provider}/publish","templated":true}}"#,
+        );
+        let matches = add_publish_provider_contract_subcommand().get_matches_from(vec![
+            "publish-provider-contract",
+            "tests/fixtures/provider-contract.yaml",
+            "-b",
+            broker_url.as_str(),
+            "--provider",
+            provider,
+            "--provider-app-version",
+            "1.0.0",
+        ]);
+        let result = publish(&matches);
+        (result, requests.lock().unwrap().clone())
+    }
+
+    #[test]
+    fn publish_encodes_provider() {
+        assert_eq!(
+            run("my provider/x").1,
+            vec![
+                "GET /",
+                "POST /provider-contracts/provider/my%20provider%2Fx/publish"
+            ]
+        );
+    }
+
+    #[test]
+    fn publish_rejects_dot_segment_provider() {
+        let (result, requests) = run("..");
+        let message = result.unwrap_err().to_string();
+        assert!(
+            message.contains("provider value '..' cannot be sent"),
+            "{message}"
+        );
+        assert_eq!(requests, vec!["GET /"]);
     }
 }
