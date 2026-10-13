@@ -49,6 +49,52 @@ struct Links {
     pb_pacticipant_version_tags: Vec<Value>,
 }
 
+/// Read a per-contract option in single-contract mode.
+///
+/// These options are declared `ArgAction::Append` so the `--contract` form can bind each
+/// occurrence to the contract it follows. With a single contract only one occurrence makes sense,
+/// so a repeat is reported rather than left to `get_one`, which would panic on multiple values.
+fn single_value<'a>(
+    args: &'a ArgMatches,
+    option: &str,
+) -> Result<Option<&'a String>, PactBrokerError> {
+    let mut values = args.get_many::<String>(option).into_iter().flatten();
+    let first = values.next();
+    if values.next().is_some() {
+        return Err(PactBrokerError::ValidationError(vec![format!(
+            "--{option} was given more than once, but only one contract is being published. \
+             Use --contract FILE --name NAME to publish several."
+        )]));
+    }
+    Ok(first)
+}
+
+/// The self-verification outcome in single-contract mode, or `None` when neither flag was given.
+fn single_outcome(args: &ArgMatches) -> Result<Option<bool>, PactBrokerError> {
+    let read = |option: &str, positive: bool| -> Result<Option<bool>, PactBrokerError> {
+        let mut values = args.get_many::<bool>(option).into_iter().flatten();
+        let first = values.next().copied();
+        if values.next().is_some() {
+            return Err(PactBrokerError::ValidationError(vec![format!(
+                "--{option} was given more than once, but only one contract is being published."
+            )]));
+        }
+        // --no-verification-success is the negation, so bare use means a failed outcome.
+        Ok(first.map(|value| if positive { value } else { !value }))
+    };
+    match (
+        read("verification-success", true)?,
+        read("no-verification-success", false)?,
+    ) {
+        (Some(_), Some(_)) => Err(PactBrokerError::ValidationError(vec![
+            "--verification-success and --no-verification-success cannot both be given."
+                .to_string(),
+        ])),
+        (Some(outcome), None) | (None, Some(outcome)) => Ok(Some(outcome)),
+        (None, None) => Ok(None),
+    }
+}
+
 pub fn publish(args: &ArgMatches) -> Result<Value, PactBrokerError> {
     // --contract selects the batch endpoint, which takes a named array rather than the single
     // scalar contract this function builds. clap guarantees the two modes are mutually exclusive.
@@ -73,12 +119,10 @@ pub fn publish(args: &ArgMatches) -> Result<Value, PactBrokerError> {
 
     // Checked before any request is made, so an incomplete set of flags fails without a broker.
     let missing = missing_self_verification_keys(&SelfVerificationInputs {
-        results: args.get_one::<String>("verification-results").is_some(),
-        results_content_type: args
-            .get_one::<String>("verification-results-content-type")
-            .is_some(),
-        verifier: args.get_one::<String>("verifier").is_some(),
-        verifier_version: args.get_one::<String>("verifier-version").is_some(),
+        results: single_value(args, "verification-results")?.is_some(),
+        results_content_type: single_value(args, "verification-results-content-type")?.is_some(),
+        verifier: single_value(args, "verifier")?.is_some(),
+        verifier_version: single_value(args, "verifier-version")?.is_some(),
     });
     if !missing.is_empty() {
         return Err(PactBrokerError::ValidationError(vec![format!(
@@ -123,13 +167,10 @@ pub fn publish(args: &ArgMatches) -> Result<Value, PactBrokerError> {
             let tag_with_git_branch = args.get_flag("tag-with-git-branch");
             let build_url = args.get_one::<String>("build-url");
             let default_specification = "oas".to_string();
-            let specification = args
-                .get_one::<String>("specification")
-                .unwrap_or(&default_specification);
+            let specification =
+                single_value(args, "specification")?.unwrap_or(&default_specification);
             let default_content_type = "application/yaml".to_string();
-            let content_type = args
-                .get_one::<String>("content-type")
-                .unwrap_or(&default_content_type);
+            let content_type = single_value(args, "content-type")?.unwrap_or(&default_content_type);
             let auto_detect_version_properties: bool =
                 args.get_flag("auto-detect-version-properties");
             let (git_commit, git_branch);
@@ -170,25 +211,23 @@ pub fn publish(args: &ArgMatches) -> Result<Value, PactBrokerError> {
             )?;
 
             // Verification results
-            let verification_exit_code = args.get_one::<String>("verification-exit-code");
-            let verification_success = if args.contains_id("verification-success")
-                && args.get_flag("verification-success")
-            {
-                true
-            } else if args.contains_id("no-verification-success")
-                && args.get_flag("no-verification-success")
-            {
-                false
-            } else if let Some(exit_code_str) = verification_exit_code {
-                match exit_code_str.parse::<i32>() {
-                    Ok(code) => code == 0,
-                    Err(_) => false,
+            let verification_exit_code = single_value(args, "verification-exit-code")?;
+            let verification_success = match (single_outcome(args)?, verification_exit_code) {
+                (Some(_), Some(_)) => {
+                    return Err(PactBrokerError::ValidationError(vec![
+                        "--verification-success/--no-verification-success and \
+                         --verification-exit-code cannot both be given."
+                            .to_string(),
+                    ]));
                 }
-            } else {
-                false
+                (Some(outcome), None) => outcome,
+                (None, Some(exit_code_str)) => {
+                    matches!(exit_code_str.parse::<i32>(), Ok(0))
+                }
+                (None, None) => false,
             };
 
-            let verification_results_path = args.get_one::<String>("verification-results");
+            let verification_results_path = single_value(args, "verification-results")?;
             let verification_results_content = if let Some(file_path) = verification_results_path {
                 Some(std::fs::read_to_string(file_path).map_err(|e| {
                     eprintln!(
@@ -201,10 +240,10 @@ pub fn publish(args: &ArgMatches) -> Result<Value, PactBrokerError> {
                 None
             };
             let verification_results_content_type =
-                args.get_one::<String>("verification-results-content-type");
-            let verification_results_format = args.get_one::<String>("verification-results-format");
-            let verifier = args.get_one::<String>("verifier");
-            let verifier_version = args.get_one::<String>("verifier-version");
+                single_value(args, "verification-results-content-type")?;
+            let verification_results_format = single_value(args, "verification-results-format")?;
+            let verifier = single_value(args, "verifier")?;
+            let verifier_version = single_value(args, "verifier-version")?;
 
             // Build contract params
             let mut contract_params = json!({
@@ -385,7 +424,7 @@ mod publish_provider_contract_tests {
         add_publish_provider_contract_subcommand().try_get_matches_from(argv)
     }
 
-    const SPEC: &str = "name=a,file=tests/fixtures/payments-api.yaml";
+    const SPEC: &str = "tests/fixtures/payments-api.yaml";
 
     #[test]
     fn rejects_a_contract_file_and_contract_flag_together() {
@@ -420,8 +459,10 @@ mod publish_provider_contract_tests {
         assert_eq!(err.kind(), clap::error::ErrorKind::MissingRequiredArgument);
     }
 
+    /// The per-contract options describe a `--contract` in the ordered form, so unlike the earlier
+    /// design they must be *accepted* alongside it rather than rejected.
     #[test]
-    fn rejects_single_contract_options_alongside_contract_flag() {
+    fn accepts_per_contract_options_after_a_contract_flag() {
         for (flag, value) in [
             ("--specification", Some("oas")),
             ("--content-type", Some("application/yaml")),
@@ -444,20 +485,34 @@ mod publish_provider_contract_tests {
                 "1.0",
                 "--contract",
                 SPEC,
+                "--name",
+                "a",
                 flag,
             ];
             if let Some(v) = value {
                 argv.push(v);
             }
-            let err = try_parse(argv)
-                .err()
-                .unwrap_or_else(|| panic!("{flag} should conflict with --contract"));
-            assert_eq!(
-                err.kind(),
-                clap::error::ErrorKind::ArgumentConflict,
-                "{flag} should be an ArgumentConflict"
-            );
+            try_parse(argv)
+                .unwrap_or_else(|e| panic!("{flag} should be accepted after --contract: {e}"));
         }
+    }
+
+    #[test]
+    fn rejects_a_name_alongside_the_positional_contract_file() {
+        let err = try_parse(vec![
+            "publish-provider-contract",
+            "-b",
+            "http://localhost:9999",
+            "--provider",
+            "p",
+            "-a",
+            "1.0",
+            SPEC,
+            "--name",
+            "a",
+        ])
+        .expect_err("--name only describes a --contract");
+        assert_eq!(err.kind(), clap::error::ErrorKind::ArgumentConflict);
     }
 
     #[test]
@@ -472,8 +527,12 @@ mod publish_provider_contract_tests {
             "1.0",
             "--contract",
             SPEC,
+            "--name",
+            "a",
             "--contract",
-            "name=b,file=tests/fixtures/fraud-events.yaml",
+            "tests/fixtures/fraud-events.yaml",
+            "--name",
+            "b",
         ])
         .expect("repeating --contract is the multi-contract happy path");
     }

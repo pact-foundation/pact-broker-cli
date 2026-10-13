@@ -3,7 +3,7 @@ use base64::engine::general_purpose::STANDARD as Base64;
 use clap::ArgMatches;
 use serde::Deserialize;
 use serde_json::{Value, json};
-use std::collections::HashSet;
+use std::collections::{HashMap, HashSet};
 
 use super::verification::{SelfVerificationInputs, missing_self_verification_keys};
 use crate::cli::{
@@ -17,7 +17,7 @@ use crate::cli::{
     utils::git_info,
 };
 
-/// One entry from a `--contract name=X,file=Y,...` flag.
+/// One contract, assembled from a `--contract FILE` and the per-contract options following it.
 #[derive(Debug, Clone, PartialEq)]
 pub struct ContractSpec {
     pub name: String,
@@ -32,67 +32,19 @@ pub struct ContractSpec {
     pub verification_results_format: Option<String>,
 }
 
-/// Every key accepted inside a single `--contract` value. Drives both field splitting and
-/// unknown-key rejection, so the plural command is as strict about typos as clap is for the
-/// singular `publish-provider-contract`.
-const KNOWN_KEYS: &[&str] = &[
+/// The per-contract options that take a value. Each is declared `ArgAction::Append`, so clap keeps
+/// every occurrence along with its position in argv.
+const PER_CONTRACT_OPTIONS: &[&str] = &[
     "name",
-    "file",
     "specification",
     "content-type",
-    "verification-results",
-    "verification-success",
     "verification-exit-code",
-    "verifier",
-    "verifier-version",
+    "verification-results",
     "verification-results-content-type",
     "verification-results-format",
+    "verifier",
+    "verifier-version",
 ];
-
-/// True when `fragment` opens a new field, i.e. it begins with a known key followed by `=`.
-/// Tested against every key rather than stopping at the first, so `verifier-version=1` is not
-/// mistaken for the shorter `verifier` key.
-fn starts_new_field(fragment: &str) -> bool {
-    let trimmed = fragment.trim_start();
-    KNOWN_KEYS.iter().any(|key| {
-        trimmed
-            .strip_prefix(key)
-            .is_some_and(|rest| rest.trim_start().starts_with('='))
-    })
-}
-
-/// True when `fragment` reads as an attempted `key=value` assignment — the text before its first
-/// `=` is a bare identifier. Such a fragment opens a field even when the key is unknown, so a
-/// typo like `content-tpye=x` reaches the unknown-key check instead of being silently absorbed
-/// into the preceding value.
-fn looks_like_assignment(fragment: &str) -> bool {
-    let trimmed = fragment.trim();
-    trimmed.find('=').is_some_and(|eq| {
-        let candidate = &trimmed[..eq];
-        !candidate.is_empty()
-            && candidate
-                .chars()
-                .all(|c| c.is_ascii_alphanumeric() || c == '-' || c == '_')
-    })
-}
-
-/// Split a `--contract` value on commas, treating a comma as a separator only when what follows
-/// opens a new field. Anything else is a literal comma belonging to the preceding value, so
-/// `verifier=Acme, Inc.` and `file=./specs/v1,v2/api.yaml` survive intact.
-fn split_fields(input: &str) -> Vec<String> {
-    let mut fields: Vec<String> = Vec::new();
-    for fragment in input.split(',') {
-        let opens_field = starts_new_field(fragment) || looks_like_assignment(fragment);
-        match fields.last_mut() {
-            Some(previous) if !opens_field => {
-                previous.push(',');
-                previous.push_str(fragment);
-            }
-            _ => fields.push(fragment.to_string()),
-        }
-    }
-    fields
-}
 
 /// Trim a value and discard it if nothing is left, so a blank flag or a blank git result is
 /// treated as absent rather than published as an empty string.
@@ -103,205 +55,154 @@ fn non_blank(value: Option<&str>) -> Option<String> {
         .map(str::to_string)
 }
 
-/// Trim `value` and reject what is left if it is blank, so `name=` and `"name": "  "` fail
-/// identically no matter which `--contract` form supplied them.
-fn require_non_empty(value: String, key: &str) -> Result<String, String> {
+/// Trim `value` and reject what is left if it is blank.
+fn require_non_empty(value: &str, option: &str) -> Result<String, String> {
     let trimmed = value.trim();
     if trimmed.is_empty() {
-        return Err(format!("--contract '{key}' must not be empty"));
+        return Err(format!("--{option} must not be empty"));
     }
     Ok(trimmed.to_string())
 }
 
-/// Trim a JSON string value, matching the trimming the key=value form applies before storage.
-fn trim_string(value: String) -> String {
-    value.trim().to_string()
-}
-
-fn take_required(
-    map: &mut std::collections::HashMap<String, String>,
-    key: &str,
-) -> Result<String, String> {
-    match map.remove(key) {
-        None => Err(format!("--contract requires a '{key}' key")),
-        Some(value) => require_non_empty(value, key),
-    }
-}
-
-/// The JSON form of a `--contract` value. camelCase is canonical so a PactFlow request body can be
-/// pasted in almost verbatim; the kebab-case aliases keep the vocabulary of the `key=value` form
-/// working. `deny_unknown_fields` gives typos the same rejection `KNOWN_KEYS` gives them.
-#[derive(Deserialize)]
-#[serde(rename_all = "camelCase", deny_unknown_fields)]
-struct ContractJson {
-    name: String,
-    file: String,
-    specification: Option<String>,
-    #[serde(alias = "content-type")]
-    content_type: Option<String>,
-    #[serde(alias = "verification-results")]
-    verification_results: Option<String>,
-    #[serde(alias = "verification-success")]
-    verification_success: Option<bool>,
-    #[serde(alias = "verification-exit-code")]
-    verification_exit_code: Option<i32>,
-    verifier: Option<String>,
-    #[serde(alias = "verifier-version")]
-    verifier_version: Option<String>,
-    #[serde(alias = "verification-results-content-type")]
-    verification_results_content_type: Option<String>,
-    #[serde(alias = "verification-results-format")]
-    verification_results_format: Option<String>,
-}
-
 impl ContractSpec {
-    /// Parse `"name=payments-api,file=./pay.yaml,specification=oas,content-type=application/yaml"`
-    /// into a `ContractSpec`. Required keys: `name`, `file`.
+    /// Build one spec per `--contract`, binding each per-contract option to the `--contract` it
+    /// follows.
     ///
-    /// A value beginning with `{` is read as JSON instead — see [`Self::from_json`].
-    pub fn parse(input: &str) -> Result<Self, String> {
-        // A value opening with `{` cannot parse as key=value — the text before its first `=` would
-        // have to be a bare identifier — so routing it to JSON reinterprets only what already
-        // errors. Dispatching before split_fields is also what makes `,` and `=` ordinary
-        // characters inside JSON values.
-        let trimmed = input.trim();
-        if trimmed.starts_with('{') {
-            return Self::from_json(trimmed);
+    /// clap records the argv position of every occurrence of a repeated option, so a value belongs
+    /// to the last `--contract` appearing before it. That ordering is the whole mechanism: there is
+    /// no grammar inside the argument, so ordinary shell quoting applies and a value may contain
+    /// commas, `=` or anything else without escaping.
+    pub fn from_args(args: &ArgMatches) -> Result<Vec<Self>, String> {
+        let starts: Vec<usize> = args
+            .indices_of("contract")
+            .map(Iterator::collect)
+            .unwrap_or_default();
+        let files: Vec<String> = args
+            .get_many::<String>("contract")
+            .map(|values| values.cloned().collect())
+            .unwrap_or_default();
+        if starts.is_empty() {
+            return Ok(Vec::new());
         }
 
-        let mut map: std::collections::HashMap<String, String> = std::collections::HashMap::new();
+        // The contract an option at `idx` describes: the last --contract before it.
+        let block_of = |idx: usize, option: &str| -> Result<usize, String> {
+            starts
+                .iter()
+                .rposition(|&start| start < idx)
+                .ok_or_else(|| {
+                    format!(
+                        "--{option} describes a single contract, so it must come after a --contract"
+                    )
+                })
+        };
 
-        for field in split_fields(input) {
-            let field = field.trim();
-            if field.is_empty() {
-                continue;
+        let mut fields: Vec<HashMap<&str, String>> = vec![HashMap::new(); starts.len()];
+        for option in PER_CONTRACT_OPTIONS {
+            let indices: Vec<usize> = args
+                .indices_of(option)
+                .map(Iterator::collect)
+                .unwrap_or_default();
+            let values: Vec<String> = args
+                .get_many::<String>(option)
+                .map(|values| values.cloned().collect())
+                .unwrap_or_default();
+            for (idx, value) in indices.into_iter().zip(values) {
+                let block = block_of(idx, option)?;
+                if fields[block].insert(option, value).is_some() {
+                    return Err(format!(
+                        "--{option} was given more than once for the contract '{}'",
+                        files[block]
+                    ));
+                }
             }
-            let Some(eq_pos) = field.find('=') else {
-                return Err(format!(
-                    "--contract fragment '{field}' is not in key=value form"
-                ));
+        }
+
+        // Outcome flags, kept with the spelling that set them so a clash can name both.
+        let mut outcomes: Vec<Option<(bool, &str)>> = vec![None; starts.len()];
+        for (option, positive) in [
+            ("verification-success", true),
+            ("no-verification-success", false),
+        ] {
+            let indices: Vec<usize> = args
+                .indices_of(option)
+                .map(Iterator::collect)
+                .unwrap_or_default();
+            let values: Vec<bool> = args
+                .get_many::<bool>(option)
+                .map(|values| values.copied().collect())
+                .unwrap_or_default();
+            for (idx, value) in indices.into_iter().zip(values) {
+                let block = block_of(idx, option)?;
+                // --no-verification-success is the negation, so bare use means a failed outcome.
+                let outcome = if positive { value } else { !value };
+                if let Some((_, previous)) = outcomes[block] {
+                    return Err(format!(
+                        "--{previous} and --{option} cannot both describe the contract '{}'",
+                        files[block]
+                    ));
+                }
+                outcomes[block] = Some((outcome, option));
+            }
+        }
+
+        let mut specs = Vec::with_capacity(files.len());
+        for (block, file) in files.iter().enumerate() {
+            let mut fields = std::mem::take(&mut fields[block]);
+            let file = require_non_empty(file, "contract")?;
+            let name = match fields.remove("name") {
+                Some(name) => require_non_empty(&name, "name")?,
+                None => return Err(format!("--contract '{file}' needs a --name")),
             };
-            let key = field[..eq_pos].trim();
-            let value = field[eq_pos + 1..].trim();
 
-            if !KNOWN_KEYS.contains(&key) {
-                return Err(format!(
-                    "--contract has unknown key '{}'. Valid keys: {}",
-                    key,
-                    KNOWN_KEYS.join(", ")
-                ));
-            }
-            if map.insert(key.to_string(), value.to_string()).is_some() {
-                return Err(format!("--contract has a duplicate '{key}' key"));
-            }
+            let exit_code = fields.remove("verification-exit-code");
+            let verification_success = match (outcomes[block], exit_code) {
+                (Some((_, flag)), Some(_)) => {
+                    return Err(format!(
+                        "--{flag} and --verification-exit-code cannot both describe the contract '{file}'"
+                    ));
+                }
+                (Some((outcome, _)), None) => outcome,
+                // A non-numeric exit code is treated as a failure rather than rejected: the shell
+                // substitution that produced it may legitimately have been empty.
+                (None, Some(code)) => code.trim().parse::<i32>().map(|c| c == 0).unwrap_or(false),
+                (None, None) => false,
+            };
+
+            let spec = ContractSpec {
+                name,
+                file,
+                specification: fields
+                    .remove("specification")
+                    .map(|v| v.trim().to_string())
+                    .unwrap_or_else(|| "oas".to_string()),
+                content_type: fields
+                    .remove("content-type")
+                    .map(|v| v.trim().to_string())
+                    .unwrap_or_else(|| "application/yaml".to_string()),
+                verification_results: fields
+                    .remove("verification-results")
+                    .map(|v| v.trim().to_string()),
+                verification_success,
+                verifier: fields.remove("verifier").map(|v| v.trim().to_string()),
+                verifier_version: fields
+                    .remove("verifier-version")
+                    .map(|v| v.trim().to_string()),
+                verification_results_content_type: fields
+                    .remove("verification-results-content-type")
+                    .map(|v| v.trim().to_string()),
+                verification_results_format: fields
+                    .remove("verification-results-format")
+                    .map(|v| v.trim().to_string()),
+            };
+            spec.validate_self_verification()?;
+            specs.push(spec);
         }
-
-        let name = take_required(&mut map, "name")?;
-        let file = take_required(&mut map, "file")?;
-        let specification = map
-            .remove("specification")
-            .unwrap_or_else(|| "oas".to_string());
-        let content_type = map
-            .remove("content-type")
-            .unwrap_or_else(|| "application/yaml".to_string());
-        let verification_results = map.remove("verification-results");
-        // Mirrors publish.rs:145-160 — verification-success wins, then verification-exit-code,
-        // then false. The singular's --no-verification-success has no key here because
-        // verification-success takes a value and `=false` already says it.
-        let explicit_success = map
-            .remove("verification-success")
-            .map(|raw| match raw.to_lowercase().as_str() {
-                "true" | "1" => Ok(true),
-                "false" | "0" => Ok(false),
-                _ => Err(format!(
-                    "--contract verification-success must be true, false, 1 or 0 (got '{raw}')"
-                )),
-            })
-            .transpose()?;
-        let exit_code = map.remove("verification-exit-code");
-        if explicit_success.is_some() && exit_code.is_some() {
-            return Err(
-                "--contract sets both 'verification-success' and 'verification-exit-code'; \
-                 use one or the other"
-                    .to_string(),
-            );
-        }
-        // An unparseable exit code becomes false rather than an error, matching publish.rs:157.
-        let verification_success = match (explicit_success, exit_code) {
-            (Some(success), _) => success,
-            (None, Some(raw)) => raw.parse::<i32>().is_ok_and(|code| code == 0),
-            (None, None) => false,
-        };
-        let verifier = map.remove("verifier");
-        let verifier_version = map.remove("verifier-version");
-        let verification_results_content_type = map.remove("verification-results-content-type");
-        let verification_results_format = map.remove("verification-results-format");
-
-        let spec = ContractSpec {
-            name,
-            file,
-            specification,
-            content_type,
-            verification_results,
-            verification_success,
-            verifier,
-            verifier_version,
-            verification_results_content_type,
-            verification_results_format,
-        };
-        spec.validate_self_verification()?;
-        Ok(spec)
+        Ok(specs)
     }
 
-    /// Parse `{"name":"payments-api","file":"./pay.yaml"}` into a `ContractSpec`. Keys may be
-    /// camelCase or kebab-case. The defaults, the emptiness rules and the outcome resolution are
-    /// shared with [`Self::parse`], so the two `--contract` forms cannot drift apart.
-    fn from_json(input: &str) -> Result<Self, String> {
-        let json: ContractJson =
-            serde_json::from_str(input).map_err(|e| format!("--contract JSON error: {e}"))?;
-
-        let name = require_non_empty(json.name, "name")?;
-        let file = require_non_empty(json.file, "file")?;
-
-        if json.verification_success.is_some() && json.verification_exit_code.is_some() {
-            return Err(
-                "--contract sets both 'verification-success' and 'verification-exit-code'; \
-                 use one or the other"
-                    .to_string(),
-            );
-        }
-        let verification_success = match (json.verification_success, json.verification_exit_code) {
-            (Some(success), _) => success,
-            (None, Some(code)) => code == 0,
-            (None, None) => false,
-        };
-
-        let spec = ContractSpec {
-            name,
-            file,
-            specification: json
-                .specification
-                .map(trim_string)
-                .unwrap_or_else(|| "oas".to_string()),
-            content_type: json
-                .content_type
-                .map(trim_string)
-                .unwrap_or_else(|| "application/yaml".to_string()),
-            verification_results: json.verification_results.map(trim_string),
-            verification_success,
-            verifier: json.verifier.map(trim_string),
-            verifier_version: json.verifier_version.map(trim_string),
-            verification_results_content_type: json
-                .verification_results_content_type
-                .map(trim_string),
-            verification_results_format: json.verification_results_format.map(trim_string),
-        };
-        spec.validate_self_verification()?;
-        Ok(spec)
-    }
-
-    /// Reject incomplete self-verification evidence here, so both `--contract` forms fail the same
-    /// way and name the contract that needs fixing.
+    /// Reject incomplete self-verification evidence here, naming the contract that needs fixing,
+    /// so a PactFlow 400 becomes a local error before anything is published.
     fn validate_self_verification(&self) -> Result<(), String> {
         let missing = missing_self_verification_keys(&SelfVerificationInputs {
             results: self.verification_results.is_some(),
@@ -313,8 +214,8 @@ impl ContractSpec {
             return Ok(());
         }
         Err(format!(
-            "--contract '{}' has self-verification evidence but is missing: {} \
-             (verification-results, verification-results-content-type and verifier are all required)",
+            "contract '{}' has self-verification evidence but is missing: {} \
+             (--verification-results, --verification-results-content-type and --verifier are all required)",
             self.name,
             missing.join(", ")
         ))
@@ -322,373 +223,273 @@ impl ContractSpec {
 }
 
 #[cfg(test)]
-mod contract_spec_parse_tests {
+mod contract_spec_from_args_tests {
     use super::ContractSpec;
+    use crate::cli::pactflow::main::subcommands::add_publish_provider_contract_subcommand;
 
-    fn spec(input: &str) -> ContractSpec {
-        ContractSpec::parse(input).expect("expected a valid spec")
+    /// Parse `argv` through the real command, then bucket it into specs.
+    fn parse(extra: &[&str]) -> Result<Vec<ContractSpec>, String> {
+        let mut argv = vec![
+            "publish-provider-contract",
+            "-b",
+            "http://localhost:9999",
+            "--provider",
+            "p",
+            "-a",
+            "1.0",
+        ];
+        argv.extend_from_slice(extra);
+        let matches = add_publish_provider_contract_subcommand()
+            .try_get_matches_from(argv)
+            .map_err(|e| e.to_string())?;
+        ContractSpec::from_args(&matches)
     }
 
-    fn err(input: &str) -> String {
-        ContractSpec::parse(input).expect_err("expected a parse error")
+    fn specs(extra: &[&str]) -> Vec<ContractSpec> {
+        parse(extra).expect("expected the contracts to parse")
+    }
+
+    fn err(extra: &[&str]) -> String {
+        parse(extra).expect_err("expected a parse error")
     }
 
     #[test]
-    fn parses_a_minimal_spec_and_applies_defaults() {
-        let s = spec("name=payments-api,file=./pay.yaml");
-        assert_eq!(s.name, "payments-api");
-        assert_eq!(s.file, "./pay.yaml");
-        assert_eq!(s.specification, "oas");
-        assert_eq!(s.content_type, "application/yaml");
-        assert!(!s.verification_success);
-        assert_eq!(s.verifier, None);
+    fn builds_one_spec_with_defaults() {
+        let s = specs(&["--contract", "./pay.yaml", "--name", "payments-api"]);
+        assert_eq!(s.len(), 1);
+        assert_eq!(s[0].name, "payments-api");
+        assert_eq!(s[0].file, "./pay.yaml");
+        assert_eq!(s[0].specification, "oas");
+        assert_eq!(s[0].content_type, "application/yaml");
+        assert!(!s[0].verification_success);
+        assert_eq!(s[0].verifier, None);
     }
 
     #[test]
-    fn parses_every_known_key() {
-        let s = spec(
-            "name=a,file=f.yaml,specification=asyncapi,content-type=application/json,\
-             verification-results=r.txt,verification-success=true,verifier=spectral,\
-             verifier-version=1.2.3,verification-results-content-type=text/plain,\
-             verification-results-format=junit",
+    fn binds_each_option_to_the_contract_it_follows() {
+        let s = specs(&[
+            "--contract",
+            "./oas/payments.yaml",
+            "--name",
+            "payments-api",
+            "--specification",
+            "oas",
+            "--verifier",
+            "schemathesis",
+            "--verifier-version",
+            "3.30",
+            "--verification-results",
+            "./reports/schemathesis.txt",
+            "--verification-results-content-type",
+            "text/plain",
+            "--verification-success",
+            "--contract",
+            "./asyncapi/fraud.yaml",
+            "--name",
+            "fraud-events",
+            "--specification",
+            "asyncapi",
+            "--no-verification-success",
+        ]);
+        assert_eq!(s.len(), 2);
+
+        assert_eq!(s[0].name, "payments-api");
+        assert_eq!(s[0].file, "./oas/payments.yaml");
+        assert_eq!(s[0].specification, "oas");
+        assert_eq!(s[0].verifier.as_deref(), Some("schemathesis"));
+        assert_eq!(s[0].verifier_version.as_deref(), Some("3.30"));
+        assert!(s[0].verification_success);
+
+        assert_eq!(s[1].name, "fraud-events");
+        assert_eq!(s[1].file, "./asyncapi/fraud.yaml");
+        assert_eq!(s[1].specification, "asyncapi");
+        // Options from the first contract must not leak into the second.
+        assert_eq!(s[1].verifier, None);
+        assert_eq!(s[1].verifier_version, None);
+        assert!(!s[1].verification_success);
+    }
+
+    #[test]
+    fn keeps_values_that_would_have_needed_escaping_in_the_old_grammar() {
+        let s = specs(&[
+            "--contract",
+            "./specs/v1,v2/api.yaml",
+            "--name",
+            "Acme, Inc. payments",
+            "--content-type",
+            "text/plain;charset=utf-8",
+        ]);
+        assert_eq!(s[0].file, "./specs/v1,v2/api.yaml");
+        assert_eq!(s[0].name, "Acme, Inc. payments");
+        assert_eq!(s[0].content_type, "text/plain;charset=utf-8");
+    }
+
+    #[test]
+    fn a_zero_exit_code_is_a_success_and_anything_else_is_not() {
+        for (code, expected) in [("0", true), ("1", false), ("", false), ("boom", false)] {
+            let s = specs(&[
+                "--contract",
+                "./pay.yaml",
+                "--name",
+                "a",
+                "--verification-exit-code",
+                code,
+            ]);
+            assert_eq!(
+                s[0].verification_success, expected,
+                "exit code {code:?} should give {expected}"
+            );
+        }
+    }
+
+    #[test]
+    fn the_outcome_flags_accept_an_explicit_value() {
+        assert!(
+            specs(&[
+                "--contract",
+                "./a.yaml",
+                "--name",
+                "a",
+                "--verification-success=true"
+            ])[0]
+                .verification_success
         );
-        assert_eq!(s.specification, "asyncapi");
-        assert_eq!(s.content_type, "application/json");
-        assert_eq!(s.verification_results.as_deref(), Some("r.txt"));
-        assert!(s.verification_success);
-        assert_eq!(s.verifier.as_deref(), Some("spectral"));
-        assert_eq!(s.verifier_version.as_deref(), Some("1.2.3"));
-        assert_eq!(
-            s.verification_results_content_type.as_deref(),
-            Some("text/plain")
+        assert!(
+            !specs(&[
+                "--contract",
+                "./a.yaml",
+                "--name",
+                "a",
+                "--verification-success=false"
+            ])[0]
+                .verification_success
         );
-        assert_eq!(s.verification_results_format.as_deref(), Some("junit"));
-    }
-
-    #[test]
-    fn trims_whitespace_around_keys_and_values() {
-        let s = spec("  name = a , file = f.yaml , specification = oas ");
-        assert_eq!(s.name, "a");
-        assert_eq!(s.file, "f.yaml");
-        assert_eq!(s.specification, "oas");
-    }
-
-    #[test]
-    fn keeps_everything_after_the_first_equals_in_the_value() {
-        let s = spec(
-            "name=a,file=f.yaml,verification-results=r.txt,verification-results-content-type=text/plain,verifier=v,verification-success=true,verifier-version=1.0=rc1",
+        assert!(
+            !specs(&[
+                "--contract",
+                "./a.yaml",
+                "--name",
+                "a",
+                "--no-verification-success"
+            ])[0]
+                .verification_success
         );
-        assert_eq!(s.verifier_version.as_deref(), Some("1.0=rc1"));
     }
 
-    // --- the 5 regressions vs the singular command ---
+    #[test]
+    fn each_contract_keeps_its_own_outcome() {
+        let s = specs(&[
+            "--contract",
+            "./a.yaml",
+            "--name",
+            "a",
+            "--verification-success",
+            "--contract",
+            "./b.yaml",
+            "--name",
+            "b",
+            "--no-verification-success",
+            "--contract",
+            "./c.yaml",
+            "--name",
+            "c",
+            "--verification-exit-code",
+            "0",
+        ]);
+        assert!(s[0].verification_success);
+        assert!(!s[1].verification_success);
+        assert!(s[2].verification_success);
+    }
 
     #[test]
-    fn keeps_a_comma_inside_a_value() {
-        let s = spec(
-            "name=a,file=f.yaml,verification-results=r.txt,verification-results-content-type=text/plain,verification-success=true,verifier=Acme, Inc.",
+    fn rejects_a_per_contract_option_before_any_contract() {
+        let e = err(&["--name", "orphan", "--contract", "./a.yaml"]);
+        assert!(
+            e.contains("must come after a --contract"),
+            "message was: {e}"
         );
-        assert_eq!(s.verifier.as_deref(), Some("Acme, Inc."));
-        assert_eq!(s.name, "a");
-        assert_eq!(s.file, "f.yaml");
     }
 
     #[test]
-    fn keeps_a_comma_inside_a_file_path() {
-        let s = spec("name=a,file=./specs/v1,v2/api.yaml");
-        assert_eq!(s.file, "./specs/v1,v2/api.yaml");
+    fn rejects_a_missing_name() {
+        let e = err(&["--contract", "./a.yaml"]);
+        assert!(e.contains("needs a --name"), "message was: {e}");
     }
 
     #[test]
-    fn keeps_a_semicolon_bearing_content_type_whole() {
-        let s = spec("name=a,file=f.yaml,content-type=text/plain;charset=utf-8");
-        assert_eq!(s.content_type, "text/plain;charset=utf-8");
-    }
-
-    #[test]
-    fn rejects_an_unknown_key() {
-        let e = err("name=a,file=f.yaml,content-tpye=application/json");
-        assert!(e.contains("content-tpye"), "message was: {e}");
-    }
-
-    #[test]
-    fn rejects_a_duplicate_key() {
-        let e = err("name=a,file=f.yaml,name=b");
+    fn rejects_an_empty_name() {
+        let e = err(&["--contract", "./a.yaml", "--name", "   "]);
         assert!(e.contains("name"), "message was: {e}");
     }
 
     #[test]
-    fn rejects_an_empty_name_or_file() {
-        assert!(err("name=,file=f.yaml").contains("name"));
-        assert!(err("name=a,file=").contains("file"));
+    fn rejects_an_option_repeated_within_one_contract() {
+        let e = err(&[
+            "--contract",
+            "./a.yaml",
+            "--name",
+            "a",
+            "--verifier",
+            "x",
+            "--verifier",
+            "y",
+        ]);
+        assert!(e.contains("more than once"), "message was: {e}");
     }
 
     #[test]
-    fn rejects_a_fragment_with_no_equals() {
-        let e = err("just-a-file.yaml");
-        assert!(!e.is_empty(), "expected a descriptive error");
+    fn rejects_two_outcomes_for_one_contract() {
+        let e = err(&[
+            "--contract",
+            "./a.yaml",
+            "--name",
+            "a",
+            "--verification-success",
+            "--no-verification-success",
+        ]);
+        assert!(e.contains("cannot both describe"), "message was: {e}");
+
+        let e = err(&[
+            "--contract",
+            "./a.yaml",
+            "--name",
+            "a",
+            "--verification-success",
+            "--verification-exit-code",
+            "0",
+        ]);
+        assert!(e.contains("cannot both describe"), "message was: {e}");
     }
 
     #[test]
-    fn accepts_all_valid_boolean_spellings() {
-        for (raw, expected) in [
-            ("true", true),
-            ("TRUE", true),
-            ("1", true),
-            ("false", false),
-            ("False", false),
-            ("0", false),
-        ] {
-            let s = spec(&format!("name=a,file=f.yaml,verification-success={raw}"));
-            assert_eq!(
-                s.verification_success, expected,
-                "verification-success={raw} should parse as {expected}"
-            );
-        }
+    fn rejects_incomplete_self_verification_evidence() {
+        let e = err(&[
+            "--contract",
+            "./a.yaml",
+            "--name",
+            "a",
+            "--verifier",
+            "schemathesis",
+        ]);
+        assert!(e.contains("self-verification evidence"), "message was: {e}");
+        assert!(e.contains("verification-results"), "message was: {e}");
     }
 
     #[test]
-    fn rejects_an_invalid_boolean_instead_of_defaulting_to_false() {
-        for raw in ["yes", "ture", "maybe", ""] {
-            let e = err(&format!("name=a,file=f.yaml,verification-success={raw}"));
-            assert!(
-                e.contains("verification-success"),
-                "verification-success={raw} should be rejected, message was: {e}"
-            );
-        }
-    }
-
-    #[test]
-    fn accepts_verification_success_on_its_own() {
-        let s = spec("name=a,file=f.yaml,verification-success=false");
-        assert!(!s.verification_success);
-        assert_eq!(s.verifier, None);
-    }
-
-    // --- verification-exit-code, mirroring publish.rs:145-160 ---
-
-    #[test]
-    fn treats_a_zero_exit_code_as_success() {
-        let s = spec("name=a,file=f.yaml,verification-exit-code=0");
-        assert!(s.verification_success);
-    }
-
-    #[test]
-    fn treats_a_non_zero_exit_code_as_failure() {
-        for raw in ["1", "2", "127", "-1"] {
-            let s = spec(&format!("name=a,file=f.yaml,verification-exit-code={raw}"));
-            assert!(
-                !s.verification_success,
-                "exit code {raw} should be a failed verification"
-            );
-        }
-    }
-
-    // publish.rs:157 coerces an unparseable exit code to false rather than erroring; the plural
-    // matches it so a pipeline behaves identically whichever mode it uses.
-    #[test]
-    fn treats_an_unparseable_exit_code_as_failure() {
-        for raw in ["abc", "", "0.0"] {
-            let s = spec(&format!("name=a,file=f.yaml,verification-exit-code={raw}"));
-            assert!(
-                !s.verification_success,
-                "exit code '{raw}' should be a failed verification"
-            );
-        }
-    }
-
-    #[test]
-    fn rejects_both_outcome_keys_in_one_contract() {
-        let e = err("name=a,file=f.yaml,verification-success=true,verification-exit-code=0");
-        assert!(e.contains("verification-exit-code"), "message was: {e}");
-    }
-
-    // --- the singular's looseness, adopted deliberately ---
-
-    #[test]
-    fn defaults_to_a_failed_verification_when_no_outcome_is_given() {
-        let s = spec(
-            "name=a,file=f.yaml,verification-results=r.txt,verification-results-content-type=text/plain,verifier=spectral",
-        );
-        assert!(!s.verification_success);
-        assert_eq!(s.verifier.as_deref(), Some("spectral"));
-    }
-
-    // --- required keys ---
-
-    #[test]
-    fn rejects_a_missing_name() {
-        assert!(err("file=f.yaml").contains("name"));
-    }
-
-    #[test]
-    fn rejects_a_missing_file() {
-        assert!(err("name=a").contains("file"));
-    }
-
-    // --- JSON form ---
-
-    #[test]
-    fn parses_a_minimal_json_object_and_applies_defaults() {
-        let s = spec(r#"{"name":"payments-api","file":"./pay.yaml"}"#);
-        assert_eq!(s.name, "payments-api");
-        assert_eq!(s.file, "./pay.yaml");
-        assert_eq!(s.specification, "oas");
-        assert_eq!(s.content_type, "application/yaml");
-        assert!(!s.verification_success);
-        assert_eq!(s.verifier, None);
-    }
-
-    /// The strongest available guarantee that the two forms agree: identical content in either
-    /// notation must produce the very same `ContractSpec`.
-    #[test]
-    fn json_and_key_value_produce_the_same_spec() {
-        let from_json = spec(
-            r#"{"name":"a","file":"f.yaml","specification":"asyncapi",
-                "contentType":"application/json","verificationResults":"r.txt",
-                "verificationSuccess":true,"verifier":"spectral","verifierVersion":"1.2.3",
-                "verificationResultsContentType":"text/plain",
-                "verificationResultsFormat":"junit"}"#,
-        );
-        let from_pairs = spec(
-            "name=a,file=f.yaml,specification=asyncapi,content-type=application/json,\
-             verification-results=r.txt,verification-success=true,verifier=spectral,\
-             verifier-version=1.2.3,verification-results-content-type=text/plain,\
-             verification-results-format=junit",
-        );
-        assert_eq!(from_json, from_pairs);
-    }
-
-    #[test]
-    fn accepts_kebab_case_json_keys() {
-        let kebab = spec(
-            r#"{"name":"a","file":"f.yaml","content-type":"application/json",
-                "verification-exit-code":0,"verifier-version":"1.2.3",
-                "verification-results":"r.txt","verification-results-content-type":"text/plain",
-                "verifier":"v"}"#,
-        );
-        let camel = spec(
-            r#"{"name":"a","file":"f.yaml","contentType":"application/json",
-                "verificationExitCode":0,"verifierVersion":"1.2.3",
-                "verificationResults":"r.txt","verificationResultsContentType":"text/plain",
-                "verifier":"v"}"#,
-        );
-        assert_eq!(kebab, camel);
-        assert!(kebab.verification_success);
-    }
-
-    #[test]
-    fn rejects_an_unknown_json_key() {
-        let e = err(r#"{"name":"a","file":"f.yaml","contentTpye":"x"}"#);
-        assert!(e.contains("contentTpye"), "message was: {e}");
-    }
-
-    #[test]
-    fn reports_the_position_of_malformed_json() {
-        let e = err(r#"{"name":"a","file":}"#);
-        assert!(
-            e.contains("line") && e.contains("column"),
-            "message should carry serde's position, was: {e}"
-        );
-    }
-
-    #[test]
-    fn rejects_an_empty_name_or_file_in_json() {
-        assert!(err(r#"{"name":"","file":"f.yaml"}"#).contains("name"));
-        assert!(err(r#"{"name":"a","file":"   "}"#).contains("file"));
-    }
-
-    // Unlike the key=value form, a missing key surfaces serde's own "missing field" message.
-    // Naming the JSON field is at least as useful as naming the flag, so this divergence stands.
-    #[test]
-    fn rejects_a_missing_required_key_in_json() {
-        assert!(err(r#"{"file":"f.yaml"}"#).contains("name"));
-        assert!(err(r#"{"name":"a"}"#).contains("file"));
-    }
-
-    #[test]
-    fn rejects_both_outcome_keys_in_one_json_contract() {
-        let e = err(
-            r#"{"name":"a","file":"f.yaml","verificationSuccess":true,"verificationExitCode":0}"#,
-        );
-        assert!(
-            e.contains("verification-success") && e.contains("verification-exit-code"),
-            "message was: {e}"
-        );
-    }
-
-    #[test]
-    fn resolves_the_json_exit_code_like_the_key_value_form() {
-        let zero = spec(r#"{"name":"a","file":"f.yaml","verificationExitCode":0}"#);
-        assert!(zero.verification_success);
-        for code in ["1", "127", "-1"] {
-            let s = spec(&format!(
-                r#"{{"name":"a","file":"f.yaml","verificationExitCode":{code}}}"#
-            ));
-            assert!(
-                !s.verification_success,
-                "exit code {code} should be a failed verification"
-            );
-        }
-    }
-
-    #[test]
-    fn routes_to_json_despite_leading_whitespace() {
-        let s = spec("   {\"name\":\"a\",\"file\":\"f.yaml\"}");
-        assert_eq!(s.name, "a");
-    }
-
-    /// `,` and `=` drive `split_fields` and `looks_like_assignment` in the key=value form.
-    /// Dispatching to `from_json` before either runs is what makes them ordinary text here.
-    #[test]
-    fn treats_separator_characters_as_literal_text_in_json() {
-        let s = spec(
-            r#"{"name":"a","file":"./a=b,c.yaml","verifier":"Acme, Inc.",
-                "verificationResults":"r.txt","verificationResultsContentType":"text/plain"}"#,
-        );
-        assert_eq!(s.file, "./a=b,c.yaml");
-        assert_eq!(s.verifier.as_deref(), Some("Acme, Inc."));
-    }
-
-    #[test]
-    fn rejects_incomplete_self_verification_evidence_in_either_form() {
-        for input in [
-            "name=a,file=f.yaml,verifier-version=1",
-            r#"{"name":"a","file":"f.yaml","verifierVersion":"1"}"#,
-        ] {
-            let e = err(input);
-            assert!(
-                e.contains("'a'")
-                    && e.contains("verification-results")
-                    && e.contains("verification-results-content-type")
-                    && e.contains("verifier"),
-                "message was: {e}"
-            );
-        }
-    }
-
-    #[test]
-    fn names_only_the_missing_self_verification_keys() {
-        let e = err("name=a,file=f.yaml,verification-results=r.txt,verifier=v");
-        assert!(
-            e.contains("verification-results-content-type"),
-            "message was: {e}"
-        );
-        assert!(
-            !e.contains("missing: verification-results,"),
-            "message was: {e}"
-        );
-    }
-
-    #[test]
-    fn an_outcome_alone_is_still_accepted() {
-        let s = spec("name=a,file=f.yaml,verification-success=true");
-        assert!(s.verification_success);
-    }
-
-    #[test]
-    fn still_rejects_a_value_that_is_neither_json_nor_key_value() {
-        assert!(err("just-a-file.yaml").contains("not in key=value form"));
+    fn no_contract_flags_gives_no_specs() {
+        let matches = add_publish_provider_contract_subcommand()
+            .try_get_matches_from(vec![
+                "publish-provider-contract",
+                "-b",
+                "http://x",
+                "--provider",
+                "p",
+                "-a",
+                "1.0",
+                "./single.yaml",
+            ])
+            .expect("single-contract mode should parse");
+        assert!(ContractSpec::from_args(&matches).unwrap().is_empty());
     }
 }
 
@@ -699,18 +500,8 @@ struct PublishContractsResponse {
 }
 
 pub fn publish_multiple(args: &ArgMatches) -> Result<Value, PactBrokerError> {
-    // Parse --contract flags
-    let raw_contracts: Vec<String> = args
-        .get_many::<String>("contract")
-        .unwrap_or_default()
-        .cloned()
-        .collect();
-
-    let specs: Vec<ContractSpec> = raw_contracts
-        .iter()
-        .map(|s| ContractSpec::parse(s))
-        .collect::<Result<Vec<_>, _>>()
-        .map_err(|e| PactBrokerError::ValidationError(vec![e]))?;
+    let specs =
+        ContractSpec::from_args(args).map_err(|e| PactBrokerError::ValidationError(vec![e]))?;
 
     // Validate: no duplicate contract names
     let mut seen: HashSet<&str> = HashSet::new();
@@ -1106,20 +897,26 @@ mod publish_multiple_provider_contracts_tests {
             "--build-url",
             BUILD_URL,
             "--contract",
-            &format!(
-                "name=payments-api,file={},specification=oas,content-type=application/yaml",
-                PAYMENTS_FIXTURE
-            ),
+            PAYMENTS_FIXTURE,
+            "--name",
+            "payments-api",
+            "--specification",
+            "oas",
+            "--content-type",
+            "application/yaml",
             // verification-success is set but no results/verifier/verifier-version accompany it,
             // so the expected request body above carries no selfVerificationResults for this
-            // contract. That gate is inherited from publish.rs:187-190 — asserting it here keeps
-            // the behaviour deliberate. The mock server fails on any body mismatch.
+            // contract. That gate is inherited from publish.rs — asserting it here keeps the
+            // behaviour deliberate. The mock server fails on any body mismatch.
             "--contract",
-            &format!(
-                "name=fraud-events,file={},specification=asyncapi,content-type=application/yaml,\
-                 verification-success=true",
-                FRAUD_FIXTURE
-            ),
+            FRAUD_FIXTURE,
+            "--name",
+            "fraud-events",
+            "--specification",
+            "asyncapi",
+            "--content-type",
+            "application/yaml",
+            "--verification-success",
             "--output",
             "json",
         ]);
@@ -1237,18 +1034,32 @@ mod publish_multiple_provider_contracts_tests {
             "--provider-app-version",
             PROVIDER_VERSION,
             "--contract",
-            &format!(
-                "name=payments-api,file={},specification=oas,content-type=application/yaml,\
-                 verification-results={},verification-success=true,verifier=spectral,\
-                 verifier-version=1.0.0,verification-results-content-type=text/plain,\
-                 verification-results-format=text",
-                PAYMENTS_FIXTURE, VERIF_RESULTS
-            ),
+            PAYMENTS_FIXTURE,
+            "--name",
+            "payments-api",
+            "--specification",
+            "oas",
+            "--content-type",
+            "application/yaml",
+            "--verification-results",
+            VERIF_RESULTS,
+            "--verification-success",
+            "--verifier",
+            "spectral",
+            "--verifier-version",
+            "1.0.0",
+            "--verification-results-content-type",
+            "text/plain",
+            "--verification-results-format",
+            "text",
             "--contract",
-            &format!(
-                "name=fraud-events,file={},specification=asyncapi,content-type=application/yaml",
-                FRAUD_FIXTURE
-            ),
+            FRAUD_FIXTURE,
+            "--name",
+            "fraud-events",
+            "--specification",
+            "asyncapi",
+            "--content-type",
+            "application/yaml",
             "--output",
             "json",
         ]);
@@ -1273,7 +1084,9 @@ mod publish_multiple_provider_contracts_tests {
             "--provider-app-version",
             PROVIDER_VERSION,
             "--contract",
-            "name=payments-api,file=tests/fixtures/nonexistent.yaml,specification=oas,content-type=application/yaml",
+            "tests/fixtures/nonexistent.yaml",
+            "--name",
+            "payments-api",
         ]);
 
         let result = publish_multiple(&matches);
@@ -1384,20 +1197,29 @@ mod publish_multiple_provider_contracts_tests {
             "--provider-app-version",
             PROVIDER_VERSION,
             "--contract",
-            &format!(
-                "name=payments-api,file={},specification=oas,content-type=application/yaml",
-                PAYMENTS_FIXTURE
-            ),
+            PAYMENTS_FIXTURE,
+            "--name",
+            "payments-api",
+            "--specification",
+            "oas",
+            "--content-type",
+            "application/yaml",
             "--contract",
-            &format!(
-                "name=fraud-events,file={},specification=asyncapi,content-type=application/yaml",
-                FRAUD_FIXTURE
-            ),
+            FRAUD_FIXTURE,
+            "--name",
+            "fraud-events",
+            "--specification",
+            "asyncapi",
+            "--content-type",
+            "application/yaml",
             "--contract",
-            &format!(
-                "name=payments-grpc,file={},specification=protobuf,content-type=application/x-protobuf",
-                PROTO_FIXTURE
-            ),
+            PROTO_FIXTURE,
+            "--name",
+            "payments-grpc",
+            "--specification",
+            "protobuf",
+            "--content-type",
+            "application/x-protobuf",
             "--output",
             "json",
         ]);
@@ -1429,15 +1251,13 @@ mod publish_multiple_provider_contracts_tests {
             "--provider-app-version",
             PROVIDER_VERSION,
             "--contract",
-            &format!(
-                "name=payments-api,file={},specification=oas,content-type=application/yaml",
-                PAYMENTS_FIXTURE
-            ),
+            PAYMENTS_FIXTURE,
+            "--name",
+            "payments-api",
             "--contract",
-            &format!(
-                "name=payments-api,file={},specification=asyncapi,content-type=application/yaml",
-                FRAUD_FIXTURE
-            ),
+            FRAUD_FIXTURE,
+            "--name",
+            "payments-api",
         ]);
 
         let result = publish_multiple(&matches);
@@ -1466,7 +1286,9 @@ mod publish_multiple_provider_contracts_tests {
             "--provider-app-version",
             PROVIDER_VERSION,
             "--contract",
-            &format!("name=payments-api,file={}", empty.display()),
+            &empty.display().to_string(),
+            "--name",
+            "payments-api",
         ]);
 
         let result = publish_multiple(&matches);
@@ -1495,7 +1317,9 @@ mod publish_multiple_provider_contracts_tests {
             "--provider-app-version",
             "",
             "--contract",
-            &format!("name=payments-api,file={}", PAYMENTS_FIXTURE),
+            PAYMENTS_FIXTURE,
+            "--name",
+            "payments-api",
         ]);
 
         assert!(
@@ -1598,15 +1422,16 @@ mod publish_multiple_provider_contracts_tests {
             "--provider-app-version",
             PROVIDER_VERSION,
             "--contract",
-            &format!(
-                "name=payments-api,file={},verification-success=true",
-                PAYMENTS_FIXTURE
-            ),
+            PAYMENTS_FIXTURE,
+            "--name",
+            "payments-api",
+            "--verification-success",
             "--contract",
-            &format!(
-                "name=fraud-events,file={},verification-exit-code=0",
-                FRAUD_FIXTURE
-            ),
+            FRAUD_FIXTURE,
+            "--name",
+            "fraud-events",
+            "--verification-exit-code",
+            "0",
             "--output",
             "json",
         ]);
@@ -1616,139 +1441,6 @@ mod publish_multiple_provider_contracts_tests {
         assert!(
             result.is_ok(),
             "an outcome without evidence should still publish: {result:?}"
-        );
-        let val = result.unwrap();
-        let contracts = val.get("contracts").unwrap().as_array().unwrap();
-        assert_eq!(contracts.len(), 2);
-    }
-
-    // Test 9: the two --contract notations mix freely within one publish. The expected body is
-    // Test 2's verbatim, so a JSON contract that resolved differently from its key=value twin
-    // fails here rather than reaching PactFlow.
-    #[test]
-    fn publish_contracts_accepts_json_and_key_value_in_one_request() {
-        let payments_content = std::fs::read_to_string(PAYMENTS_FIXTURE).unwrap();
-        let fraud_content = std::fs::read_to_string(FRAUD_FIXTURE).unwrap();
-        let verif_content = std::fs::read_to_string(VERIF_RESULTS).unwrap();
-        let payments_b64 = Base64.encode(&payments_content);
-        let fraud_b64 = Base64.encode(&fraud_content);
-        let verif_b64 = Base64.encode(&verif_content);
-
-        let request_body = json!({
-            "pacticipantVersionNumber": PROVIDER_VERSION,
-            "contracts": [
-                {
-                    "name": "payments-api",
-                    "content": payments_b64,
-                    "contentType": "application/yaml",
-                    "specification": "oas",
-                    "selfVerificationResults": {
-                        "success": true,
-                        "content": verif_b64,
-                        "contentType": "text/plain",
-                        "format": "text",
-                        "verifier": "spectral",
-                        "verifierVersion": "1.0.0"
-                    }
-                },
-                {
-                    "name": "fraud-events",
-                    "content": fraud_b64,
-                    "contentType": "application/yaml",
-                    "specification": "asyncapi"
-                }
-            ]
-        });
-
-        let response_body = json!({
-            "notices": [{ "text": "Contracts published", "type": "success" }],
-            "contracts": ["payments-api", "fraud-events"]
-        });
-
-        let pactflow_service = PactBuilder::new("pact-broker-cli", "PactFlow")
-            .interaction(
-                "GET / returns HAL index with pf:publish-provider-contracts (mixed form test)",
-                "",
-                |mut i| {
-                    i.given("pf:publish-provider-contracts relation exists in index");
-                    i.request
-                        .get()
-                        .path("/")
-                        .header("Accept", "application/hal+json")
-                        .header("Accept", "application/json");
-                    i.response
-                        .status(200)
-                        .header("Content-Type", "application/hal+json;charset=utf-8")
-                        .json_body(json_pattern!({
-                            "_links": {
-                                "pf:publish-provider-contracts": {
-                                    "href": term!(
-                                        format!(".*\\/provider-contracts\\/provider\\/{}\\/publish-contracts", PROVIDER_NAME),
-                                        format!("http://localhost:1234/provider-contracts/provider/{}/publish-contracts", PROVIDER_NAME)
-                                    )
-                                }
-                            }
-                        }));
-                    i
-                },
-            )
-            .interaction(
-                "POST publish-contracts accepts a JSON contract alongside a key=value one",
-                "",
-                |mut i| {
-                    i.request
-                        .post()
-                        .path(format!(
-                            "/provider-contracts/provider/{}/publish-contracts",
-                            PROVIDER_NAME
-                        ))
-                        .header("Content-Type", "application/json")
-                        .header("Accept", "application/hal+json,application/problem+json")
-                        .json_body(request_body.clone());
-                    i.response
-                        .status(200)
-                        .header("Content-Type", "application/hal+json;charset=utf-8")
-                        .json_body(response_body.clone());
-                    i
-                },
-            )
-            .start_mock_server(None, Some(mock_server_config()));
-
-        let url = pactflow_service.url();
-
-        let matches = add_publish_provider_contract_subcommand().get_matches_from(vec![
-            "publish-provider-contract",
-            "-b",
-            url.as_str(),
-            "--provider",
-            PROVIDER_NAME,
-            "--provider-app-version",
-            PROVIDER_VERSION,
-            // JSON form, camelCase keys
-            "--contract",
-            &format!(
-                r#"{{"name":"payments-api","file":"{}","specification":"oas",
-                     "verificationResults":"{}","verificationSuccess":true,
-                     "verificationResultsContentType":"text/plain",
-                     "verificationResultsFormat":"text","verifier":"spectral",
-                     "verifierVersion":"1.0.0"}}"#,
-                PAYMENTS_FIXTURE, VERIF_RESULTS
-            ),
-            // key=value form, same request
-            "--contract",
-            &format!(
-                "name=fraud-events,file={},specification=asyncapi",
-                FRAUD_FIXTURE
-            ),
-            "--output",
-            "json",
-        ]);
-
-        let result = publish_multiple(&matches);
-
-        assert!(
-            result.is_ok(),
-            "mixing --contract forms should publish: {result:?}"
         );
         let val = result.unwrap();
         let contracts = val.get("contracts").unwrap().as_array().unwrap();
