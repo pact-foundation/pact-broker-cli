@@ -5,6 +5,7 @@ use serde::Deserialize;
 use serde_json::{Value, json};
 use std::collections::HashSet;
 
+use super::verification::{SelfVerificationInputs, missing_self_verification_keys};
 use crate::cli::{
     pact_broker::main::{
         HALClient, Notice, PactBrokerError, process_notices,
@@ -236,7 +237,7 @@ impl ContractSpec {
         let verification_results_content_type = map.remove("verification-results-content-type");
         let verification_results_format = map.remove("verification-results-format");
 
-        Ok(ContractSpec {
+        let spec = ContractSpec {
             name,
             file,
             specification,
@@ -247,7 +248,9 @@ impl ContractSpec {
             verifier_version,
             verification_results_content_type,
             verification_results_format,
-        })
+        };
+        spec.validate_self_verification()?;
+        Ok(spec)
     }
 
     /// Parse `{"name":"payments-api","file":"./pay.yaml"}` into a `ContractSpec`. Keys may be
@@ -273,7 +276,7 @@ impl ContractSpec {
             (None, None) => false,
         };
 
-        Ok(ContractSpec {
+        let spec = ContractSpec {
             name,
             file,
             specification: json
@@ -292,7 +295,29 @@ impl ContractSpec {
                 .verification_results_content_type
                 .map(trim_string),
             verification_results_format: json.verification_results_format.map(trim_string),
-        })
+        };
+        spec.validate_self_verification()?;
+        Ok(spec)
+    }
+
+    /// Reject incomplete self-verification evidence here, so both `--contract` forms fail the same
+    /// way and name the contract that needs fixing.
+    fn validate_self_verification(&self) -> Result<(), String> {
+        let missing = missing_self_verification_keys(&SelfVerificationInputs {
+            results: self.verification_results.is_some(),
+            results_content_type: self.verification_results_content_type.is_some(),
+            verifier: self.verifier.is_some(),
+            verifier_version: self.verifier_version.is_some(),
+        });
+        if missing.is_empty() {
+            return Ok(());
+        }
+        Err(format!(
+            "--contract '{}' has self-verification evidence but is missing: {} \
+             (verification-results, verification-results-content-type and verifier are all required)",
+            self.name,
+            missing.join(", ")
+        ))
     }
 }
 
@@ -350,7 +375,9 @@ mod contract_spec_parse_tests {
 
     #[test]
     fn keeps_everything_after_the_first_equals_in_the_value() {
-        let s = spec("name=a,file=f.yaml,verification-success=true,verifier-version=1.0=rc1");
+        let s = spec(
+            "name=a,file=f.yaml,verification-results=r.txt,verification-results-content-type=text/plain,verifier=v,verification-success=true,verifier-version=1.0=rc1",
+        );
         assert_eq!(s.verifier_version.as_deref(), Some("1.0=rc1"));
     }
 
@@ -358,7 +385,9 @@ mod contract_spec_parse_tests {
 
     #[test]
     fn keeps_a_comma_inside_a_value() {
-        let s = spec("name=a,file=f.yaml,verification-success=true,verifier=Acme, Inc.");
+        let s = spec(
+            "name=a,file=f.yaml,verification-results=r.txt,verification-results-content-type=text/plain,verification-success=true,verifier=Acme, Inc.",
+        );
         assert_eq!(s.verifier.as_deref(), Some("Acme, Inc."));
         assert_eq!(s.name, "a");
         assert_eq!(s.file, "f.yaml");
@@ -478,7 +507,9 @@ mod contract_spec_parse_tests {
 
     #[test]
     fn defaults_to_a_failed_verification_when_no_outcome_is_given() {
-        let s = spec("name=a,file=f.yaml,verifier=spectral");
+        let s = spec(
+            "name=a,file=f.yaml,verification-results=r.txt,verification-results-content-type=text/plain,verifier=spectral",
+        );
         assert!(!s.verification_success);
         assert_eq!(s.verifier.as_deref(), Some("spectral"));
     }
@@ -532,11 +563,15 @@ mod contract_spec_parse_tests {
     fn accepts_kebab_case_json_keys() {
         let kebab = spec(
             r#"{"name":"a","file":"f.yaml","content-type":"application/json",
-                "verification-exit-code":0,"verifier-version":"1.2.3"}"#,
+                "verification-exit-code":0,"verifier-version":"1.2.3",
+                "verification-results":"r.txt","verification-results-content-type":"text/plain",
+                "verifier":"v"}"#,
         );
         let camel = spec(
             r#"{"name":"a","file":"f.yaml","contentType":"application/json",
-                "verificationExitCode":0,"verifierVersion":"1.2.3"}"#,
+                "verificationExitCode":0,"verifierVersion":"1.2.3",
+                "verificationResults":"r.txt","verificationResultsContentType":"text/plain",
+                "verifier":"v"}"#,
         );
         assert_eq!(kebab, camel);
         assert!(kebab.verification_success);
@@ -607,9 +642,48 @@ mod contract_spec_parse_tests {
     /// Dispatching to `from_json` before either runs is what makes them ordinary text here.
     #[test]
     fn treats_separator_characters_as_literal_text_in_json() {
-        let s = spec(r#"{"name":"a","file":"./a=b,c.yaml","verifier":"Acme, Inc."}"#);
+        let s = spec(
+            r#"{"name":"a","file":"./a=b,c.yaml","verifier":"Acme, Inc.",
+                "verificationResults":"r.txt","verificationResultsContentType":"text/plain"}"#,
+        );
         assert_eq!(s.file, "./a=b,c.yaml");
         assert_eq!(s.verifier.as_deref(), Some("Acme, Inc."));
+    }
+
+    #[test]
+    fn rejects_incomplete_self_verification_evidence_in_either_form() {
+        for input in [
+            "name=a,file=f.yaml,verifier-version=1",
+            r#"{"name":"a","file":"f.yaml","verifierVersion":"1"}"#,
+        ] {
+            let e = err(input);
+            assert!(
+                e.contains("'a'")
+                    && e.contains("verification-results")
+                    && e.contains("verification-results-content-type")
+                    && e.contains("verifier"),
+                "message was: {e}"
+            );
+        }
+    }
+
+    #[test]
+    fn names_only_the_missing_self_verification_keys() {
+        let e = err("name=a,file=f.yaml,verification-results=r.txt,verifier=v");
+        assert!(
+            e.contains("verification-results-content-type"),
+            "message was: {e}"
+        );
+        assert!(
+            !e.contains("missing: verification-results,"),
+            "message was: {e}"
+        );
+    }
+
+    #[test]
+    fn an_outcome_alone_is_still_accepted() {
+        let s = spec("name=a,file=f.yaml,verification-success=true");
+        assert!(s.verification_success);
     }
 
     #[test]

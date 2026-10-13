@@ -4,6 +4,7 @@ use clap::ArgMatches;
 use serde::{Deserialize, Serialize};
 use serde_json::{Value, json};
 
+use super::verification::{SelfVerificationInputs, missing_self_verification_keys};
 use crate::cli::{
     pact_broker::main::{
         HALClient, Notice, PactBrokerError, process_notices,
@@ -65,6 +66,27 @@ pub fn publish(args: &ArgMatches) -> Result<Value, PactBrokerError> {
         println!("❌ Failed to read contract file: {}", e);
         PactBrokerError::IoError(e.to_string())
     })?;
+
+    // Checked before any request is made, so an incomplete set of flags fails without a broker.
+    let missing = missing_self_verification_keys(&SelfVerificationInputs {
+        results: args.get_one::<String>("verification-results").is_some(),
+        results_content_type: args
+            .get_one::<String>("verification-results-content-type")
+            .is_some(),
+        verifier: args.get_one::<String>("verifier").is_some(),
+        verifier_version: args.get_one::<String>("verifier-version").is_some(),
+    });
+    if !missing.is_empty() {
+        return Err(PactBrokerError::ValidationError(vec![format!(
+            "Self-verification needs --verification-results, --verification-results-content-type \
+             and --verifier together; missing: {}",
+            missing
+                .iter()
+                .map(|key| format!("--{key}"))
+                .collect::<Vec<_>>()
+                .join(", ")
+        )]));
+    }
 
     let broker_url = get_broker_url(args).trim_end_matches('/').to_string();
     let auth = get_auth(args);
@@ -616,6 +638,10 @@ mod publish_provider_contract_tests {
             "1",
             "--verification-results",
             "tests/fixtures/non-existent-file.txt",
+            "--verification-results-content-type",
+            "text/plain",
+            "--verifier",
+            "spectral",
         ]);
 
         // Act
@@ -629,6 +655,35 @@ mod publish_provider_contract_tests {
                 // Expected IoError when verification results file does not exist
             }
             _ => panic!("Expected IoError but got: {:?}", error),
+        }
+    }
+
+    #[test]
+    fn publish_provider_contract_rejects_incomplete_self_verification_before_any_request() {
+        let matches = add_publish_provider_contract_subcommand().get_matches_from(vec![
+            "publish-provider-contract",
+            "tests/fixtures/provider-contract.yaml",
+            "-b",
+            "http://localhost:1",
+            "--provider",
+            "Bar",
+            "--provider-app-version",
+            "1",
+            "--verifier-version",
+            "1.0.0",
+        ]);
+
+        match publish(&matches) {
+            Err(crate::cli::pact_broker::main::PactBrokerError::ValidationError(errors)) => {
+                let message = errors.join(" ");
+                assert!(message.contains("--verification-results"), "was: {message}");
+                assert!(
+                    message.contains("--verification-results-content-type"),
+                    "was: {message}"
+                );
+                assert!(message.contains("--verifier"), "was: {message}");
+            }
+            other => panic!("Expected ValidationError but got: {:?}", other),
         }
     }
 }
