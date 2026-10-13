@@ -19,13 +19,16 @@ fn per_contract(name: &'static str, value_name: &'static str, help: &'static str
 const PER_CONTRACT_NOTE: &str =
     "Describes the contract given by the preceding --contract, or the single CONTRACT_FILE.";
 
-/// A per-contract boolean. Declared with an optional value rather than `SetTrue` because `SetTrue`
-/// refuses to be repeated, and `Count` keeps only the last argv index — neither can say which
-/// `--contract` block the flag belongs to. `--flag` alone still reads as `true`.
+/// A per-contract boolean: a bare flag that takes no value, like any other.
+///
+/// `Append` rather than `SetTrue` only because `SetTrue` refuses to be repeated and `Count` keeps
+/// just the last argv index, so neither can say which `--contract` the flag belongs to. Pairing
+/// `Append` with `num_args(0)` keeps the per-occurrence index while `default_missing_value`
+/// supplies the `true` each occurrence stands for, so nothing leaks into the help text.
 fn per_contract_flag(name: &'static str, help: &'static str) -> Arg {
     Arg::new(name)
         .long(name)
-        .num_args(0..=1)
+        .num_args(0)
         .action(ArgAction::Append)
         .default_missing_value("true")
         .value_parser(clap::value_parser!(bool))

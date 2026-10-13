@@ -2316,10 +2316,10 @@ Options:
           The contract specification [default: oas] Describes the contract given by the preceding --contract, or the single CONTRACT_FILE.
       --content-type <CONTENT_TYPE>
           The content type. eg. application/yml [default: application/yaml] Describes the contract given by the preceding --contract, or the single CONTRACT_FILE.
-      --verification-success [<verification-success>]
-          Whether or not the self verification passed successfully. Describes the contract given by the preceding --contract, or the single CONTRACT_FILE. [possible values: true, false]
-      --no-verification-success [<no-verification-success>]
-          Whether or not the self verification failed. Describes the contract given by the preceding --contract, or the single CONTRACT_FILE. [possible values: true, false]
+      --verification-success
+          Whether or not the self verification passed successfully. Describes the contract given by the preceding --contract, or the single CONTRACT_FILE.
+      --no-verification-success
+          Whether or not the self verification failed. Describes the contract given by the preceding --contract, or the single CONTRACT_FILE.
       --verification-exit-code <N>
           The exit code of the verification process. Can be used instead of --verification-success|--no-verification-success for a simpler build script. Describes the contract given by the preceding --contract, or the single CONTRACT_FILE.
       --verification-results <VERIFICATION_RESULTS>

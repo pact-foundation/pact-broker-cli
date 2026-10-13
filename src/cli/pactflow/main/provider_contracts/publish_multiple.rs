@@ -342,25 +342,16 @@ mod contract_spec_from_args_tests {
         }
     }
 
+    /// The outcome flags take no value, so neither spelling may be given one.
     #[test]
-    fn the_outcome_flags_accept_an_explicit_value() {
+    fn the_outcome_flags_are_bare() {
         assert!(
             specs(&[
                 "--contract",
                 "./a.yaml",
                 "--name",
                 "a",
-                "--verification-success=true"
-            ])[0]
-                .verification_success
-        );
-        assert!(
-            !specs(&[
-                "--contract",
-                "./a.yaml",
-                "--name",
-                "a",
-                "--verification-success=false"
+                "--verification-success"
             ])[0]
                 .verification_success
         );
@@ -374,6 +365,15 @@ mod contract_spec_from_args_tests {
             ])[0]
                 .verification_success
         );
+        for argument in [
+            "--verification-success=false",
+            "--no-verification-success=x",
+        ] {
+            assert!(
+                parse(&["--contract", "./a.yaml", "--name", "a", argument]).is_err(),
+                "{argument} should be rejected: the flag takes no value"
+            );
+        }
     }
 
     #[test]
