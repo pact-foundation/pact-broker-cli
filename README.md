@@ -193,6 +193,9 @@ Options:
       --merge
           If a pact already exists for this consumer version and provider, merge the contents. Useful when running Pact tests concurrently on different build nodes.
 
+      --implements-multi-providers <implements-multi-providers>
+          Comma-separated list of named provider contracts (in a multi-contract set) that this consumer pact targets. Sent as a JSON array to the broker (e.g. 'payments-api,refunds-api' → ["payments-api","refunds-api"]). When set, only the named contracts will be scheduled for comparison.
+
   -o, --output <OUTPUT>
           Value must be one of ["json", "text", "pretty"]
           
@@ -2277,12 +2280,12 @@ Generate a UUID for use when calling create-or-update-webhook
 
 ```console
 $ pact-broker-cli pactflow publish-provider-contract --help
-Publish provider contract to PactFlow
+Publish provider contract(s) to PactFlow
 
-Usage: pact-broker-cli pactflow publish-provider-contract [OPTIONS] --broker-base-url <PACT_BROKER_BASE_URL> --provider <PROVIDER> <CONTRACT_FILE>
+Usage: pact-broker-cli pactflow publish-provider-contract [OPTIONS] --broker-base-url <PACT_BROKER_BASE_URL> --provider <PROVIDER> <CONTRACT_FILE|--contract <CONTRACT_FILE>>
 
 Arguments:
-  <CONTRACT_FILE>  The contract file to publish
+  [CONTRACT_FILE]  The contract file to publish. Use --contract instead to publish several contracts in one request.
 
 Options:
   -b, --broker-base-url <PACT_BROKER_BASE_URL>
@@ -2297,36 +2300,40 @@ Options:
           Custom header(s) to send with requests (format: 'Header-Name: Value', can be used multiple times)
       --retries <PACT_BROKER_HTTP_RETRIES>
           The number of times to retry failed HTTP requests to the Pact Broker (retries on 5xx, 408, and 429). Delays use exponential back-off starting at 500 ms and doubling each attempt (0.5 s, 1 s, 2 s, 4 s, 8 s, …). 429 responses honour the Retry-After header when present. [env: PACT_BROKER_HTTP_RETRIES=] [default: 8]
+      --contract <CONTRACT_FILE>
+          A contract file to publish, starting a new contract. Repeat --contract once per contract to publish several in a single request. The options that follow a --contract describe that contract and may be repeated for each one: --name (required), --specification, --content-type, --verification-success, --no-verification-success, --verification-exit-code, --verification-results, --verification-results-content-type, --verification-results-format, --verifier, --verifier-version. Every other option is shared by all the contracts in the request, wherever it appears: --provider, --provider-app-version, --branch, --tag, --build-url, --auto-detect-version-properties and --tag-with-git-branch. Cannot be combined with the positional CONTRACT_FILE.
+      --name <NAME>
+          The contract name, unique within the request. Required once per --contract; not used with the positional CONTRACT_FILE. Describes the contract given by the preceding --contract, or the single CONTRACT_FILE.
       --provider <PROVIDER>
-          The provider name
+          The provider name. Shared by every contract in the request.
   -a, --provider-app-version <PROVIDER_APP_VERSION>
-          The provider application version
+          The provider application version. Shared by every contract in the request.
       --branch <BRANCH>
-          Repository branch of the provider version
+          Repository branch of the provider version. Shared by every contract in the request.
   -t, --tag [<tag>...]
-          Tag name for provider version. Can be specified multiple times (delimiter ,).
+          Tag name for provider version. Can be specified multiple times (delimiter ,). Shared by every contract in the request.
       --specification <SPECIFICATION>
-          The contract specification [default: oas]
+          The contract specification [default: oas] Describes the contract given by the preceding --contract, or the single CONTRACT_FILE.
       --content-type <CONTENT_TYPE>
-          The content type. eg. application/yml
+          The content type. eg. application/yml [default: application/yaml] Describes the contract given by the preceding --contract, or the single CONTRACT_FILE.
       --verification-success
-          Whether or not the self verification passed successfully.
+          Whether or not the self verification passed successfully. Describes the contract given by the preceding --contract, or the single CONTRACT_FILE.
       --no-verification-success
-          Whether or not the self verification failed.
+          Whether or not the self verification failed. Describes the contract given by the preceding --contract, or the single CONTRACT_FILE.
       --verification-exit-code <N>
-          The exit code of the verification process. Can be used instead of --verification-success|--no-verification-success for a simpler build script.
+          The exit code of the verification process. Can be used instead of --verification-success|--no-verification-success for a simpler build script. Describes the contract given by the preceding --contract, or the single CONTRACT_FILE.
       --verification-results <VERIFICATION_RESULTS>
-          The path to the file containing the output from the verification process
+          The path to the file containing the output from the verification process. Describes the contract given by the preceding --contract, or the single CONTRACT_FILE.
       --verification-results-content-type <VERIFICATION_RESULTS_CONTENT_TYPE>
-          The content type of the verification output eg. text/plain, application/yaml
+          The content type of the verification output eg. text/plain, application/yaml. Describes the contract given by the preceding --contract, or the single CONTRACT_FILE.
       --verification-results-format <VERIFICATION_RESULTS_FORMAT>
-          The format of the verification output eg. junit, text
+          The format of the verification output eg. junit, text. Describes the contract given by the preceding --contract, or the single CONTRACT_FILE.
       --verifier <VERIFIER>
-          The tool used to verify the provider contract
+          The tool used to verify the provider contract. Describes the contract given by the preceding --contract, or the single CONTRACT_FILE.
       --verifier-version <VERIFIER_VERSION>
-          The version of the tool used to verify the provider contract
+          The version of the tool used to verify the provider contract. Describes the contract given by the preceding --contract, or the single CONTRACT_FILE.
       --build-url <BUILD_URL>
-          The build URL that created the provider contract
+          The build URL that created the provider contract. Shared by every contract in the request.
   -r, --auto-detect-version-properties
           Automatically detect the repository commit, branch and build URL from known CI environment variables or git CLI. Supports Buildkite, Circle CI, Travis CI, GitHub Actions, Jenkins, Hudson, AppVeyor, GitLab, CodeShip, Bitbucket and Azure DevOps.
       --tag-with-git-branch
@@ -2359,6 +2366,111 @@ Options:
 ```
 
 </details>
+
+The command has two modes, and exactly one must be used.
+
+**Single contract** — pass the contract as the positional `CONTRACT_FILE` and describe it with the
+individual options (`--specification`, `--content-type`, `--verifier`, and so on):
+
+```sh
+pact-broker-cli pactflow publish-provider-contract ./tests/fixtures/payments-api.yaml \
+  --broker-base-url https://yourorg.pactflow.io \
+  --broker-token "$PACTFLOW_TOKEN" \
+  --provider my-payments-service \
+  --provider-app-version 1.4.2 \
+  --branch main \
+  --specification oas \
+  --content-type application/yaml
+```
+
+**Multiple contracts in a single request** — repeat `--contract` once per contract file. This mode
+uses a different PactFlow endpoint that accepts a named set of contracts, so each one also needs a
+`--name`. The positional `CONTRACT_FILE` cannot be combined with `--contract`.
+
+The options following a `--contract` describe *that* contract, up until the next `--contract`.
+There is no grammar inside the argument, so ordinary shell quoting applies and values may contain
+commas, spaces or `=` without escaping.
+
+```sh
+pact-broker-cli pactflow publish-provider-contract \
+  --broker-base-url https://yourorg.pactflow.io \
+  --broker-token "$PACTFLOW_TOKEN" \
+  --provider my-payments-service \
+  --provider-app-version 1.4.2 \
+  --branch main \
+  --contract ./tests/fixtures/payments-api.yaml --name payments-api \
+      --specification oas --content-type application/yaml \
+  --contract ./tests/fixtures/fraud-events.yaml --name fraud-events \
+      --specification asyncapi
+```
+
+### Which options are shared, and which are per contract
+
+This is the one thing to get right. Shared options apply to the whole request no matter where they
+appear; per-contract options attach to the `--contract` they follow.
+
+| Shared by every contract | Describes one contract |
+| --- | --- |
+| `--provider` | `--name` (required) |
+| `--provider-app-version` | `--specification` (default `oas`) |
+| `--branch` | `--content-type` (default `application/yaml`) |
+| `--tag` | `--verification-success` / `--no-verification-success` |
+| `--build-url` | `--verification-exit-code` |
+| `--auto-detect-version-properties` | `--verification-results` |
+| `--tag-with-git-branch` | `--verification-results-content-type` |
+| broker auth and SSL options | `--verification-results-format` |
+| `--output` | `--verifier`, `--verifier-version` |
+
+A per-contract option used before the first `--contract` is an error, as is using one twice for the
+same contract.
+
+### Self-verification results
+
+Each contract carries its own verification outcome and evidence:
+
+```sh
+pact-broker-cli pactflow publish-provider-contract \
+  --broker-base-url https://yourorg.pactflow.io \
+  --broker-token "$PACTFLOW_TOKEN" \
+  --provider my-payments-service \
+  --provider-app-version 1.4.2 \
+  --contract ./tests/fixtures/payments-api.yaml --name payments-api \
+      --verification-results ./tests/fixtures/verification-results.txt \
+      --verification-results-content-type text/plain \
+      --verification-results-format text \
+      --verifier spectral --verifier-version 6.11.0 \
+      --verification-success \
+  --contract ./tests/fixtures/fraud-events.yaml --name fraud-events \
+      --specification asyncapi --no-verification-success
+```
+
+The outcome may be given three ways, and only one per contract: `--verification-success`,
+`--no-verification-success`, or `--verification-exit-code N` where `0` means success. With none of
+them the outcome is recorded as a failure.
+
+`--verification-exit-code` is the convenient one in a build script, since it takes the exit status
+of the verification step directly:
+
+```sh
+spectral lint ./tests/fixtures/payments-api.yaml > lint.txt
+LINT_EXIT=$?
+
+pact-broker-cli pactflow publish-provider-contract \
+  --broker-base-url https://yourorg.pactflow.io \
+  --broker-token "$PACTFLOW_TOKEN" \
+  --provider my-payments-service \
+  --provider-app-version 1.4.2 \
+  --contract ./tests/fixtures/payments-api.yaml --name payments-api \
+      --verification-results ./lint.txt \
+      --verification-results-content-type text/plain \
+      --verifier spectral \
+      --verification-exit-code "$LINT_EXIT"
+```
+
+Evidence travels together: if any of `--verification-results`, `--verifier` or `--verifier-version`
+is given for a contract, then `--verification-results`, `--verification-results-content-type` and
+`--verifier` are all required for it. The CLI reports the missing option and the contract it
+belongs to before anything is published, rather than letting PactFlow reject the request.
 
 ## Connecting to a Pact Broker with a self signed certificate
 

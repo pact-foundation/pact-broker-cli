@@ -1,0 +1,17 @@
+syntax = "proto3";
+
+package payments;
+
+service PaymentsService {
+  rpc SubmitPayment (PaymentRequest) returns (PaymentResponse);
+}
+
+message PaymentRequest {
+  double amount = 1;
+  string currency = 2;
+}
+
+message PaymentResponse {
+  string transaction_id = 1;
+  string status = 2;
+}
