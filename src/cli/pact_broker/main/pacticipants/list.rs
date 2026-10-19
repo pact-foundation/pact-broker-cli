@@ -59,7 +59,7 @@ pub fn list_pacticipants(
                     let names = [vec!["name"], vec!["displayName"]];
                     let mut table = Table::new();
                     table
-                        .load_preset(UTF8_FULL)
+                        .load_style(UTF8_FULL)
                         .set_header(vec!["NAME", "DISPLAY NAME"]);
                     if let Some(items) = result.get("pacticipants").and_then(|v| v.as_array()) {
                         for item in items {

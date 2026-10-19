@@ -56,7 +56,7 @@ pub fn list_environments(args: &clap::ArgMatches) -> Result<String, PactBrokerEr
                         production: bool,
                     }
 
-                    table.load_preset(UTF8_FULL).set_header(vec![
+                    table.load_style(UTF8_FULL).set_header(vec![
                         "UUID",
                         "NAME",
                         "DISPLAY NAME",
