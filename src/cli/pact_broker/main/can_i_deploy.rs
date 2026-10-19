@@ -205,7 +205,7 @@ fn build_matrix_table(data: &Data) -> (String, Vec<(String, String)>) {
     if show_verification_type {
         header.push("VERIFICATION TYPE");
     }
-    table.load_preset(UTF8_FULL).set_header(header);
+    table.load_style(UTF8_FULL).set_header(header);
     let mut verification_results: Vec<(String, String)> = Vec::new();
     for matrix_item in &data.matrix {
         let success_str = matrix_item

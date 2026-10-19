@@ -69,7 +69,7 @@ pub fn describe_pacticipant(
                         vec!["updatedAt"],
                     ];
                     let mut table = Table::new();
-                    table.load_preset(UTF8_FULL).set_header(vec![
+                    table.load_style(UTF8_FULL).set_header(vec![
                         "NAME",
                         "DISPLAY NAME",
                         "MAIN BRANCH",

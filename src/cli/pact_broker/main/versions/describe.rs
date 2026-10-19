@@ -87,9 +87,7 @@ pub fn describe_version(args: &clap::ArgMatches) -> Result<String, PactBrokerErr
             }
             OutputType::Table => {
                 let mut table = Table::new();
-                table
-                    .load_preset(UTF8_FULL)
-                    .set_header(vec!["NAME", "TAGS"]);
+                table.load_style(UTF8_FULL).set_header(vec!["NAME", "TAGS"]);
 
                 let version_number = result.get("number").and_then(|v| v.as_str()).unwrap_or("-");
 
@@ -273,7 +271,7 @@ fn format_environment_versions_output(
         }
         OutputType::Table => {
             let mut table = Table::new();
-            table.load_preset(UTF8_FULL).set_header(vec![
+            table.load_style(UTF8_FULL).set_header(vec![
                 "VERSION",
                 "STATUS",
                 "ENVIRONMENT",

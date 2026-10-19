@@ -65,7 +65,7 @@ pub(crate) fn compute_retry_delay(
 
 pub(crate) fn generate_table(res: &Value, columns: Vec<&str>, names: Vec<Vec<&str>>) -> Table {
     let mut table = Table::new();
-    table.load_preset(UTF8_FULL).set_header(columns);
+    table.load_style(UTF8_FULL).set_header(columns);
     if let Some(items) = res.get("pacts").unwrap().as_array() {
         for item in items {
             let mut values = vec![item; names.len()];

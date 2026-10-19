@@ -136,7 +136,7 @@ fn format_table_output(
     }
 
     let mut table = Table::new();
-    table.load_preset(UTF8_FULL);
+    table.load_style(UTF8_FULL);
     table.set_header(vec!["Provider State Name", "Consumers", "Parameters"]);
 
     for state in &provider_states.provider_states {
