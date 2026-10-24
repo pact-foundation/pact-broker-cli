@@ -2806,9 +2806,9 @@ dependencies = [
 
 [[package]]
 name = "pact_consumer"
-version = "1.4.10"
+version = "1.4.11"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "06e5806937eddaa0e8b366ededb548fe0846f3667b149acc22813f0ceba065ad"
+checksum = "c9994e4aa15b2e1e069045e26f1540f58b897265cda56bec53c71e4e16170f5a"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -2832,9 +2832,9 @@ dependencies = [
 
 [[package]]
 name = "pact_matching"
-version = "2.0.11"
+version = "2.1.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "f662d9d53655698d084765145add9dac5050965135bff7f157e8fbfa7c765d86"
+checksum = "feafcdb4e50321e8f049a0bbbc89d43ae97d252abb3926607ab5943bbf61afcf"
 dependencies = [
  "ansi_term",
  "anyhow",
@@ -2862,6 +2862,7 @@ dependencies = [
  "rand 0.9.5",
  "regex",
  "reqwest",
+ "rustls",
  "semver",
  "serde",
  "serde_json",
