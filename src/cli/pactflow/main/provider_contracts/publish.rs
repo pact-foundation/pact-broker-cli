@@ -6,6 +6,9 @@ use clap::ArgMatches;
 use serde::{Deserialize, Serialize};
 use serde_json::{Value, json};
 
+use pact_models::http_utils::HttpAuth;
+
+use super::remote_contract::{fetch_remote_contract, is_supported_contract_url};
 use crate::cli::{
     pact_broker::main::{
         HALClient, Notice, PactBrokerError,
@@ -48,15 +51,50 @@ struct Links {
     pb_pacticipant_version_tags: Vec<Value>,
 }
 
+/// Reads a local contract file and returns it base64-encoded.
+fn read_contract_file(path: &str) -> Result<String, PactBrokerError> {
+    std::fs::read_to_string(path)
+        .map(|content| Base64.encode(content))
+        .map_err(|e| {
+            println!("❌ Failed to read contract file: {}", e);
+            PactBrokerError::IoError(e.to_string())
+        })
+}
+
+/// Retrieves the contract at `url` and returns it base64-encoded.
+fn fetch_contract_content(
+    hal_client: &HALClient,
+    broker_url: &str,
+    auth: &HttpAuth,
+    url: &str,
+    content_type: &str,
+) -> Result<String, PactBrokerError> {
+    let HttpAuth::Token(api_token) = auth else {
+        return Err(PactBrokerError::ContentError(
+            "A broker token (--broker-token) is required to publish a contract from a URL"
+                .to_string(),
+        ));
+    };
+    tokio::runtime::Runtime::new()
+        .unwrap()
+        .block_on(fetch_remote_contract(
+            &hal_client.client,
+            broker_url,
+            api_token,
+            url,
+            content_type,
+        ))
+        .map(|content| Base64.encode(content))
+}
+
 pub fn publish(args: &ArgMatches) -> Result<Value, PactBrokerError> {
-    // Load contract file
-    let contract_file = args
+    let contract_input = args
         .get_one::<String>("contract-file")
         .expect("CONTRACT_FILE is required");
-    let contract_content = std::fs::read_to_string(contract_file).map_err(|e| {
-        println!("❌ Failed to read contract file: {}", e);
-        PactBrokerError::IoError(e.to_string())
-    })?;
+    let content_type = args
+        .get_one::<String>("content-type")
+        .map(String::as_str)
+        .unwrap_or("application/yaml");
 
     let broker_url = get_broker_url(args).trim_end_matches('/').to_string();
     let auth = get_auth(args);
@@ -69,6 +107,18 @@ pub fn publish(args: &ArgMatches) -> Result<Value, PactBrokerError> {
         custom_headers.clone(),
     )
     .with_retry_count(get_retries(args));
+
+    let contract_content = if is_supported_contract_url(contract_input) {
+        fetch_contract_content(
+            &hal_client,
+            &broker_url,
+            &auth,
+            contract_input,
+            content_type,
+        )?
+    } else {
+        read_contract_file(contract_input)?
+    };
 
     // Use pf:publish-provider-contract relation
     let publish_contract_href_path = tokio::runtime::Runtime::new().unwrap().block_on(async {
@@ -92,10 +142,6 @@ pub fn publish(args: &ArgMatches) -> Result<Value, PactBrokerError> {
             let specification = args
                 .get_one::<String>("specification")
                 .unwrap_or(&default_specification);
-            let default_content_type = "application/yaml".to_string();
-            let content_type = args
-                .get_one::<String>("content-type")
-                .unwrap_or(&default_content_type);
             let auto_detect_version_properties: bool =
                 args.get_flag("auto-detect-version-properties");
             let (git_commit, git_branch);
@@ -174,7 +220,7 @@ pub fn publish(args: &ArgMatches) -> Result<Value, PactBrokerError> {
 
             // Build contract params
             let mut contract_params = json!({
-                "content": Base64.encode(contract_content),
+                "content": contract_content,
                 "specification": specification,
                 "contentType": content_type,
             });
@@ -526,6 +572,28 @@ mod publish_provider_contract_tests {
             }
             _ => panic!("Expected IoError but got: {:?}", error),
         }
+    }
+}
+
+#[cfg(test)]
+mod read_contract_file_tests {
+    use super::read_contract_file;
+    use crate::cli::pact_broker::main::PactBrokerError;
+
+    #[test]
+    fn file_is_read_and_base64_encoded() {
+        assert_eq!(
+            read_contract_file("tests/fixtures/provider-contract.yaml").unwrap(),
+            "c29tZToKICBjb250cmFjdA=="
+        );
+    }
+
+    #[test]
+    fn missing_file_is_io_error() {
+        assert!(matches!(
+            read_contract_file("tests/fixtures/nope.yaml"),
+            Err(PactBrokerError::IoError(_))
+        ));
     }
 }
 
