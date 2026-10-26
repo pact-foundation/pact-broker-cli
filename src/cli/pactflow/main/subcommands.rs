@@ -52,7 +52,7 @@ pub fn add_publish_provider_contract_subcommand() -> Command {
             "A contract file to publish, starting a new contract. Repeat --contract once per \
              contract to publish several in a single request. The options that follow a \
              --contract describe that contract and may be repeated for each one: --name \
-             (required), --specification, --content-type, --verification-success, \
+             (optional), --specification, --content-type, --verification-success, \
              --no-verification-success, --verification-exit-code, --verification-results, \
              --verification-results-content-type, --verification-results-format, --verifier, \
              --verifier-version. Every other option is shared by all the contracts in the \
@@ -64,7 +64,7 @@ pub fn add_publish_provider_contract_subcommand() -> Command {
         .args(["contract-file", "contract"])
         .required(true)
         .multiple(false))
-    .arg(per_contract("name", "NAME", "The contract name, unique within the request. Required once per --contract; not used with the positional CONTRACT_FILE.")
+    .arg(per_contract("name", "NAME", "The contract name, unique within the request. Optional; defaults to the contract file's name. Must be unique within the request. Not used with the positional CONTRACT_FILE.")
         .conflicts_with("contract-file"))
     .arg(Arg::new("provider")
         .long("provider")

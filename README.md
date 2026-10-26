@@ -2301,9 +2301,9 @@ Options:
       --retries <PACT_BROKER_HTTP_RETRIES>
           The number of times to retry failed HTTP requests to the Pact Broker (retries on 5xx, 408, and 429). Delays use exponential back-off starting at 500 ms and doubling each attempt (0.5 s, 1 s, 2 s, 4 s, 8 s, …). 429 responses honour the Retry-After header when present. [env: PACT_BROKER_HTTP_RETRIES=] [default: 8]
       --contract <CONTRACT_FILE>
-          A contract file to publish, starting a new contract. Repeat --contract once per contract to publish several in a single request. The options that follow a --contract describe that contract and may be repeated for each one: --name (required), --specification, --content-type, --verification-success, --no-verification-success, --verification-exit-code, --verification-results, --verification-results-content-type, --verification-results-format, --verifier, --verifier-version. Every other option is shared by all the contracts in the request, wherever it appears: --provider, --provider-app-version, --branch, --tag, --build-url, --auto-detect-version-properties and --tag-with-git-branch. Cannot be combined with the positional CONTRACT_FILE.
+          A contract file to publish, starting a new contract. Repeat --contract once per contract to publish several in a single request. The options that follow a --contract describe that contract and may be repeated for each one: --name (optional), --specification, --content-type, --verification-success, --no-verification-success, --verification-exit-code, --verification-results, --verification-results-content-type, --verification-results-format, --verifier, --verifier-version. Every other option is shared by all the contracts in the request, wherever it appears: --provider, --provider-app-version, --branch, --tag, --build-url, --auto-detect-version-properties and --tag-with-git-branch. Cannot be combined with the positional CONTRACT_FILE.
       --name <NAME>
-          The contract name, unique within the request. Required once per --contract; not used with the positional CONTRACT_FILE. Describes the contract given by the preceding --contract, or the single CONTRACT_FILE.
+          The contract name, unique within the request. Optional; defaults to the contract file's name. Must be unique within the request. Not used with the positional CONTRACT_FILE. Describes the contract given by the preceding --contract, or the single CONTRACT_FILE.
       --provider <PROVIDER>
           The provider name. Shared by every contract in the request.
   -a, --provider-app-version <PROVIDER_APP_VERSION>
@@ -2384,8 +2384,8 @@ pact-broker-cli pactflow publish-provider-contract ./tests/fixtures/payments-api
 ```
 
 **Multiple contracts in a single request** — repeat `--contract` once per contract file. This mode
-uses a different PactFlow endpoint that accepts a named set of contracts, so each one also needs a
-`--name`. The positional `CONTRACT_FILE` cannot be combined with `--contract`.
+uses a different PactFlow endpoint that accepts a set of contracts, each of which may be given a
+`--name` (defaults to the file name). The positional `CONTRACT_FILE` cannot be combined with `--contract`.
 
 The options following a `--contract` describe *that* contract, up until the next `--contract`.
 There is no grammar inside the argument, so ordinary shell quoting applies and values may contain
@@ -2411,7 +2411,7 @@ appear; per-contract options attach to the `--contract` they follow.
 
 | Shared by every contract | Describes one contract |
 | --- | --- |
-| `--provider` | `--name` (required) |
+| `--provider` | `--name` (optional) |
 | `--provider-app-version` | `--specification` (default `oas`) |
 | `--branch` | `--content-type` (default `application/yaml`) |
 | `--tag` | `--verification-success` / `--no-verification-success` |

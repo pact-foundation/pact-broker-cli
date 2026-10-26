@@ -152,7 +152,11 @@ impl ContractSpec {
             let file = require_non_empty(file, "contract")?;
             let name = match fields.remove("name") {
                 Some(name) => require_non_empty(&name, "name")?,
-                None => return Err(format!("--contract '{file}' needs a --name")),
+                // The domain model needs a name, so fall back to the contract's file name.
+                None => std::path::Path::new(&file)
+                    .file_name()
+                    .map(|n| n.to_string_lossy().into_owned())
+                    .unwrap_or_else(|| file.clone()),
             };
 
             let exit_code = fields.remove("verification-exit-code");
@@ -411,9 +415,10 @@ mod contract_spec_from_args_tests {
     }
 
     #[test]
-    fn rejects_a_missing_name() {
-        let e = err(&["--contract", "./a.yaml"]);
-        assert!(e.contains("needs a --name"), "message was: {e}");
+    fn defaults_a_missing_name_to_the_file_name() {
+        let s = specs(&["--contract", "./oas/a.yaml", "--contract", "./b.yaml"]);
+        assert_eq!(s[0].name, "a.yaml");
+        assert_eq!(s[1].name, "b.yaml");
     }
 
     #[test]
@@ -505,11 +510,11 @@ pub fn publish_multiple(args: &ArgMatches) -> Result<Value, PactBrokerError> {
 
     // Validate: no duplicate contract names
     let mut seen: HashSet<&str> = HashSet::new();
-    for spec in &specs {
-        if !seen.insert(spec.name.as_str()) {
+    for name in specs.iter().map(|spec| spec.name.as_str()) {
+        if !seen.insert(name) {
             return Err(PactBrokerError::ValidationError(vec![format!(
                 "Duplicate contract name: '{}'",
-                spec.name
+                name
             )]));
         }
     }
