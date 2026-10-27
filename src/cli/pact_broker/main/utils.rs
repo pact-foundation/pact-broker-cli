@@ -66,7 +66,7 @@ pub(crate) fn compute_retry_delay(
 pub(crate) fn generate_table(res: &Value, columns: Vec<&str>, names: Vec<Vec<&str>>) -> Table {
     let mut table = Table::new();
     table.load_style(UTF8_FULL).set_header(columns);
-    if let Some(items) = res.get("pacts").unwrap().as_array() {
+    if let Some(items) = res.get("pacts").and_then(Value::as_array) {
         for item in items {
             let mut values = vec![item; names.len()];
 
@@ -251,6 +251,24 @@ mod retry_tests {
         // Retry-After: 0 s → 0 + min(0, 60) = 0
         let delay = compute_retry_delay(StatusCode::TOO_MANY_REQUESTS, Some(Duration::ZERO), 1);
         assert_eq!(delay, Duration::from_secs(0));
+    }
+}
+
+#[cfg(test)]
+mod generate_table_tests {
+    use super::*;
+    use serde_json::json;
+
+    #[test]
+    fn test_generate_table_without_pacts_keys_does_not_panic() {
+        let res = json!({
+            "consumer": { "name": "TestConsumer" },
+            "_links":{  "self": { "href": "http://example.org/pact" } }
+        });
+
+        let table = generate_table(&res, vec!["CONSUMER"], vec![vec!["name"]]).to_string();
+        assert!(table.contains("CONSUMER"));
+        assert!(!table.contains("TestConsumer"));
     }
 }
 
