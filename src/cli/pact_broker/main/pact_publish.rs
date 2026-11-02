@@ -450,14 +450,15 @@ pub fn publish_pacts(args: &ArgMatches) -> Result<Value, i32> {
                             );
                         }
 
-                        payload["contracts"] = serde_json::Value::Array(vec![json!({
+                        let contract_obj = json!({
                           "consumerName": consumer_name,
                           "providerName": provider_name,
                           "specification": "pact",
                           "contentType": "application/json",
                           "content": Base64.encode(pact_json_data.to_string()),
                           "onConflict": on_conflict
-                        })]);
+                        });
+                        payload["contracts"] = serde_json::Value::Array(vec![contract_obj]);
                         println!();
                         println!(
                             "📨 Attempting to publish pact for consumer: {} against provider: {}",
