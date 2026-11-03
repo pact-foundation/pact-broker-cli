@@ -60,15 +60,18 @@ pub fn get_pacts(
             result
         };
 
+        // A single pact response is normalized into a one-row collection for the table / download
+        let pacts_view = normalized_single_pact (&pacts_data).unwrap_or_else(|| pacts_data.clone());
+
         // Download pacts if requested
         if download {
-            download_pacts(&pacts_data, &hal_client, download_dir).await?;
+            download_pacts(&pacts_view, &hal_client, download_dir).await?;
         }
 
         let output = match output_type {
             OutputType::Json => serde_json::to_string_pretty(&pacts_data).unwrap(),
-            OutputType::Table => generate_pacts_table(&pacts_data, consumer.is_some()),
-            OutputType::Text => generate_pacts_table(&pacts_data, consumer.is_some()),
+            OutputType::Table => generate_pacts_table(&pacts_view, consumer.is_some()),
+            OutputType::Text => generate_pacts_table(&pacts_view, consumer.is_some()),
             OutputType::Pretty => serde_json::to_string_pretty(&pacts_data).unwrap(),
         };
 
@@ -242,6 +245,32 @@ async fn download_pacts(
     Ok(())
 }
 
+/// Converts a single pact response (no `pacts` key, has `_links.self.href`) into
+/// `{"pacts": [{"name", "title", "href"}]}`. Returns `None` for any other response shape.
+fn normalized_single_pact(result: &Value) -> Option<Value> {
+    if result.get("pacts").is_some() {
+        return None;
+    }
+    let href = result.pointer("/_links/self/href")?.as_str()?;
+    let name = result
+        .pointer("/consumer/name")
+        .or_else(|| result.pointer("/_links/pb:consumer/name"))
+        .and_then(Value::as_str)
+        .unwrap_or("");
+    let title = result
+        .pointer("/_links/self/title")
+        .and_then(Value::as_str)
+        .unwrap_or("");
+
+    Some(json!({
+        "pacts": [{
+            "name": name,
+            "title": title,
+            "href": href,
+        }]
+    }))
+}
+
 fn generate_pacts_table(result: &Value, _has_consumer_filter: bool) -> String {
     // Generate a table showing the pacts data
     generate_table(
@@ -342,6 +371,87 @@ mod get_pacts_tests {
         assert!(result.contains("Pact between TestConsumer and TestProvider"));
         assert!(result.contains(
             "http://example.org/pacts/provider/TestProvider/consumer/TestConsumer/latest"
+        ));
+    }
+
+    #[test]
+    fn test_normalized_single_pact() {
+        let single_pact = json!({
+            "consumer": { "name": "TestConsumer" },
+            "_links": {
+                "self": {
+                    "title": "Pact between TestConsumer (1.0.0) and TestProvider",
+                    "href": "http://example.org/pacts/provider/TestProvider/consumer/TestConsumer/version/1.0.0",
+                }
+            }
+        });
+
+        assert_eq!(
+            normalized_single_pact(&single_pact),
+            Some(json!({
+                "pacts": [
+                    {
+                        "name": "TestConsumer",
+                        "title": "Pact between TestConsumer (1.0.0) and TestProvider",
+                        "href": "http://example.org/pacts/provider/TestProvider/consumer/TestConsumer/version/1.0.0"
+                    }
+                ]
+            }))
+        );
+    }
+
+    #[test]
+    fn test_normalized_single_pact_falls_back_to_pb_consumer_name() {
+        let single_pact = json!({
+            "_links": {
+                "self": { "href": "http://example.org/pact"},
+                "pb:consumer": { "name": "LinkConsumer"}
+            }
+        });
+
+        assert_eq!(
+            normalized_single_pact(&single_pact),
+            Some(json!({
+                "pacts": [
+                    {
+                        "name": "LinkConsumer",
+                        "title": "",
+                        "href": "http://example.org/pact"
+                    }
+                ]
+            }))
+        );
+    }
+
+    #[test]
+    fn test_normalized_single_pact_returns_none_for_collection() {
+        let collection = json!({
+            "pacts": [],
+            "_links": { "self": { "href": "http://example.org/pacts" } }
+        });
+
+        assert_eq!(normalized_single_pact(&collection), None);
+    }
+
+    #[test]
+    fn test_generate_pacts_table_with_normalized_single_pact() {
+        let single_pact = json!({
+            "consumer": { "name": "TestConsumer" },
+            "_links": {
+                "self": {
+                    "title": "Pact between TestConsumer (1.0.0) and TestProvider",
+                    "href": "http://example.org/pacts/provider/TestProvider/consumer/TestConsumer/version/1.0.0",
+                }
+            }
+        });
+
+        let view = normalized_single_pact(&single_pact).unwrap();
+        let result = generate_pacts_table(&view, false);
+
+        assert!(result.contains("TestConsumer"));
+        assert!(result.contains("Pact between TestConsumer (1.0.0) and TestProvider"));
+        assert!(result.contains(
+            "http://example.org/pacts/provider/TestProvider/consumer/TestConsumer/version/1.0.0"
         ));
     }
 
