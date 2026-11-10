@@ -42,17 +42,19 @@ fn retrieve_failed() -> PactBrokerError {
     PactBrokerError::ContentError(RETRIEVE_FAILED.to_string())
 }
 
-/// Exchanges the PactFlow API token for a short-lived access token.
+/// Exchanges the PactFlow API token for a short-lived delegated access token.
+/// The request has no body; only `access_token` is read from the response.
 async fn exchange_token(
     client: &ClientWithMiddleware,
     broker_url: &str,
     api_token: &str,
 ) -> Result<String, PactBrokerError> {
-    let endpoint = format!("{}/auth/sts-token", broker_url.trim_end_matches('/'));
+    let endpoint = format!("{}/auth/registry-token", broker_url.trim_end_matches('/'));
     let response = client
         .post(&endpoint)
         .bearer_auth(api_token)
         .header("Accept", "application/json")
+        .header("Content-Type", "application/json")
         .timeout(REQUEST_TIMEOUT)
         .send()
         .await
@@ -144,8 +146,8 @@ mod tests {
 
     type Seen = Arc<Mutex<Vec<String>>>;
 
-    /// Serves `/auth/sts-token` and `/doc`, recording each request as
-    /// `"<METHOD> <path> auth=<Authorization header> accept=<Accept header>"`.
+    /// Serves `/auth/registry-token` and `/doc`, recording each request as
+    /// `"<METHOD> <path> auth=<Authorization> accept=<Accept> content-type=<Content-Type>"`.
     async fn spawn(
         token_status: StatusCode,
         token_body: &'static str,
@@ -162,17 +164,18 @@ mod tests {
                         .to_string()
                 };
                 seen.lock().unwrap().push(format!(
-                    "{method} {} auth={} accept={}",
+                    "{method} {} auth={} accept={} content-type={}",
                     uri.path(),
                     header("authorization"),
-                    header("accept")
+                    header("accept"),
+                    header("content-type")
                 ));
             }
         };
         let (on_token, on_doc) = (record("POST", seen.clone()), record("GET", seen.clone()));
         let router = Router::new()
             .route(
-                "/auth/sts-token",
+                "/auth/registry-token",
                 post(move |uri: Uri, headers: HeaderMap| async move {
                     on_token(uri, headers);
                     (token_status, token_body)
@@ -207,7 +210,7 @@ mod tests {
     async fn exchanges_token_then_fetches_document_with_it() {
         let (base, seen) = spawn(
             StatusCode::OK,
-            r#"{"access_token":"sts-123","expires_in":3600}"#,
+            r#"{"access_token":"pf-delegated-123","issued_token_type":"urn:ietf:params:oauth:token-type:access_token","token_type":"Bearer","expires_in":600,"scope":"registry:apis:read"}"#,
             StatusCode::OK,
         )
         .await;
@@ -216,19 +219,43 @@ mod tests {
         assert_eq!(
             *seen.lock().unwrap(),
             vec![
-                "POST /auth/sts-token auth=Bearer api-token accept=application/json",
-                "GET /doc auth=Bearer sts-123 accept=application/yaml",
+                "POST /auth/registry-token auth=Bearer api-token accept=application/json content-type=application/json",
+                "GET /doc auth=Bearer pf-delegated-123 accept=application/yaml content-type=",
             ]
         );
     }
 
     #[tokio::test]
     async fn failures_use_one_generic_message_and_reveal_nothing() {
-        let ok_token = r#"{"access_token":"sts-123","expires_in":3600}"#;
+        let ok_token = r#"{"access_token":"pf-delegated-123","issued_token_type":"urn:ietf:params:oauth:token-type:access_token","token_type":"Bearer","expires_in":600,"scope":"registry:apis:read"}"#;
         let cases = [
             (
                 "token endpoint rejects",
                 StatusCode::UNAUTHORIZED,
+                ok_token,
+                StatusCode::OK,
+            ),
+            (
+                "token endpoint forbidden",
+                StatusCode::FORBIDDEN,
+                ok_token,
+                StatusCode::OK,
+            ),
+            (
+                "token endpoint not found",
+                StatusCode::NOT_FOUND,
+                ok_token,
+                StatusCode::OK,
+            ),
+            (
+                "token endpoint errors",
+                StatusCode::INTERNAL_SERVER_ERROR,
+                ok_token,
+                StatusCode::OK,
+            ),
+            (
+                "token endpoint unavailable",
+                StatusCode::SERVICE_UNAVAILABLE,
                 ok_token,
                 StatusCode::OK,
             ),
@@ -266,13 +293,15 @@ mod tests {
                 "{name}: {message}"
             );
             for leaked in [
-                "sts",
+                "registry",
+                "delegated",
+                "scope",
                 "token",
                 "swagger",
                 "401",
                 "403",
                 "404",
-                "sts-123",
+                "pf-delegated-123",
                 "api-token",
             ] {
                 assert!(
@@ -323,8 +352,8 @@ mod tests {
     async fn oversized_document_uses_the_generic_message() {
         let router = Router::new()
             .route(
-                "/auth/sts-token",
-                post(|| async { r#"{"access_token":"sts-123","expires_in":3600}"# }),
+                "/auth/registry-token",
+                post(|| async { r#"{"access_token":"pf-delegated-123","issued_token_type":"urn:ietf:params:oauth:token-type:access_token","token_type":"Bearer","expires_in":600,"scope":"registry:apis:read"}"# }),
             )
             .route("/doc", get(|| async { "x".repeat(MAX_DOCUMENT_BYTES + 1) }));
         let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
