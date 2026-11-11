@@ -1,6 +1,6 @@
 //! Retrieval of a contract document that is referenced by URL.
 //!
-//! Only remote URLs hosted on SwaggerHub are supported as of now; see
+//! Only URLs hosted on SwaggerHub are supported; see
 //! [`is_supported_contract_url`].
 //!
 //! Failures are deliberately reported with a single generic message; the
