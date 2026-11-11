@@ -81,7 +81,11 @@ fn fetch_contract_content(
                 .to_string(),
         ));
     };
+    // A failed exchange is reported without retries. PFA answers 503 when its
+    // token service cannot mint a token, and retrying only delays the error.
+    let token_client = hal_client.clone().with_retry_count(1).client;
     let exchange = TokenExchange {
+        client: &token_client,
         broker_url,
         api_token,
         custom_headers,
@@ -609,6 +613,54 @@ mod read_contract_file_tests {
             read_contract_file("tests/fixtures/nope.yaml"),
             Err(PactBrokerError::IoError(_))
         ));
+    }
+}
+
+#[cfg(test)]
+mod fetch_contract_content_tests {
+    use std::sync::{
+        Arc,
+        atomic::{AtomicUsize, Ordering},
+    };
+
+    use axum::{Router, http::StatusCode, routing::post};
+    use pact_models::http_utils::HttpAuth;
+
+    use crate::cli::pact_broker::main::{HALClient, types::SslOptions};
+    use crate::cli::pactflow::main::provider_contracts::publish::fetch_contract_content;
+
+    #[test]
+    fn token_exchange_is_not_retried() {
+        let exchanges = Arc::new(AtomicUsize::new(0));
+        let counted = exchanges.clone();
+        let router = Router::new().route(
+            "/auth/registry-token",
+            post(move || async move {
+                counted.fetch_add(1, Ordering::SeqCst);
+                StatusCode::SERVICE_UNAVAILABLE
+            }),
+        );
+        let server = tokio::runtime::Runtime::new().unwrap();
+        let base = server.block_on(async {
+            let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+            let base = format!("http://{}", listener.local_addr().unwrap());
+            tokio::spawn(async move { axum::serve(listener, router).await.unwrap() });
+            base
+        });
+        let hal_client =
+            HALClient::with_url(&base, None, SslOptions::default(), None).with_retry_count(3);
+
+        let result = fetch_contract_content(
+            &hal_client,
+            &base,
+            &HttpAuth::Token("api-token".to_string()),
+            None,
+            &format!("{base}/doc"),
+            "application/yaml",
+        );
+
+        assert!(result.is_err());
+        assert_eq!(exchanges.load(Ordering::SeqCst), 1);
     }
 }
 

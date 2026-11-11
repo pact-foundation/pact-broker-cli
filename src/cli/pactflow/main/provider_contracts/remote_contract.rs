@@ -22,10 +22,12 @@ const MAX_DOCUMENT_BYTES: usize = 10 * 1024 * 1024;
 
 const RETRIEVE_FAILED: &str = "Failed to retrieve the contract from the provided URL";
 
-/// The broker side of a remote fetch: where the PactFlow API token is
-/// exchanged, and the `--custom-header` values every broker request carries.
-/// The custom headers are never sent to the contract's host.
+/// The broker side of a remote fetch: the client for the exchange, where the
+/// PactFlow API token is exchanged, and the `--custom-header` values every
+/// broker request carries. The custom headers are never sent to the contract's
+/// host.
 pub(crate) struct TokenExchange<'a> {
+    pub client: &'a ClientWithMiddleware,
     pub broker_url: &'a str,
     pub api_token: &'a str,
     pub custom_headers: Option<&'a CustomHeaders>,
@@ -59,15 +61,13 @@ fn retrieve_failed() -> PactBrokerError {
 
 /// Exchanges the PactFlow API token for a short-lived delegated access token.
 /// The request has no body; only `access_token` is read from the response.
-async fn exchange_token(
-    client: &ClientWithMiddleware,
-    exchange: &TokenExchange<'_>,
-) -> Result<String, PactBrokerError> {
+async fn exchange_token(exchange: &TokenExchange<'_>) -> Result<String, PactBrokerError> {
     let endpoint = format!(
         "{}/auth/registry-token",
         exchange.broker_url.trim_end_matches('/')
     );
-    let mut request = client
+    let mut request = exchange
+        .client
         .post(&endpoint)
         .bearer_auth(exchange.api_token)
         .header("Accept", "application/json")
@@ -98,8 +98,8 @@ async fn exchange_token(
     Ok(body.access_token)
 }
 
-/// Fetches the document at `url`, authenticating with a token obtained
-/// through `exchange`.
+/// Fetches the document at `url` with `client`, authenticating with a token
+/// obtained through `exchange`.
 ///
 /// `accept` is sent as the `Accept` header so the document is returned in the
 /// format the caller declared for the contract.
@@ -109,7 +109,7 @@ pub(crate) async fn fetch_remote_contract(
     url: &str,
     accept: &str,
 ) -> Result<String, PactBrokerError> {
-    let access_token = exchange_token(client, exchange).await?;
+    let access_token = exchange_token(exchange).await?;
     let response = client
         .get(url)
         .bearer_auth(access_token)
@@ -222,6 +222,7 @@ mod tests {
             headers: [("X-Custom".to_string(), "broker-only".to_string())].into(),
         };
         let exchange = TokenExchange {
+            client: &client,
             broker_url: base,
             api_token: "api-token",
             custom_headers: Some(&custom_headers),
