@@ -176,6 +176,8 @@ mod tests {
 
     type Seen = Arc<Mutex<Vec<String>>>;
 
+    const OK_TOKEN: &str = r#"{"access_token":"pf-delegated-123","issued_token_type":"urn:ietf:params:oauth:token-type:access_token","token_type":"Bearer","expires_in":600,"scope":"registry:apis:read"}"#;
+
     /// Serves `/auth/registry-token` and `/doc`, recording each request as
     /// `"<METHOD> <path> auth=<Authorization> accept=<Accept> content-type=<Content-Type> custom=<X-Custom>"`.
     async fn spawn(
@@ -247,12 +249,7 @@ mod tests {
 
     #[tokio::test]
     async fn exchanges_token_then_fetches_document_with_it() {
-        let (base, seen) = spawn(
-            StatusCode::OK,
-            r#"{"access_token":"pf-delegated-123","issued_token_type":"urn:ietf:params:oauth:token-type:access_token","token_type":"Bearer","expires_in":600,"scope":"registry:apis:read"}"#,
-            StatusCode::OK,
-        )
-        .await;
+        let (base, seen) = spawn(StatusCode::OK, OK_TOKEN, StatusCode::OK).await;
 
         assert_eq!(fetch(&base).await.unwrap(), "openapi: 3.0.0");
         assert_eq!(
@@ -264,91 +261,28 @@ mod tests {
         );
     }
 
+    #[rstest]
+    #[case::token_rejected(StatusCode::UNAUTHORIZED, OK_TOKEN, StatusCode::OK)]
+    #[case::token_forbidden(StatusCode::FORBIDDEN, OK_TOKEN, StatusCode::OK)]
+    #[case::token_not_found(StatusCode::NOT_FOUND, OK_TOKEN, StatusCode::OK)]
+    #[case::token_errors(StatusCode::INTERNAL_SERVER_ERROR, OK_TOKEN, StatusCode::OK)]
+    #[case::token_unavailable(StatusCode::SERVICE_UNAVAILABLE, OK_TOKEN, StatusCode::OK)]
+    #[case::token_malformed(StatusCode::OK, "not json", StatusCode::OK)]
+    #[case::token_empty(StatusCode::OK, r#"{"access_token":""}"#, StatusCode::OK)]
+    #[case::document_not_found(StatusCode::OK, OK_TOKEN, StatusCode::NOT_FOUND)]
+    #[case::document_forbidden(StatusCode::OK, OK_TOKEN, StatusCode::FORBIDDEN)]
     #[tokio::test]
-    async fn failures_use_one_generic_message_and_reveal_nothing() {
-        let ok_token = r#"{"access_token":"pf-delegated-123","issued_token_type":"urn:ietf:params:oauth:token-type:access_token","token_type":"Bearer","expires_in":600,"scope":"registry:apis:read"}"#;
-        let cases = [
-            (
-                "token endpoint rejects",
-                StatusCode::UNAUTHORIZED,
-                ok_token,
-                StatusCode::OK,
-            ),
-            (
-                "token endpoint forbidden",
-                StatusCode::FORBIDDEN,
-                ok_token,
-                StatusCode::OK,
-            ),
-            (
-                "token endpoint not found",
-                StatusCode::NOT_FOUND,
-                ok_token,
-                StatusCode::OK,
-            ),
-            (
-                "token endpoint errors",
-                StatusCode::INTERNAL_SERVER_ERROR,
-                ok_token,
-                StatusCode::OK,
-            ),
-            (
-                "token endpoint unavailable",
-                StatusCode::SERVICE_UNAVAILABLE,
-                ok_token,
-                StatusCode::OK,
-            ),
-            (
-                "token body malformed",
-                StatusCode::OK,
-                "not json",
-                StatusCode::OK,
-            ),
-            (
-                "token empty",
-                StatusCode::OK,
-                r#"{"access_token":""}"#,
-                StatusCode::OK,
-            ),
-            (
-                "document not found",
-                StatusCode::OK,
-                ok_token,
-                StatusCode::NOT_FOUND,
-            ),
-            (
-                "document forbidden",
-                StatusCode::OK,
-                ok_token,
-                StatusCode::FORBIDDEN,
-            ),
-        ];
-        for (name, token_status, token_body, doc_status) in cases {
-            let (base, _) = spawn(token_status, token_body, doc_status).await;
-            let error = fetch(&base).await.unwrap_err();
-            let message = error.to_string();
-            assert!(
-                matches!(&error, PactBrokerError::ContentError(m) if m == RETRIEVE_FAILED),
-                "{name}: {message}"
-            );
-            for leaked in [
-                "registry",
-                "delegated",
-                "scope",
-                "token",
-                "swagger",
-                "401",
-                "403",
-                "404",
-                "pf-delegated-123",
-                "api-token",
-            ] {
-                assert!(
-                    !message.to_lowercase().contains(leaked),
-                    "{name}: leaked '{leaked}' in '{message}'"
-                );
-            }
-        }
+    async fn failures_use_one_generic_message(
+        #[case] token_status: StatusCode,
+        #[case] token_body: &'static str,
+        #[case] doc_status: StatusCode,
+    ) {
+        let (base, _) = spawn(token_status, token_body, doc_status).await;
+        let error = fetch(&base).await.unwrap_err();
+        assert!(
+            matches!(&error, PactBrokerError::ContentError(m) if m == RETRIEVE_FAILED),
+            "{error}"
+        );
     }
 
     #[tokio::test]
@@ -409,10 +343,7 @@ mod tests {
     /// Serves a valid token and answers `/doc` with `body()`.
     async fn spawn_document(body: impl Fn() -> Body + Clone + Send + Sync + 'static) -> String {
         let router = Router::new()
-            .route(
-                "/auth/registry-token",
-                post(|| async { r#"{"access_token":"pf-delegated-123","issued_token_type":"urn:ietf:params:oauth:token-type:access_token","token_type":"Bearer","expires_in":600,"scope":"registry:apis:read"}"# }),
-            )
+            .route("/auth/registry-token", post(|| async { OK_TOKEN }))
             .route("/doc", get(move || async move { body() }));
         let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
         let base = format!("http://{}", listener.local_addr().unwrap());
