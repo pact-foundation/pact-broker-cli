@@ -5,7 +5,9 @@
 //!
 //! Failures are deliberately reported with a single generic message; the
 //! underlying cause is only available in debug logs, and credentials are never
-//! logged.
+//! logged. When the broker refuses the token exchange with a problem+json
+//! `detail`, that detail is appended: PactFlow writes it for the user, for
+//! example to say that a system account's token cannot be exchanged.
 
 use std::time::Duration;
 
@@ -31,6 +33,12 @@ pub(crate) struct TokenExchange<'a> {
     pub broker_url: &'a str,
     pub api_token: &'a str,
     pub custom_headers: Option<&'a CustomHeaders>,
+}
+
+/// The part of an RFC 9457 problem+json body shown to the user.
+#[derive(Deserialize)]
+struct ProblemDetail {
+    detail: String,
 }
 
 #[derive(Deserialize)]
@@ -59,6 +67,17 @@ fn retrieve_failed() -> PactBrokerError {
     PactBrokerError::ContentError(RETRIEVE_FAILED.to_string())
 }
 
+/// The generic failure, with the broker's explanation appended when the
+/// refusal carries a problem+json `detail`.
+async fn token_refused(response: reqwest::Response) -> PactBrokerError {
+    match response.json::<ProblemDetail>().await {
+        Ok(problem) if !problem.detail.trim().is_empty() => {
+            PactBrokerError::ContentError(format!("{RETRIEVE_FAILED}: {}", problem.detail.trim()))
+        }
+        _ => retrieve_failed(),
+    }
+}
+
 /// Exchanges the PactFlow API token for a short-lived delegated access token.
 /// The request has no body; only `access_token` is read from the response.
 async fn exchange_token(exchange: &TokenExchange<'_>) -> Result<String, PactBrokerError> {
@@ -70,7 +89,7 @@ async fn exchange_token(exchange: &TokenExchange<'_>) -> Result<String, PactBrok
         .client
         .post(&endpoint)
         .bearer_auth(exchange.api_token)
-        .header("Accept", "application/json")
+        .header("Accept", "application/json, application/problem+json")
         .header("Content-Type", "application/json")
         .timeout(REQUEST_TIMEOUT);
     if let Some(custom_headers) = exchange.custom_headers {
@@ -85,7 +104,7 @@ async fn exchange_token(exchange: &TokenExchange<'_>) -> Result<String, PactBrok
     let status = response.status();
     if !status.is_success() {
         debug!("Token exchange returned {status}");
-        return Err(retrieve_failed());
+        return Err(token_refused(response).await);
     }
     let body = response.json::<AccessTokenResponse>().await.map_err(|e| {
         debug!("Token exchange response could not be parsed: {e}");
@@ -255,7 +274,7 @@ mod tests {
         assert_eq!(
             *seen.lock().unwrap(),
             vec![
-                "POST /auth/registry-token auth=Bearer api-token accept=application/json content-type=application/json custom=broker-only",
+                "POST /auth/registry-token auth=Bearer api-token accept=application/json, application/problem+json content-type=application/json custom=broker-only",
                 "GET /doc auth=Bearer pf-delegated-123 accept=application/yaml content-type= custom=",
             ]
         );
@@ -283,6 +302,61 @@ mod tests {
             matches!(&error, PactBrokerError::ContentError(m) if m == RETRIEVE_FAILED),
             "{error}"
         );
+    }
+
+    const SYSTEM_ACCOUNT_PROBLEM: &str = r#"{"title":"Forbidden","type":"https://example.pactflow.io/problem/forbidden","detail":"Registry tokens are only issued to users, and this API token belongs to a system account. Use an API token that belongs to a user.","status":403}"#;
+
+    #[rstest]
+    #[case::system_account(
+        StatusCode::FORBIDDEN,
+        SYSTEM_ACCOUNT_PROBLEM,
+        "Failed to retrieve the contract from the provided URL: Registry tokens are only issued to users, and this API token belongs to a system account. Use an API token that belongs to a user."
+    )]
+    #[case::unavailable(
+        StatusCode::SERVICE_UNAVAILABLE,
+        r#"{"title":"Service unavailable","detail":"Registry token service is not available","status":503}"#,
+        "Failed to retrieve the contract from the provided URL: Registry token service is not available"
+    )]
+    #[case::blank_detail(StatusCode::FORBIDDEN, r#"{"detail":"  "}"#, RETRIEVE_FAILED)]
+    #[case::plain_text(StatusCode::FORBIDDEN, "Forbidden. Not allowed.", RETRIEVE_FAILED)]
+    #[tokio::test]
+    async fn token_refusal_shows_the_broker_detail(
+        #[case] token_status: StatusCode,
+        #[case] token_body: &'static str,
+        #[case] expected: &str,
+    ) {
+        let (base, seen) = spawn(token_status, token_body, StatusCode::OK).await;
+        let error = fetch(&base).await.unwrap_err();
+        assert!(
+            matches!(&error, PactBrokerError::ContentError(m) if m == expected),
+            "{error}"
+        );
+        assert_eq!(
+            seen.lock().unwrap().len(),
+            1,
+            "the document must not be requested"
+        );
+    }
+
+    #[tokio::test]
+    async fn document_refusal_never_shows_its_body() {
+        let router = Router::new()
+            .route("/auth/registry-token", post(|| async { OK_TOKEN }))
+            .route(
+                "/doc",
+                get(|| async {
+                    (
+                        StatusCode::FORBIDDEN,
+                        r#"{"detail":"from the contract host"}"#,
+                    )
+                }),
+            );
+        let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+        let base = format!("http://{}", listener.local_addr().unwrap());
+        tokio::spawn(async move { axum::serve(listener, router).await.unwrap() });
+
+        let error = fetch(&base).await.unwrap_err();
+        assert!(matches!(&error, PactBrokerError::ContentError(m) if m == RETRIEVE_FAILED));
     }
 
     #[tokio::test]
