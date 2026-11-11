@@ -9,7 +9,7 @@ pub fn add_publish_provider_contract_subcommand() -> Command {
         .num_args(1)
         .value_name("CONTRACT_FILE")
         .required(true)
-        .help("The contract file to publish"))
+        .help("The contract file to publish, or an https://api.swaggerhub.com URL (requires --broker-token)"))
     .arg(Arg::new("provider")
         .long("provider")
         .value_name("PROVIDER")
