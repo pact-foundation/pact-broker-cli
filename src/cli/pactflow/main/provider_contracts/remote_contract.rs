@@ -110,7 +110,7 @@ pub(crate) async fn fetch_remote_contract(
     accept: &str,
 ) -> Result<String, PactBrokerError> {
     let access_token = exchange_token(exchange).await?;
-    let response = client
+    let mut response = client
         .get(url)
         .bearer_auth(access_token)
         .header("Accept", accept)
@@ -133,15 +133,20 @@ pub(crate) async fn fetch_remote_contract(
         debug!("Contract response exceeds {MAX_DOCUMENT_BYTES} bytes");
         return Err(retrieve_failed());
     }
-    let bytes = response.bytes().await.map_err(|e| {
+    // Read chunk by chunk so a response without `Content-Length` is cut off at
+    // the limit and never buffered whole.
+    let mut body = Vec::new();
+    while let Some(chunk) = response.chunk().await.map_err(|e| {
         debug!("Contract response could not be read: {e}");
         retrieve_failed()
-    })?;
-    if bytes.len() > MAX_DOCUMENT_BYTES {
-        debug!("Contract response exceeds {MAX_DOCUMENT_BYTES} bytes");
-        return Err(retrieve_failed());
+    })? {
+        if body.len() + chunk.len() > MAX_DOCUMENT_BYTES {
+            debug!("Contract response exceeds {MAX_DOCUMENT_BYTES} bytes");
+            return Err(retrieve_failed());
+        }
+        body.extend_from_slice(&chunk);
     }
-    String::from_utf8(bytes.to_vec()).map_err(|e| {
+    String::from_utf8(body).map_err(|e| {
         debug!("Contract response is not valid UTF-8: {e}");
         retrieve_failed()
     })
@@ -149,13 +154,17 @@ pub(crate) async fn fetch_remote_contract(
 
 #[cfg(test)]
 mod tests {
+    use std::convert::Infallible;
     use std::sync::{Arc, Mutex};
+    use std::time::Duration;
 
     use axum::{
         Router,
+        body::{Body, Bytes},
         http::{HeaderMap, StatusCode, Uri},
         routing::{get, post},
     };
+    use futures::stream;
     use reqwest_middleware::ClientBuilder;
     use rstest::rstest;
 
@@ -394,19 +403,71 @@ mod tests {
         assert_eq!(is_web_url(input), expected);
     }
 
-    #[tokio::test]
-    async fn oversized_document_uses_the_generic_message() {
+    const CHUNK_BYTES: usize = 64 * 1024;
+    static CHUNK: [u8; CHUNK_BYTES] = [b'x'; CHUNK_BYTES];
+
+    /// Serves a valid token and answers `/doc` with `body()`.
+    async fn spawn_document(body: impl Fn() -> Body + Clone + Send + Sync + 'static) -> String {
         let router = Router::new()
             .route(
                 "/auth/registry-token",
                 post(|| async { r#"{"access_token":"pf-delegated-123","issued_token_type":"urn:ietf:params:oauth:token-type:access_token","token_type":"Bearer","expires_in":600,"scope":"registry:apis:read"}"# }),
             )
-            .route("/doc", get(|| async { "x".repeat(MAX_DOCUMENT_BYTES + 1) }));
+            .route("/doc", get(move || async move { body() }));
         let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
         let base = format!("http://{}", listener.local_addr().unwrap());
         tokio::spawn(async move { axum::serve(listener, router).await.unwrap() });
+        base
+    }
+
+    /// A body of `len` bytes, streamed without a `Content-Length` header.
+    fn chunked(len: usize) -> Body {
+        Body::from_stream(stream::iter((0..len).step_by(CHUNK_BYTES).map(
+            move |start| {
+                Ok::<_, Infallible>(Bytes::from_static(&CHUNK[..CHUNK_BYTES.min(len - start)]))
+            },
+        )))
+    }
+
+    #[tokio::test]
+    async fn oversized_document_with_content_length_uses_the_generic_message() {
+        let base = spawn_document(|| Body::from("x".repeat(MAX_DOCUMENT_BYTES + 1))).await;
 
         let error = fetch(&base).await.unwrap_err();
         assert!(matches!(&error, PactBrokerError::ContentError(m) if m == RETRIEVE_FAILED));
+    }
+
+    #[rstest]
+    #[case::at_limit(MAX_DOCUMENT_BYTES, true)]
+    #[case::over_limit(MAX_DOCUMENT_BYTES + 1, false)]
+    #[tokio::test]
+    async fn chunked_document_is_held_to_the_size_limit(
+        #[case] len: usize,
+        #[case] accepted: bool,
+    ) {
+        let base = spawn_document(move || chunked(len)).await;
+
+        match fetch(&base).await {
+            Ok(document) => assert!(accepted && document.len() == len),
+            Err(error) => assert!(
+                !accepted
+                    && matches!(&error, PactBrokerError::ContentError(m) if m == RETRIEVE_FAILED)
+            ),
+        }
+    }
+
+    #[tokio::test]
+    async fn endless_document_is_cut_off_at_the_size_limit() {
+        let base = spawn_document(|| {
+            Body::from_stream(stream::repeat_with(|| {
+                Ok::<_, Infallible>(Bytes::from_static(&CHUNK))
+            }))
+        })
+        .await;
+
+        let result = tokio::time::timeout(Duration::from_secs(5), fetch(&base))
+            .await
+            .expect("reading should stop at the size limit");
+        assert!(matches!(&result, Err(PactBrokerError::ContentError(m)) if m == RETRIEVE_FAILED));
     }
 }
