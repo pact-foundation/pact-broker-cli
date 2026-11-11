@@ -291,34 +291,28 @@ mod tests {
         assert!(matches!(&error, PactBrokerError::ContentError(m) if m == RETRIEVE_FAILED));
     }
 
-    #[test]
-    fn supported_urls() {
-        for url in [
-            "https://api.swaggerhub.com/apis/OWNER/petstore-api/1.0.0",
-            "https://api.swaggerhub.com/apis/O/a/1?x=y#z",
-            "HTTPS://API.SWAGGERHUB.COM/apis/O/a/1",
-        ] {
-            assert!(is_supported_contract_url(url), "{url}");
-        }
+    #[rstest]
+    #[case::versioned_api("https://api.swaggerhub.com/apis/OWNER/petstore-api/1.0.0")]
+    #[case::query_and_fragment("https://api.swaggerhub.com/apis/O/a/1?x=y#z")]
+    #[case::upper_case("HTTPS://API.SWAGGERHUB.COM/apis/O/a/1")]
+    fn supported_urls(#[case] url: &str) {
+        assert!(is_supported_contract_url(url));
     }
 
-    #[test]
-    fn everything_else_is_not_a_supported_url() {
-        for input in [
-            "tests/fixtures/provider-contract.yaml",
-            "https://",
-            "https:///apis/x",
-            "http://api.swaggerhub.com/apis/O/a/1",
-            "ftp://api.swaggerhub.com/apis/O/a/1",
-            "https://example.com/apis/O/a/1",
-            "https://api.swaggerhub.com.evil.com/a",
-            "https://evil.api.swaggerhub.com/a",
-            "https://api.swaggerhub.com@evil.com/a",
-            "https://user@api.swaggerhub.com/a",
-            "https://user:pw@api.swaggerhub.com/a",
-        ] {
-            assert!(!is_supported_contract_url(input), "{input}");
-        }
+    #[rstest]
+    #[case::file_path("tests/fixtures/provider-contract.yaml")]
+    #[case::no_host("https://")]
+    #[case::triple_slash("https:///apis/x")]
+    #[case::plain_http("http://api.swaggerhub.com/apis/O/a/1")]
+    #[case::other_scheme("ftp://api.swaggerhub.com/apis/O/a/1")]
+    #[case::other_host("https://example.com/apis/O/a/1")]
+    #[case::suffixed_host("https://api.swaggerhub.com.evil.com/a")]
+    #[case::subdomain("https://evil.api.swaggerhub.com/a")]
+    #[case::host_as_userinfo("https://api.swaggerhub.com@evil.com/a")]
+    #[case::username("https://user@api.swaggerhub.com/a")]
+    #[case::username_and_password("https://user:pw@api.swaggerhub.com/a")]
+    fn everything_else_is_not_a_supported_url(#[case] input: &str) {
+        assert!(!is_supported_contract_url(input));
     }
 
     #[rstest]
