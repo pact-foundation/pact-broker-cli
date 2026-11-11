@@ -8,10 +8,12 @@ use serde_json::{Value, json};
 
 use pact_models::http_utils::HttpAuth;
 
-use super::remote_contract::{fetch_remote_contract, is_supported_contract_url, is_web_url};
+use super::remote_contract::{
+    TokenExchange, fetch_remote_contract, is_supported_contract_url, is_web_url,
+};
 use crate::cli::{
     pact_broker::main::{
-        HALClient, Notice, PactBrokerError,
+        CustomHeaders, HALClient, Notice, PactBrokerError,
         broker_path::expand_path_template,
         process_notices,
         utils::{
@@ -69,6 +71,7 @@ fn fetch_contract_content(
     hal_client: &HALClient,
     broker_url: &str,
     auth: &HttpAuth,
+    custom_headers: Option<&CustomHeaders>,
     url: &str,
     content_type: &str,
 ) -> Result<String, PactBrokerError> {
@@ -78,12 +81,16 @@ fn fetch_contract_content(
                 .to_string(),
         ));
     };
+    let exchange = TokenExchange {
+        broker_url,
+        api_token,
+        custom_headers,
+    };
     tokio::runtime::Runtime::new()
         .unwrap()
         .block_on(fetch_remote_contract(
             &hal_client.client,
-            broker_url,
-            api_token,
+            &exchange,
             url,
             content_type,
         ))
@@ -116,6 +123,7 @@ pub fn publish(args: &ArgMatches) -> Result<Value, PactBrokerError> {
             &hal_client,
             &broker_url,
             &auth,
+            custom_headers.as_ref(),
             contract_input,
             content_type,
         )?

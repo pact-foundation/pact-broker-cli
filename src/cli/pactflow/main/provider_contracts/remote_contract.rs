@@ -13,7 +13,7 @@ use reqwest_middleware::ClientWithMiddleware;
 use serde::Deserialize;
 use tracing::debug;
 
-use crate::cli::pact_broker::main::PactBrokerError;
+use crate::cli::pact_broker::main::{CustomHeaders, PactBrokerError};
 
 const SUPPORTED_HOST: &str = "api.swaggerhub.com";
 const REQUEST_TIMEOUT: Duration = Duration::from_secs(30);
@@ -21,6 +21,15 @@ const REQUEST_TIMEOUT: Duration = Duration::from_secs(30);
 const MAX_DOCUMENT_BYTES: usize = 10 * 1024 * 1024;
 
 const RETRIEVE_FAILED: &str = "Failed to retrieve the contract from the provided URL";
+
+/// The broker side of a remote fetch: where the PactFlow API token is
+/// exchanged, and the `--custom-header` values every broker request carries.
+/// The custom headers are never sent to the contract's host.
+pub(crate) struct TokenExchange<'a> {
+    pub broker_url: &'a str,
+    pub api_token: &'a str,
+    pub custom_headers: Option<&'a CustomHeaders>,
+}
 
 #[derive(Deserialize)]
 struct AccessTokenResponse {
@@ -52,22 +61,27 @@ fn retrieve_failed() -> PactBrokerError {
 /// The request has no body; only `access_token` is read from the response.
 async fn exchange_token(
     client: &ClientWithMiddleware,
-    broker_url: &str,
-    api_token: &str,
+    exchange: &TokenExchange<'_>,
 ) -> Result<String, PactBrokerError> {
-    let endpoint = format!("{}/auth/registry-token", broker_url.trim_end_matches('/'));
-    let response = client
+    let endpoint = format!(
+        "{}/auth/registry-token",
+        exchange.broker_url.trim_end_matches('/')
+    );
+    let mut request = client
         .post(&endpoint)
-        .bearer_auth(api_token)
+        .bearer_auth(exchange.api_token)
         .header("Accept", "application/json")
         .header("Content-Type", "application/json")
-        .timeout(REQUEST_TIMEOUT)
-        .send()
-        .await
-        .map_err(|e| {
-            debug!("Token exchange request failed: {e}");
-            retrieve_failed()
-        })?;
+        .timeout(REQUEST_TIMEOUT);
+    if let Some(custom_headers) = exchange.custom_headers {
+        for (name, value) in &custom_headers.headers {
+            request = request.header(name, value);
+        }
+    }
+    let response = request.send().await.map_err(|e| {
+        debug!("Token exchange request failed: {e}");
+        retrieve_failed()
+    })?;
     let status = response.status();
     if !status.is_success() {
         debug!("Token exchange returned {status}");
@@ -84,19 +98,18 @@ async fn exchange_token(
     Ok(body.access_token)
 }
 
-/// Fetches the document at `url`, authenticating with a token obtained by
-/// exchanging `api_token` with the broker at `broker_url`.
+/// Fetches the document at `url`, authenticating with a token obtained
+/// through `exchange`.
 ///
 /// `accept` is sent as the `Accept` header so the document is returned in the
 /// format the caller declared for the contract.
 pub(crate) async fn fetch_remote_contract(
     client: &ClientWithMiddleware,
-    broker_url: &str,
-    api_token: &str,
+    exchange: &TokenExchange<'_>,
     url: &str,
     accept: &str,
 ) -> Result<String, PactBrokerError> {
-    let access_token = exchange_token(client, broker_url, api_token).await?;
+    let access_token = exchange_token(client, exchange).await?;
     let response = client
         .get(url)
         .bearer_auth(access_token)
@@ -147,15 +160,15 @@ mod tests {
     use rstest::rstest;
 
     use super::{
-        MAX_DOCUMENT_BYTES, RETRIEVE_FAILED, fetch_remote_contract, is_supported_contract_url,
-        is_web_url,
+        MAX_DOCUMENT_BYTES, RETRIEVE_FAILED, TokenExchange, fetch_remote_contract,
+        is_supported_contract_url, is_web_url,
     };
-    use crate::cli::pact_broker::main::PactBrokerError;
+    use crate::cli::pact_broker::main::{CustomHeaders, PactBrokerError};
 
     type Seen = Arc<Mutex<Vec<String>>>;
 
     /// Serves `/auth/registry-token` and `/doc`, recording each request as
-    /// `"<METHOD> <path> auth=<Authorization> accept=<Accept> content-type=<Content-Type>"`.
+    /// `"<METHOD> <path> auth=<Authorization> accept=<Accept> content-type=<Content-Type> custom=<X-Custom>"`.
     async fn spawn(
         token_status: StatusCode,
         token_body: &'static str,
@@ -172,11 +185,12 @@ mod tests {
                         .to_string()
                 };
                 seen.lock().unwrap().push(format!(
-                    "{method} {} auth={} accept={} content-type={}",
+                    "{method} {} auth={} accept={} content-type={} custom={}",
                     uri.path(),
                     header("authorization"),
                     header("accept"),
-                    header("content-type")
+                    header("content-type"),
+                    header("x-custom")
                 ));
             }
         };
@@ -204,10 +218,17 @@ mod tests {
 
     async fn fetch(base: &str) -> Result<String, PactBrokerError> {
         let client = ClientBuilder::new(reqwest::Client::new()).build();
+        let custom_headers = CustomHeaders {
+            headers: [("X-Custom".to_string(), "broker-only".to_string())].into(),
+        };
+        let exchange = TokenExchange {
+            broker_url: base,
+            api_token: "api-token",
+            custom_headers: Some(&custom_headers),
+        };
         fetch_remote_contract(
             &client,
-            base,
-            "api-token",
+            &exchange,
             &format!("{base}/doc"),
             "application/yaml",
         )
@@ -227,8 +248,8 @@ mod tests {
         assert_eq!(
             *seen.lock().unwrap(),
             vec![
-                "POST /auth/registry-token auth=Bearer api-token accept=application/json content-type=application/json",
-                "GET /doc auth=Bearer pf-delegated-123 accept=application/yaml content-type=",
+                "POST /auth/registry-token auth=Bearer api-token accept=application/json content-type=application/json custom=broker-only",
+                "GET /doc auth=Bearer pf-delegated-123 accept=application/yaml content-type= custom=",
             ]
         );
     }
