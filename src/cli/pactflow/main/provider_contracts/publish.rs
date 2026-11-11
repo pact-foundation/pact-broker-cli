@@ -8,7 +8,7 @@ use serde_json::{Value, json};
 
 use pact_models::http_utils::HttpAuth;
 
-use super::remote_contract::{fetch_remote_contract, is_supported_contract_url};
+use super::remote_contract::{fetch_remote_contract, is_supported_contract_url, is_web_url};
 use crate::cli::{
     pact_broker::main::{
         HALClient, Notice, PactBrokerError,
@@ -50,6 +50,9 @@ struct Links {
     #[serde(rename = "pb:pacticipant-version-tags")]
     pb_pacticipant_version_tags: Vec<Value>,
 }
+
+/// The URL itself is left out of the message, since it may carry credentials.
+const UNSUPPORTED_CONTRACT_URL: &str = "Unsupported contract URL: only https://api.swaggerhub.com URLs without credentials are supported";
 
 /// Reads a local contract file and returns it base64-encoded.
 fn read_contract_file(path: &str) -> Result<String, PactBrokerError> {
@@ -116,6 +119,10 @@ pub fn publish(args: &ArgMatches) -> Result<Value, PactBrokerError> {
             contract_input,
             content_type,
         )?
+    } else if is_web_url(contract_input) {
+        return Err(PactBrokerError::ContentError(
+            UNSUPPORTED_CONTRACT_URL.to_string(),
+        ));
     } else {
         read_contract_file(contract_input)?
     };
@@ -601,8 +608,11 @@ mod read_contract_file_tests {
 mod publish_provider_contract_url_tests {
     use crate::cli::pact_broker::main::PactBrokerError;
     use crate::cli::pact_broker::main::test_utils::spawn_recording_broker_with_index;
-    use crate::cli::pactflow::main::provider_contracts::publish::publish;
+    use crate::cli::pactflow::main::provider_contracts::publish::{
+        UNSUPPORTED_CONTRACT_URL, publish,
+    };
     use crate::cli::pactflow::main::subcommands::add_publish_provider_contract_subcommand;
+    use rstest::rstest;
 
     fn run(provider: &str) -> (Result<serde_json::Value, PactBrokerError>, Vec<String>) {
         let (broker_url, requests) = spawn_recording_broker_with_index(
@@ -642,5 +652,32 @@ mod publish_provider_contract_url_tests {
             "{message}"
         );
         assert_eq!(requests, vec!["GET /"]);
+    }
+
+    #[rstest]
+    #[case::plain_http("http://api.swaggerhub.com/apis/O/a/1")]
+    #[case::other_host("https://example.com/apis/O/a/1")]
+    #[case::credentials("https://user:pw@api.swaggerhub.com/apis/O/a/1")]
+    fn publish_rejects_unsupported_contract_urls_before_any_request(#[case] url: &str) {
+        let (broker_url, requests) = spawn_recording_broker_with_index("{}");
+        let matches = add_publish_provider_contract_subcommand().get_matches_from(vec![
+            "publish-provider-contract",
+            url,
+            "-b",
+            broker_url.as_str(),
+            "--broker-token",
+            "api-token",
+            "--provider",
+            "Bar",
+            "--provider-app-version",
+            "1.0.0",
+        ]);
+        let error = publish(&matches).unwrap_err();
+        assert!(
+            matches!(&error, PactBrokerError::ContentError(m) if m == UNSUPPORTED_CONTRACT_URL),
+            "{error}"
+        );
+        assert!(!error.to_string().contains("pw"), "{error}");
+        assert!(requests.lock().unwrap().is_empty());
     }
 }

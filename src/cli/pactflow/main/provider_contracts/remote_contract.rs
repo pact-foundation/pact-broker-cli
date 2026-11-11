@@ -38,6 +38,12 @@ pub(crate) fn is_supported_contract_url(input: &str) -> bool {
     })
 }
 
+/// True for any `http` or `https` URL, supported or not. A Windows path such as
+/// `C:\contract.yaml` parses with scheme `c`, so it is not matched.
+pub(crate) fn is_web_url(input: &str) -> bool {
+    url::Url::parse(input).is_ok_and(|parsed| matches!(parsed.scheme(), "http" | "https"))
+}
+
 fn retrieve_failed() -> PactBrokerError {
     PactBrokerError::ContentError(RETRIEVE_FAILED.to_string())
 }
@@ -138,9 +144,11 @@ mod tests {
         routing::{get, post},
     };
     use reqwest_middleware::ClientBuilder;
+    use rstest::rstest;
 
     use super::{
         MAX_DOCUMENT_BYTES, RETRIEVE_FAILED, fetch_remote_contract, is_supported_contract_url,
+        is_web_url,
     };
     use crate::cli::pact_broker::main::PactBrokerError;
 
@@ -346,6 +354,22 @@ mod tests {
         ] {
             assert!(!is_supported_contract_url(input), "{input}");
         }
+    }
+
+    #[rstest]
+    #[case::supported("https://api.swaggerhub.com/apis/O/a/1", true)]
+    #[case::plain_http("http://api.swaggerhub.com/apis/O/a/1", true)]
+    #[case::other_host("https://example.com/apis/O/a/1", true)]
+    #[case::credentials("https://user:pw@api.swaggerhub.com/a", true)]
+    #[case::relative_path("tests/fixtures/provider-contract.yaml", false)]
+    #[case::absolute_path("/abs/provider-contract.yaml", false)]
+    #[case::windows_path(r"C:\contracts\provider-contract.yaml", false)]
+    #[case::other_scheme("ftp://api.swaggerhub.com/apis/O/a/1", false)]
+    fn web_urls_are_recognised_whether_or_not_supported(
+        #[case] input: &str,
+        #[case] expected: bool,
+    ) {
+        assert_eq!(is_web_url(input), expected);
     }
 
     #[tokio::test]
