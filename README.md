@@ -2282,7 +2282,7 @@ Publish provider contract to PactFlow
 Usage: pact-broker-cli pactflow publish-provider-contract [OPTIONS] --broker-base-url <PACT_BROKER_BASE_URL> --provider <PROVIDER> <CONTRACT_FILE>
 
 Arguments:
-  <CONTRACT_FILE>  The contract file to publish, or an https://api.swaggerhub.com URL (requires --broker-token)
+  <CONTRACT_FILE>  The contract file to publish, or an https://api.swaggerhub.com URL
 
 Options:
   -b, --broker-base-url <PACT_BROKER_BASE_URL>
