@@ -61,7 +61,7 @@ pub fn get_pacts(
         };
 
         // A single pact response is normalized into a one-row collection for the table / download
-        let pacts_view = normalized_single_pact (&pacts_data).unwrap_or_else(|| pacts_data.clone());
+        let pacts_view = normalized_single_pact(&pacts_data).unwrap_or_else(|| pacts_data.clone());
 
         // Download pacts if requested
         if download {
