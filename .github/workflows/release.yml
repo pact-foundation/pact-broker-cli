@@ -299,7 +299,7 @@ jobs:
     needs:
       - plan
       - announce
-    uses: ./.github/workflows/publish-containers.yml
+    uses: $/.github/workflows/publish-containers.yml
     with:
       plan: ${{ needs.plan.outputs.val }}
     secrets: inherit
@@ -311,7 +311,7 @@ jobs:
     needs:
       - plan
       - announce
-    uses: ./.github/workflows/record-deployment.yml
+    uses: $/.github/workflows/record-deployment.yml
     with:
       plan: ${{ needs.plan.outputs.val }}
     secrets: inherit
@@ -320,7 +320,7 @@ jobs:
     needs:
       - plan
       - announce
-    uses: ./.github/workflows/legacy-artifacts.yml
+    uses: $/.github/workflows/legacy-artifacts.yml
     with:
       plan: ${{ needs.plan.outputs.val }}
     secrets: inherit
@@ -331,7 +331,7 @@ jobs:
     needs:
       - plan
       - announce
-    uses: ./.github/workflows/notify-package-managers.yml
+    uses: $/.github/workflows/notify-package-managers.yml
     with:
       plan: ${{ needs.plan.outputs.val }}
     secrets: inherit
