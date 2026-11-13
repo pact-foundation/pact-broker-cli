@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.9.2] _2026-11-13_
+
+### 🛠️ Miscellaneous Tasks
+
+-   Run dist init
+
+
 ## [0.9.1] _2026-11-13_
 
 ### 🚀 Features
