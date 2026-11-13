@@ -2,6 +2,34 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.9.1] _2026-11-13_
+
+### 🚀 Features
+
+-   _(publish-provider-contract)_ Accept a swaggerhub hosted contract URL in publish-provider-co… ([#208](https://github.com/pact-foundation/pact-broker-cli/issues/208))
+
+### 🐛 Bug Fixes
+
+-   _(get-pacts)_ Resolve panic and download failure for single pact response
+-   _(get-pacts)_ Save a single pact response without fetching it again
+
+### 🚜 Refactor
+
+-   _(get-pacts)_ Borrow the pacts view instead of cloning the response
+
+### 🧪 Testing
+
+-   _(get-pacts)_ Cover the latest consumer pact end to end
+
+### 📦 Other
+
+-   Notify homebrew-tap and scoop after a release
+
+### 🛠️ Miscellaneous Tasks
+
+-   Cargo fmt
+
+
 ## [0.9.0] _2026-10-09_
 
 ### 🚀 Features
