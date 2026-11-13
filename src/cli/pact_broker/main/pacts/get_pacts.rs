@@ -60,13 +60,20 @@ pub fn get_pacts(
             result
         };
 
-        // A single pact response is normalized into a one-row collection for the table / download
+        // A single pact response is normalized into a one-row collection for the table
         let single_pact = normalized_single_pact(&pacts_data);
         let pacts_view = single_pact.as_ref().unwrap_or(&pacts_data);
 
         // Download pacts if requested
         if download {
-            download_pacts(pacts_view, &hal_client, download_dir).await?;
+            if single_pact.is_some() {
+                // The response is the pact document itself, so there is nothing to fetch
+                create_download_dir(download_dir)?;
+                let consumer_name = pacts_data.pointer("/consumer/name").and_then(Value::as_str);
+                save_pact(&pacts_data, consumer_name, download_dir)?;
+            } else {
+                download_pacts(&pacts_data, &hal_client, download_dir).await?;
+            }
         }
 
         let output = match output_type {
@@ -152,10 +159,7 @@ async fn download_pacts(
     hal_client: &HALClient,
     download_dir: &str,
 ) -> Result<(), PactBrokerError> {
-    // Create download directory if it doesn't exist
-    fs::create_dir_all(download_dir).map_err(|e| {
-        PactBrokerError::IoError(format!("Failed to create download directory: {}", e))
-    })?;
+    create_download_dir(download_dir)?;
 
     // Extract pacts array from the data
     let pacts: Vec<&Value> =
@@ -197,51 +201,71 @@ async fn download_pacts(
 
         // Download the pact content first to get the proper metadata
         let pact_content = hal_client.clone().fetch(pact_url).await?;
-
-        // Extract consumer and provider names from the downloaded pact content
-        let consumer_name = pact_content
-            .get("_links")
-            .and_then(|l| l.get("pb:consumer"))
-            .and_then(|c| c.get("name"))
-            .and_then(|n| n.as_str())
-            .or_else(|| pact.get("name").and_then(|n| n.as_str()))
-            .unwrap_or("unknown");
-
-        let provider_name = pact_content
-            .get("_links")
-            .and_then(|l| l.get("pb:provider"))
-            .and_then(|p| p.get("name"))
-            .and_then(|n| n.as_str())
-            .unwrap_or("unknown");
-
-        let version = pact_content
-            .get("_links")
-            .and_then(|l| l.get("pb:consumer-version"))
-            .and_then(|v| v.get("name"))
-            .and_then(|n| n.as_str())
-            .unwrap_or("unknown");
-
-        // Generate filename
-        let file_path = pact_file_path(download_dir, consumer_name, provider_name, version)?;
-
-        // Download the pact content
-        tracing::info!("Downloading pact: {}", file_path.display());
-
-        // Save to file
-        let content_str = serde_json::to_string_pretty(&pact_content).map_err(|e| {
-            PactBrokerError::ContentError(format!("Failed to serialize pact content: {}", e))
-        })?;
-
-        fs::write(&file_path, content_str).map_err(|e| {
-            PactBrokerError::IoError(format!(
-                "Failed to write pact file {}: {}",
-                file_path.display(),
-                e
-            ))
-        })?;
-
-        println!("  → {}", file_path.display());
+        save_pact(
+            &pact_content,
+            pact.get("name").and_then(|n| n.as_str()),
+            download_dir,
+        )?;
     }
+
+    Ok(())
+}
+
+fn create_download_dir(download_dir: &str) -> Result<(), PactBrokerError> {
+    fs::create_dir_all(download_dir).map_err(|e| {
+        PactBrokerError::IoError(format!("Failed to create download directory: {}", e))
+    })
+}
+
+/// Writes a pact document into `download_dir`, naming the file from its
+/// `pb:consumer`, `pb:provider` and `pb:consumer-version` links.
+/// `fallback_consumer` names the consumer when the document has no `pb:consumer` link.
+fn save_pact(
+    pact_content: &Value,
+    fallback_consumer: Option<&str>,
+    download_dir: &str,
+) -> Result<(), PactBrokerError> {
+    let consumer_name = pact_content
+        .get("_links")
+        .and_then(|l| l.get("pb:consumer"))
+        .and_then(|c| c.get("name"))
+        .and_then(|n| n.as_str())
+        .or(fallback_consumer)
+        .unwrap_or("unknown");
+
+    let provider_name = pact_content
+        .get("_links")
+        .and_then(|l| l.get("pb:provider"))
+        .and_then(|p| p.get("name"))
+        .and_then(|n| n.as_str())
+        .unwrap_or("unknown");
+
+    let version = pact_content
+        .get("_links")
+        .and_then(|l| l.get("pb:consumer-version"))
+        .and_then(|v| v.get("name"))
+        .and_then(|n| n.as_str())
+        .unwrap_or("unknown");
+
+    // Generate filename
+    let file_path = pact_file_path(download_dir, consumer_name, provider_name, version)?;
+
+    tracing::info!("Saving pact: {}", file_path.display());
+
+    // Save to file
+    let content_str = serde_json::to_string_pretty(&pact_content).map_err(|e| {
+        PactBrokerError::ContentError(format!("Failed to serialize pact content: {}", e))
+    })?;
+
+    fs::write(&file_path, content_str).map_err(|e| {
+        PactBrokerError::IoError(format!(
+            "Failed to write pact file {}: {}",
+            file_path.display(),
+            e
+        ))
+    })?;
+
+    println!("  → {}", file_path.display());
 
     Ok(())
 }
