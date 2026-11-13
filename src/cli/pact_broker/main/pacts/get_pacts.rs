@@ -61,17 +61,18 @@ pub fn get_pacts(
         };
 
         // A single pact response is normalized into a one-row collection for the table / download
-        let pacts_view = normalized_single_pact(&pacts_data).unwrap_or_else(|| pacts_data.clone());
+        let single_pact = normalized_single_pact(&pacts_data);
+        let pacts_view = single_pact.as_ref().unwrap_or(&pacts_data);
 
         // Download pacts if requested
         if download {
-            download_pacts(&pacts_view, &hal_client, download_dir).await?;
+            download_pacts(pacts_view, &hal_client, download_dir).await?;
         }
 
         let output = match output_type {
             OutputType::Json => serde_json::to_string_pretty(&pacts_data).unwrap(),
-            OutputType::Table => generate_pacts_table(&pacts_view, consumer.is_some()),
-            OutputType::Text => generate_pacts_table(&pacts_view, consumer.is_some()),
+            OutputType::Table => generate_pacts_table(pacts_view, consumer.is_some()),
+            OutputType::Text => generate_pacts_table(pacts_view, consumer.is_some()),
             OutputType::Pretty => serde_json::to_string_pretty(&pacts_data).unwrap(),
         };
 
