@@ -326,3 +326,12 @@ jobs:
     secrets: inherit
     permissions:
       "contents": "write"
+
+  custom-notify-package-managers:
+    needs:
+      - plan
+      - announce
+    uses: ./.github/workflows/notify-package-managers.yml
+    with:
+      plan: ${{ needs.plan.outputs.val }}
+    secrets: inherit
