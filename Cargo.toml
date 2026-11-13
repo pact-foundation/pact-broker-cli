@@ -68,18 +68,18 @@ itertools = "0.15"
 log = "0.4"
 maplit = "1.0"
 mime = "0.3"
-opentelemetry = "0.32"
-opentelemetry-appender-tracing = "0.32"
-opentelemetry-http = "0.32"
-opentelemetry-otlp = { version = "0.32", features = [
+opentelemetry = "0.33.1"
+opentelemetry-appender-tracing = "0.33.1"
+opentelemetry-http = "0.33.1"
+opentelemetry-otlp = { version = "0.33.1", features = [
   "grpc-tonic",
   "logs",
-  "tls",
+  "tls-provider-agnostic",
   "tls-roots",
   "trace"
 ] }
-opentelemetry_sdk = "0.32"
-opentelemetry-stdout = { version = "0.32", features = ["logs", "trace"] }
+opentelemetry_sdk = "0.33.1"
+opentelemetry-stdout = { version = "0.33.1", features = ["logs", "trace"] }
 pact_models = "1"
 regex = "1"
 reqwest = { version = "0.13", default-features = false, features = [
@@ -91,14 +91,14 @@ reqwest = { version = "0.13", default-features = false, features = [
 ] }
 reqwest-middleware = "0.5"
 reqwest-retry = "0.9"
-reqwest-tracing = { version = "0.7", features = ["opentelemetry_0_32"] }
+reqwest-tracing = { version = "0.7.1", features = ["opentelemetry_0_32"] }
 serde = "1"
 serde_json = "1"
 serde_with = { version = "3", features = ["json"] }
 thiserror = "2"
 tokio = { version = "1", features = ["rt-multi-thread"] }
 tracing = { version = "0.1", features = ["std"] }
-tracing-opentelemetry = "0.33"
+tracing-opentelemetry = "0.34.0"
 tracing-subscriber = { version = "0.3", features = [
   "env-filter",
   "fmt",
