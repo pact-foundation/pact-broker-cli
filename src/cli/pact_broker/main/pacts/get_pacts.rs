@@ -812,6 +812,97 @@ mod get_pacts_tests {
     }
 
     #[test]
+    fn get_pacts_latest_for_consumer_and_branch_downloads_single_pact() {
+        // arrange - set up the pact mock server
+        let config = MockServerConfig {
+            pact_specification: PactSpecification::V2,
+            ..MockServerConfig::default()
+        };
+
+        let body = json!({
+            "consumer": { "name": "Condor" },
+            "provider": { "name": "Pricing Service" },
+            "interactions": [],
+            "metadata": { "pactSpecification": { "version": "2.0.0" } },
+            "_links": {
+                "self": {
+                    "title": "Pact between Condor (1.3.0) and Pricing Service",
+                    "href": "http://example.org/pacts/provider/Pricing%20Service/consumer/Condor/version/1.3.0"
+                },
+                "pb:consumer": { "name": "Condor" },
+                "pb:provider": { "name": "Pricing Service" },
+                "pb:consumer-version": { "name": "1.3.0" }
+            }
+        });
+
+        let pact_broker_service = PactBuilder::new("pact-broker-cli", "Pact Broker")
+            .interaction(
+                "a request to get the latest pact for provider and consumer on branch",
+                "",
+                |mut i| {
+                    i.given(
+                        "a pact between Condor and the Pricing Service exists with branch main",
+                    );
+                    i.request
+                        .get()
+                        .path(
+                            "/pacts/provider/Pricing%20Service/consumer/Condor/branch/main/latest",
+                        )
+                        .header("Accept", "application/hal+json")
+                        .header("Accept", "application/json");
+                    i.response
+                        .status(200)
+                        .header("Content-Type", "application/hal+json;charset=utf-8")
+                        .json_body(body.clone());
+                    i
+                },
+            )
+            .start_mock_server(None, Some(config));
+        let mock_server_url = pact_broker_service.url();
+
+        // arrange - set up the broker details and an empty download directory
+        let broker_details = BrokerDetails {
+            url: mock_server_url.to_string(),
+            auth: None,
+            ssl_options: SslOptions::default(),
+            custom_headers: None,
+            retries: 0,
+        };
+        let download_dir = std::env::temp_dir().join(format!(
+            "pact-broker-cli-get-pacts-single-{}",
+            std::process::id()
+        ));
+        let _ = fs::remove_dir_all(&download_dir);
+
+        // act
+        let result = get_pacts(
+            &broker_details,
+            "Pricing Service",
+            Some("Condor"),
+            Some("main"),
+            true,
+            OutputType::Table,
+            true,
+            download_dir.to_str().unwrap(),
+        );
+
+        // assert
+        let saved = fs::read_to_string(download_dir.join("Condor-Pricing Service-1.3.0.json"));
+        let _ = fs::remove_dir_all(&download_dir);
+
+        let output = result.expect("get_pacts should succeed for a single pact response");
+        assert!(output.contains("Condor"));
+        assert!(output.contains("Pact between Condor (1.3.0) and Pricing Service"));
+        assert!(output.contains(
+            "http://example.org/pacts/provider/Pricing%20Service/consumer/Condor/version/1.3.0"
+        ));
+
+        let saved: Value =
+            serde_json::from_str(&saved.expect("the single pact should be saved")).unwrap();
+        assert_eq!(saved, body);
+    }
+
+    #[test]
     fn test_build_pacts_path_encodes_values() {
         let (_, path) = build_pacts_path("My Provider", Some("c/1"), Some("feat/x"), true).unwrap();
         assert_eq!(
