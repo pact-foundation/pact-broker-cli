@@ -37,12 +37,13 @@ targets = [
 bin-aliases = { pact-broker-cli = ["pact-broker"] }
 install-path = "~/.pact/bin"
 post-announce-jobs = [
-  "./publish-containers",
-  "./record-deployment",
-  "./legacy-artifacts",
-  "./notify-package-managers"
+"./publish-containers",
+"./record-deployment",
+"./legacy-artifacts",
+"./notify-package-managers"
 ]
 github-custom-job-permissions = { publish-containers = { contents = "read", packages = "write" }, legacy-artifacts = { contents = "write" } }
+install-updater = false
 # pr-run-mode = "upload"  # Uncomment to run full builds on PRs
 
 [lib]
