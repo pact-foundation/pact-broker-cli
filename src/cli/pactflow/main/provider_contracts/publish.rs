@@ -6,9 +6,14 @@ use clap::ArgMatches;
 use serde::{Deserialize, Serialize};
 use serde_json::{Value, json};
 
+use pact_models::http_utils::HttpAuth;
+
+use super::remote_contract::{
+    TokenExchange, fetch_remote_contract, is_supported_contract_url, is_web_url,
+};
 use crate::cli::{
     pact_broker::main::{
-        HALClient, Notice, PactBrokerError,
+        CustomHeaders, HALClient, Notice, PactBrokerError,
         broker_path::expand_path_template,
         process_notices,
         utils::{
@@ -48,15 +53,62 @@ struct Links {
     pb_pacticipant_version_tags: Vec<Value>,
 }
 
+/// The URL itself is left out of the message, since it may carry credentials.
+const UNSUPPORTED_CONTRACT_URL: &str = "Unsupported contract URL: only https://api.swaggerhub.com URLs without credentials are supported";
+
+/// Reads a local contract file and returns it base64-encoded.
+fn read_contract_file(path: &str) -> Result<String, PactBrokerError> {
+    std::fs::read_to_string(path)
+        .map(|content| Base64.encode(content))
+        .map_err(|e| {
+            println!("❌ Failed to read contract file: {}", e);
+            PactBrokerError::IoError(e.to_string())
+        })
+}
+
+/// Retrieves the contract at `url` and returns it base64-encoded.
+fn fetch_contract_content(
+    hal_client: &HALClient,
+    broker_url: &str,
+    auth: &HttpAuth,
+    custom_headers: Option<&CustomHeaders>,
+    url: &str,
+    content_type: &str,
+) -> Result<String, PactBrokerError> {
+    let HttpAuth::Token(api_token) = auth else {
+        return Err(PactBrokerError::ContentError(
+            "A broker token (--broker-token) is required to publish a contract from a URL"
+                .to_string(),
+        ));
+    };
+    // A failed exchange is reported without retries. PFA answers 503 when its
+    // token service cannot mint a token, and retrying only delays the error.
+    let token_client = hal_client.clone().with_retry_count(1).client;
+    let exchange = TokenExchange {
+        client: &token_client,
+        broker_url,
+        api_token,
+        custom_headers,
+    };
+    tokio::runtime::Runtime::new()
+        .unwrap()
+        .block_on(fetch_remote_contract(
+            &hal_client.client,
+            &exchange,
+            url,
+            content_type,
+        ))
+        .map(|content| Base64.encode(content))
+}
+
 pub fn publish(args: &ArgMatches) -> Result<Value, PactBrokerError> {
-    // Load contract file
-    let contract_file = args
+    let contract_input = args
         .get_one::<String>("contract-file")
         .expect("CONTRACT_FILE is required");
-    let contract_content = std::fs::read_to_string(contract_file).map_err(|e| {
-        println!("❌ Failed to read contract file: {}", e);
-        PactBrokerError::IoError(e.to_string())
-    })?;
+    let content_type = args
+        .get_one::<String>("content-type")
+        .map(String::as_str)
+        .unwrap_or("application/yaml");
 
     let broker_url = get_broker_url(args).trim_end_matches('/').to_string();
     let auth = get_auth(args);
@@ -69,6 +121,23 @@ pub fn publish(args: &ArgMatches) -> Result<Value, PactBrokerError> {
         custom_headers.clone(),
     )
     .with_retry_count(get_retries(args));
+
+    let contract_content = if is_supported_contract_url(contract_input) {
+        fetch_contract_content(
+            &hal_client,
+            &broker_url,
+            &auth,
+            custom_headers.as_ref(),
+            contract_input,
+            content_type,
+        )?
+    } else if is_web_url(contract_input) {
+        return Err(PactBrokerError::ContentError(
+            UNSUPPORTED_CONTRACT_URL.to_string(),
+        ));
+    } else {
+        read_contract_file(contract_input)?
+    };
 
     // Use pf:publish-provider-contract relation
     let publish_contract_href_path = tokio::runtime::Runtime::new().unwrap().block_on(async {
@@ -92,10 +161,6 @@ pub fn publish(args: &ArgMatches) -> Result<Value, PactBrokerError> {
             let specification = args
                 .get_one::<String>("specification")
                 .unwrap_or(&default_specification);
-            let default_content_type = "application/yaml".to_string();
-            let content_type = args
-                .get_one::<String>("content-type")
-                .unwrap_or(&default_content_type);
             let auto_detect_version_properties: bool =
                 args.get_flag("auto-detect-version-properties");
             let (git_commit, git_branch);
@@ -174,7 +239,7 @@ pub fn publish(args: &ArgMatches) -> Result<Value, PactBrokerError> {
 
             // Build contract params
             let mut contract_params = json!({
-                "content": Base64.encode(contract_content),
+                "content": contract_content,
                 "specification": specification,
                 "contentType": content_type,
             });
@@ -530,11 +595,84 @@ mod publish_provider_contract_tests {
 }
 
 #[cfg(test)]
+mod read_contract_file_tests {
+    use super::read_contract_file;
+    use crate::cli::pact_broker::main::PactBrokerError;
+
+    #[test]
+    fn file_is_read_and_base64_encoded() {
+        assert_eq!(
+            read_contract_file("tests/fixtures/provider-contract.yaml").unwrap(),
+            "c29tZToKICBjb250cmFjdA=="
+        );
+    }
+
+    #[test]
+    fn missing_file_is_io_error() {
+        assert!(matches!(
+            read_contract_file("tests/fixtures/nope.yaml"),
+            Err(PactBrokerError::IoError(_))
+        ));
+    }
+}
+
+#[cfg(test)]
+mod fetch_contract_content_tests {
+    use std::sync::{
+        Arc,
+        atomic::{AtomicUsize, Ordering},
+    };
+
+    use axum::{Router, http::StatusCode, routing::post};
+    use pact_models::http_utils::HttpAuth;
+
+    use crate::cli::pact_broker::main::{HALClient, types::SslOptions};
+    use crate::cli::pactflow::main::provider_contracts::publish::fetch_contract_content;
+
+    #[test]
+    fn token_exchange_is_not_retried() {
+        let exchanges = Arc::new(AtomicUsize::new(0));
+        let counted = exchanges.clone();
+        let router = Router::new().route(
+            "/auth/registry-token",
+            post(move || async move {
+                counted.fetch_add(1, Ordering::SeqCst);
+                StatusCode::SERVICE_UNAVAILABLE
+            }),
+        );
+        let server = tokio::runtime::Runtime::new().unwrap();
+        let base = server.block_on(async {
+            let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+            let base = format!("http://{}", listener.local_addr().unwrap());
+            tokio::spawn(async move { axum::serve(listener, router).await.unwrap() });
+            base
+        });
+        let hal_client =
+            HALClient::with_url(&base, None, SslOptions::default(), None).with_retry_count(3);
+
+        let result = fetch_contract_content(
+            &hal_client,
+            &base,
+            &HttpAuth::Token("api-token".to_string()),
+            None,
+            &format!("{base}/doc"),
+            "application/yaml",
+        );
+
+        assert!(result.is_err());
+        assert_eq!(exchanges.load(Ordering::SeqCst), 1);
+    }
+}
+
+#[cfg(test)]
 mod publish_provider_contract_url_tests {
     use crate::cli::pact_broker::main::PactBrokerError;
     use crate::cli::pact_broker::main::test_utils::spawn_recording_broker_with_index;
-    use crate::cli::pactflow::main::provider_contracts::publish::publish;
+    use crate::cli::pactflow::main::provider_contracts::publish::{
+        UNSUPPORTED_CONTRACT_URL, publish,
+    };
     use crate::cli::pactflow::main::subcommands::add_publish_provider_contract_subcommand;
+    use rstest::rstest;
 
     fn run(provider: &str) -> (Result<serde_json::Value, PactBrokerError>, Vec<String>) {
         let (broker_url, requests) = spawn_recording_broker_with_index(
@@ -574,5 +712,32 @@ mod publish_provider_contract_url_tests {
             "{message}"
         );
         assert_eq!(requests, vec!["GET /"]);
+    }
+
+    #[rstest]
+    #[case::plain_http("http://api.swaggerhub.com/apis/O/a/1")]
+    #[case::other_host("https://example.com/apis/O/a/1")]
+    #[case::credentials("https://user:pw@api.swaggerhub.com/apis/O/a/1")]
+    fn publish_rejects_unsupported_contract_urls_before_any_request(#[case] url: &str) {
+        let (broker_url, requests) = spawn_recording_broker_with_index("{}");
+        let matches = add_publish_provider_contract_subcommand().get_matches_from(vec![
+            "publish-provider-contract",
+            url,
+            "-b",
+            broker_url.as_str(),
+            "--broker-token",
+            "api-token",
+            "--provider",
+            "Bar",
+            "--provider-app-version",
+            "1.0.0",
+        ]);
+        let error = publish(&matches).unwrap_err();
+        assert!(
+            matches!(&error, PactBrokerError::ContentError(m) if m == UNSUPPORTED_CONTRACT_URL),
+            "{error}"
+        );
+        assert!(!error.to_string().contains("pw"), "{error}");
+        assert!(requests.lock().unwrap().is_empty());
     }
 }

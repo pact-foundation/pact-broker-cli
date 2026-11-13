@@ -1,0 +1,472 @@
+//! Retrieval of a contract document that is referenced by URL.
+//!
+//! Only URLs hosted on SwaggerHub are supported; see
+//! [`is_supported_contract_url`].
+//!
+//! Failures are deliberately reported with a single generic message; the
+//! underlying cause is only available in debug logs, and credentials are never
+//! logged. When the broker refuses the token exchange with a problem+json
+//! `detail`, that detail is appended: PactFlow writes it for the user, for
+//! example to say that a system account's token cannot be exchanged.
+
+use std::time::Duration;
+
+use reqwest_middleware::ClientWithMiddleware;
+use serde::Deserialize;
+use tracing::debug;
+
+use crate::cli::pact_broker::main::{CustomHeaders, PactBrokerError};
+
+const SUPPORTED_HOST: &str = "api.swaggerhub.com";
+const REQUEST_TIMEOUT: Duration = Duration::from_secs(30);
+/// Upper bound on the size of a retrieved contract document.
+const MAX_DOCUMENT_BYTES: usize = 10 * 1024 * 1024;
+
+const RETRIEVE_FAILED: &str = "Failed to retrieve the contract from the provided URL";
+
+/// The broker side of a remote fetch: the client for the exchange, where the
+/// PactFlow API token is exchanged, and the `--custom-header` values every
+/// broker request carries. The custom headers are never sent to the contract's
+/// host.
+pub(crate) struct TokenExchange<'a> {
+    pub client: &'a ClientWithMiddleware,
+    pub broker_url: &'a str,
+    pub api_token: &'a str,
+    pub custom_headers: Option<&'a CustomHeaders>,
+}
+
+/// The part of an RFC 9457 problem+json body shown to the user.
+#[derive(Deserialize)]
+struct ProblemDetail {
+    detail: String,
+}
+
+#[derive(Deserialize)]
+struct AccessTokenResponse {
+    access_token: String,
+}
+
+/// True only for an `https` URL on exactly [`SUPPORTED_HOST`] with no embedded
+/// credentials. Anything else is treated as a local file path by the caller.
+pub(crate) fn is_supported_contract_url(input: &str) -> bool {
+    url::Url::parse(input).is_ok_and(|parsed| {
+        parsed.scheme() == "https"
+            && parsed.username().is_empty()
+            && parsed.password().is_none()
+            && parsed.host_str() == Some(SUPPORTED_HOST)
+    })
+}
+
+/// True for any `http` or `https` URL, supported or not. A Windows path such as
+/// `C:\contract.yaml` parses with scheme `c`, so it is not matched.
+pub(crate) fn is_web_url(input: &str) -> bool {
+    url::Url::parse(input).is_ok_and(|parsed| matches!(parsed.scheme(), "http" | "https"))
+}
+
+fn retrieve_failed() -> PactBrokerError {
+    PactBrokerError::ContentError(RETRIEVE_FAILED.to_string())
+}
+
+/// The generic failure, with the broker's explanation appended when the
+/// refusal carries a problem+json `detail`.
+async fn token_refused(response: reqwest::Response) -> PactBrokerError {
+    match response.json::<ProblemDetail>().await {
+        Ok(problem) if !problem.detail.trim().is_empty() => {
+            PactBrokerError::ContentError(format!("{RETRIEVE_FAILED}: {}", problem.detail.trim()))
+        }
+        _ => retrieve_failed(),
+    }
+}
+
+/// Exchanges the PactFlow API token for a short-lived delegated access token.
+/// The request has no body; only `access_token` is read from the response.
+async fn exchange_token(exchange: &TokenExchange<'_>) -> Result<String, PactBrokerError> {
+    let endpoint = format!(
+        "{}/auth/registry-token",
+        exchange.broker_url.trim_end_matches('/')
+    );
+    let mut request = exchange
+        .client
+        .post(&endpoint)
+        .bearer_auth(exchange.api_token)
+        .header("Accept", "application/json, application/problem+json")
+        .header("Content-Type", "application/json")
+        .timeout(REQUEST_TIMEOUT);
+    if let Some(custom_headers) = exchange.custom_headers {
+        for (name, value) in &custom_headers.headers {
+            request = request.header(name, value);
+        }
+    }
+    let response = request.send().await.map_err(|e| {
+        debug!("Token exchange request failed: {e}");
+        retrieve_failed()
+    })?;
+    let status = response.status();
+    if !status.is_success() {
+        debug!("Token exchange returned {status}");
+        return Err(token_refused(response).await);
+    }
+    let body = response.json::<AccessTokenResponse>().await.map_err(|e| {
+        debug!("Token exchange response could not be parsed: {e}");
+        retrieve_failed()
+    })?;
+    if body.access_token.is_empty() {
+        debug!("Token exchange returned an empty token");
+        return Err(retrieve_failed());
+    }
+    Ok(body.access_token)
+}
+
+/// Fetches the document at `url` with `client`, authenticating with a token
+/// obtained through `exchange`.
+///
+/// `accept` is sent as the `Accept` header so the document is returned in the
+/// format the caller declared for the contract.
+pub(crate) async fn fetch_remote_contract(
+    client: &ClientWithMiddleware,
+    exchange: &TokenExchange<'_>,
+    url: &str,
+    accept: &str,
+) -> Result<String, PactBrokerError> {
+    let access_token = exchange_token(exchange).await?;
+    let mut response = client
+        .get(url)
+        .bearer_auth(access_token)
+        .header("Accept", accept)
+        .timeout(REQUEST_TIMEOUT)
+        .send()
+        .await
+        .map_err(|e| {
+            debug!("Contract request failed: {e}");
+            retrieve_failed()
+        })?;
+    let status = response.status();
+    if !status.is_success() {
+        debug!("Contract request returned {status}");
+        return Err(retrieve_failed());
+    }
+    if response
+        .content_length()
+        .is_some_and(|len| len > MAX_DOCUMENT_BYTES as u64)
+    {
+        debug!("Contract response exceeds {MAX_DOCUMENT_BYTES} bytes");
+        return Err(retrieve_failed());
+    }
+    // Read chunk by chunk so a response without `Content-Length` is cut off at
+    // the limit and never buffered whole.
+    let mut body = Vec::new();
+    while let Some(chunk) = response.chunk().await.map_err(|e| {
+        debug!("Contract response could not be read: {e}");
+        retrieve_failed()
+    })? {
+        if body.len() + chunk.len() > MAX_DOCUMENT_BYTES {
+            debug!("Contract response exceeds {MAX_DOCUMENT_BYTES} bytes");
+            return Err(retrieve_failed());
+        }
+        body.extend_from_slice(&chunk);
+    }
+    String::from_utf8(body).map_err(|e| {
+        debug!("Contract response is not valid UTF-8: {e}");
+        retrieve_failed()
+    })
+}
+
+#[cfg(test)]
+mod tests {
+    use std::convert::Infallible;
+    use std::sync::{Arc, Mutex};
+    use std::time::Duration;
+
+    use axum::{
+        Router,
+        body::{Body, Bytes},
+        http::{HeaderMap, StatusCode, Uri},
+        routing::{get, post},
+    };
+    use futures::stream;
+    use reqwest_middleware::ClientBuilder;
+    use rstest::rstest;
+
+    use super::{
+        MAX_DOCUMENT_BYTES, RETRIEVE_FAILED, TokenExchange, fetch_remote_contract,
+        is_supported_contract_url, is_web_url,
+    };
+    use crate::cli::pact_broker::main::{CustomHeaders, PactBrokerError};
+
+    type Seen = Arc<Mutex<Vec<String>>>;
+
+    const OK_TOKEN: &str = r#"{"access_token":"pf-delegated-123","issued_token_type":"urn:ietf:params:oauth:token-type:access_token","token_type":"Bearer","expires_in":600,"scope":"registry:apis:read"}"#;
+
+    /// Serves `/auth/registry-token` and `/doc`, recording each request as
+    /// `"<METHOD> <path> auth=<Authorization> accept=<Accept> content-type=<Content-Type> custom=<X-Custom>"`.
+    async fn spawn(
+        token_status: StatusCode,
+        token_body: &'static str,
+        doc_status: StatusCode,
+    ) -> (String, Seen) {
+        let seen: Seen = Arc::default();
+        let record = |method: &'static str, seen: Seen| {
+            move |uri: Uri, headers: HeaderMap| {
+                let header = |name: &str| {
+                    headers
+                        .get(name)
+                        .and_then(|v| v.to_str().ok())
+                        .unwrap_or("")
+                        .to_string()
+                };
+                seen.lock().unwrap().push(format!(
+                    "{method} {} auth={} accept={} content-type={} custom={}",
+                    uri.path(),
+                    header("authorization"),
+                    header("accept"),
+                    header("content-type"),
+                    header("x-custom")
+                ));
+            }
+        };
+        let (on_token, on_doc) = (record("POST", seen.clone()), record("GET", seen.clone()));
+        let router = Router::new()
+            .route(
+                "/auth/registry-token",
+                post(move |uri: Uri, headers: HeaderMap| async move {
+                    on_token(uri, headers);
+                    (token_status, token_body)
+                }),
+            )
+            .route(
+                "/doc",
+                get(move |uri: Uri, headers: HeaderMap| async move {
+                    on_doc(uri, headers);
+                    (doc_status, "openapi: 3.0.0")
+                }),
+            );
+        let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+        let base = format!("http://{}", listener.local_addr().unwrap());
+        tokio::spawn(async move { axum::serve(listener, router).await.unwrap() });
+        (base, seen)
+    }
+
+    async fn fetch(base: &str) -> Result<String, PactBrokerError> {
+        let client = ClientBuilder::new(reqwest::Client::new()).build();
+        let custom_headers = CustomHeaders {
+            headers: [("X-Custom".to_string(), "broker-only".to_string())].into(),
+        };
+        let exchange = TokenExchange {
+            client: &client,
+            broker_url: base,
+            api_token: "api-token",
+            custom_headers: Some(&custom_headers),
+        };
+        fetch_remote_contract(
+            &client,
+            &exchange,
+            &format!("{base}/doc"),
+            "application/yaml",
+        )
+        .await
+    }
+
+    #[tokio::test]
+    async fn exchanges_token_then_fetches_document_with_it() {
+        let (base, seen) = spawn(StatusCode::OK, OK_TOKEN, StatusCode::OK).await;
+
+        assert_eq!(fetch(&base).await.unwrap(), "openapi: 3.0.0");
+        assert_eq!(
+            *seen.lock().unwrap(),
+            vec![
+                "POST /auth/registry-token auth=Bearer api-token accept=application/json, application/problem+json content-type=application/json custom=broker-only",
+                "GET /doc auth=Bearer pf-delegated-123 accept=application/yaml content-type= custom=",
+            ]
+        );
+    }
+
+    #[rstest]
+    #[case::token_rejected(StatusCode::UNAUTHORIZED, OK_TOKEN, StatusCode::OK)]
+    #[case::token_forbidden(StatusCode::FORBIDDEN, OK_TOKEN, StatusCode::OK)]
+    #[case::token_not_found(StatusCode::NOT_FOUND, OK_TOKEN, StatusCode::OK)]
+    #[case::token_errors(StatusCode::INTERNAL_SERVER_ERROR, OK_TOKEN, StatusCode::OK)]
+    #[case::token_unavailable(StatusCode::SERVICE_UNAVAILABLE, OK_TOKEN, StatusCode::OK)]
+    #[case::token_malformed(StatusCode::OK, "not json", StatusCode::OK)]
+    #[case::token_empty(StatusCode::OK, r#"{"access_token":""}"#, StatusCode::OK)]
+    #[case::document_not_found(StatusCode::OK, OK_TOKEN, StatusCode::NOT_FOUND)]
+    #[case::document_forbidden(StatusCode::OK, OK_TOKEN, StatusCode::FORBIDDEN)]
+    #[tokio::test]
+    async fn failures_use_one_generic_message(
+        #[case] token_status: StatusCode,
+        #[case] token_body: &'static str,
+        #[case] doc_status: StatusCode,
+    ) {
+        let (base, _) = spawn(token_status, token_body, doc_status).await;
+        let error = fetch(&base).await.unwrap_err();
+        assert!(
+            matches!(&error, PactBrokerError::ContentError(m) if m == RETRIEVE_FAILED),
+            "{error}"
+        );
+    }
+
+    const SYSTEM_ACCOUNT_PROBLEM: &str = r#"{"title":"Forbidden","type":"https://example.pactflow.io/problem/forbidden","detail":"Registry tokens are only issued to users, and this API token belongs to a system account. Use an API token that belongs to a user.","status":403}"#;
+
+    #[rstest]
+    #[case::system_account(
+        StatusCode::FORBIDDEN,
+        SYSTEM_ACCOUNT_PROBLEM,
+        "Failed to retrieve the contract from the provided URL: Registry tokens are only issued to users, and this API token belongs to a system account. Use an API token that belongs to a user."
+    )]
+    #[case::unavailable(
+        StatusCode::SERVICE_UNAVAILABLE,
+        r#"{"title":"Service unavailable","detail":"Registry token service is not available","status":503}"#,
+        "Failed to retrieve the contract from the provided URL: Registry token service is not available"
+    )]
+    #[case::blank_detail(StatusCode::FORBIDDEN, r#"{"detail":"  "}"#, RETRIEVE_FAILED)]
+    #[case::plain_text(StatusCode::FORBIDDEN, "Forbidden. Not allowed.", RETRIEVE_FAILED)]
+    #[tokio::test]
+    async fn token_refusal_shows_the_broker_detail(
+        #[case] token_status: StatusCode,
+        #[case] token_body: &'static str,
+        #[case] expected: &str,
+    ) {
+        let (base, seen) = spawn(token_status, token_body, StatusCode::OK).await;
+        let error = fetch(&base).await.unwrap_err();
+        assert!(
+            matches!(&error, PactBrokerError::ContentError(m) if m == expected),
+            "{error}"
+        );
+        assert_eq!(
+            seen.lock().unwrap().len(),
+            1,
+            "the document must not be requested"
+        );
+    }
+
+    #[tokio::test]
+    async fn document_refusal_never_shows_its_body() {
+        let router = Router::new()
+            .route("/auth/registry-token", post(|| async { OK_TOKEN }))
+            .route(
+                "/doc",
+                get(|| async {
+                    (
+                        StatusCode::FORBIDDEN,
+                        r#"{"detail":"from the contract host"}"#,
+                    )
+                }),
+            );
+        let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+        let base = format!("http://{}", listener.local_addr().unwrap());
+        tokio::spawn(async move { axum::serve(listener, router).await.unwrap() });
+
+        let error = fetch(&base).await.unwrap_err();
+        assert!(matches!(&error, PactBrokerError::ContentError(m) if m == RETRIEVE_FAILED));
+    }
+
+    #[tokio::test]
+    async fn unreachable_server_uses_the_same_generic_message() {
+        let error = fetch("http://127.0.0.1:1").await.unwrap_err();
+        assert!(matches!(&error, PactBrokerError::ContentError(m) if m == RETRIEVE_FAILED));
+    }
+
+    #[rstest]
+    #[case::versioned_api("https://api.swaggerhub.com/apis/OWNER/petstore-api/1.0.0")]
+    #[case::query_and_fragment("https://api.swaggerhub.com/apis/O/a/1?x=y#z")]
+    #[case::upper_case("HTTPS://API.SWAGGERHUB.COM/apis/O/a/1")]
+    fn supported_urls(#[case] url: &str) {
+        assert!(is_supported_contract_url(url));
+    }
+
+    #[rstest]
+    #[case::file_path("tests/fixtures/provider-contract.yaml")]
+    #[case::no_host("https://")]
+    #[case::triple_slash("https:///apis/x")]
+    #[case::plain_http("http://api.swaggerhub.com/apis/O/a/1")]
+    #[case::other_scheme("ftp://api.swaggerhub.com/apis/O/a/1")]
+    #[case::other_host("https://example.com/apis/O/a/1")]
+    #[case::suffixed_host("https://api.swaggerhub.com.evil.com/a")]
+    #[case::subdomain("https://evil.api.swaggerhub.com/a")]
+    #[case::host_as_userinfo("https://api.swaggerhub.com@evil.com/a")]
+    #[case::username("https://user@api.swaggerhub.com/a")]
+    #[case::username_and_password("https://user:pw@api.swaggerhub.com/a")]
+    fn everything_else_is_not_a_supported_url(#[case] input: &str) {
+        assert!(!is_supported_contract_url(input));
+    }
+
+    #[rstest]
+    #[case::supported("https://api.swaggerhub.com/apis/O/a/1", true)]
+    #[case::plain_http("http://api.swaggerhub.com/apis/O/a/1", true)]
+    #[case::other_host("https://example.com/apis/O/a/1", true)]
+    #[case::credentials("https://user:pw@api.swaggerhub.com/a", true)]
+    #[case::relative_path("tests/fixtures/provider-contract.yaml", false)]
+    #[case::absolute_path("/abs/provider-contract.yaml", false)]
+    #[case::windows_path(r"C:\contracts\provider-contract.yaml", false)]
+    #[case::other_scheme("ftp://api.swaggerhub.com/apis/O/a/1", false)]
+    fn web_urls_are_recognised_whether_or_not_supported(
+        #[case] input: &str,
+        #[case] expected: bool,
+    ) {
+        assert_eq!(is_web_url(input), expected);
+    }
+
+    const CHUNK_BYTES: usize = 64 * 1024;
+    static CHUNK: [u8; CHUNK_BYTES] = [b'x'; CHUNK_BYTES];
+
+    /// Serves a valid token and answers `/doc` with `body()`.
+    async fn spawn_document(body: impl Fn() -> Body + Clone + Send + Sync + 'static) -> String {
+        let router = Router::new()
+            .route("/auth/registry-token", post(|| async { OK_TOKEN }))
+            .route("/doc", get(move || async move { body() }));
+        let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+        let base = format!("http://{}", listener.local_addr().unwrap());
+        tokio::spawn(async move { axum::serve(listener, router).await.unwrap() });
+        base
+    }
+
+    /// A body of `len` bytes, streamed without a `Content-Length` header.
+    fn chunked(len: usize) -> Body {
+        Body::from_stream(stream::iter((0..len).step_by(CHUNK_BYTES).map(
+            move |start| {
+                Ok::<_, Infallible>(Bytes::from_static(&CHUNK[..CHUNK_BYTES.min(len - start)]))
+            },
+        )))
+    }
+
+    #[tokio::test]
+    async fn oversized_document_with_content_length_uses_the_generic_message() {
+        let base = spawn_document(|| Body::from("x".repeat(MAX_DOCUMENT_BYTES + 1))).await;
+
+        let error = fetch(&base).await.unwrap_err();
+        assert!(matches!(&error, PactBrokerError::ContentError(m) if m == RETRIEVE_FAILED));
+    }
+
+    #[rstest]
+    #[case::at_limit(MAX_DOCUMENT_BYTES, true)]
+    #[case::over_limit(MAX_DOCUMENT_BYTES + 1, false)]
+    #[tokio::test]
+    async fn chunked_document_is_held_to_the_size_limit(
+        #[case] len: usize,
+        #[case] accepted: bool,
+    ) {
+        let base = spawn_document(move || chunked(len)).await;
+
+        match fetch(&base).await {
+            Ok(document) => assert!(accepted && document.len() == len),
+            Err(error) => assert!(
+                !accepted
+                    && matches!(&error, PactBrokerError::ContentError(m) if m == RETRIEVE_FAILED)
+            ),
+        }
+    }
+
+    #[tokio::test]
+    async fn endless_document_is_cut_off_at_the_size_limit() {
+        let base = spawn_document(|| {
+            Body::from_stream(stream::repeat_with(|| {
+                Ok::<_, Infallible>(Bytes::from_static(&CHUNK))
+            }))
+        })
+        .await;
+
+        let result = tokio::time::timeout(Duration::from_secs(5), fetch(&base))
+            .await
+            .expect("reading should stop at the size limit");
+        assert!(matches!(&result, Err(PactBrokerError::ContentError(m)) if m == RETRIEVE_FAILED));
+    }
+}
