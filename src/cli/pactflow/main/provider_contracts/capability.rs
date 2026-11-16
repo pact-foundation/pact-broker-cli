@@ -32,7 +32,6 @@ pub(crate) fn supports_several_contracts(index: &Value) -> bool {
         .is_some()
 }
 
-#[allow(dead_code)]
 /// The `href` of the `pf:provider-contracts` relation, a URI template left unexpanded.
 pub(crate) fn provider_contracts_template(index: &Value) -> Option<String> {
     index

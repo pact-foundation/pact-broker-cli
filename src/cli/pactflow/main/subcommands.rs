@@ -102,6 +102,35 @@ pub fn add_publish_provider_contract_subcommand() -> Command {
     .args(crate::cli::add_ssl_arguments())
 }
 
+pub fn add_delete_provider_contract_subcommand() -> Command {
+    Command::new("delete-provider-contract")
+        .about("Delete one provider contract of a provider version from PactFlow")
+        .args(crate::cli::pact_broker::main::subcommands::add_broker_auth_arguments())
+        .arg(Arg::new("provider")
+            .long("provider")
+            .value_name("PROVIDER")
+            .required(true)
+            .help("The provider name"))
+        .arg(Arg::new("provider-app-version")
+            .short('a')
+            .long("provider-app-version")
+            .value_name("PROVIDER_APP_VERSION")
+            .required(true)
+            .help("The provider application version"))
+        .arg(Arg::new("specification")
+            .long("specification")
+            .value_name("SPECIFICATION")
+            .default_value("oas")
+            .help("The contract specification"))
+        .arg(Arg::new("contract-name")
+            .long("contract-name")
+            .value_name("NAME")
+            .allow_hyphen_values(true)
+            .value_parser(parse_contract_name)
+            .help("Name of the document to delete. Omit it to delete the unnamed document of the specification."))
+        .args(crate::cli::add_ssl_arguments())
+}
+
 /// A contract name starts with a letter or digit, then allows `.`, `_` and `-`, up to 64 characters.
 /// It may not end in a suffix PactFlow reads as a file-format request, since a document name ending
 /// in one could never be addressed.
