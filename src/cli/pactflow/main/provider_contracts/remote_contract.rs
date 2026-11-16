@@ -17,7 +17,7 @@ use tracing::debug;
 
 use crate::cli::pact_broker::main::{CustomHeaders, PactBrokerError};
 
-const SUPPORTED_HOST: &str = "api.swaggerhub.com";
+const SUPPORTED_DOMAIN: &str = "swaggerhub.com";
 const REQUEST_TIMEOUT: Duration = Duration::from_secs(30);
 /// Upper bound on the size of a retrieved contract document.
 const MAX_DOCUMENT_BYTES: usize = 10 * 1024 * 1024;
@@ -46,14 +46,18 @@ struct AccessTokenResponse {
     access_token: String,
 }
 
-/// True only for an `https` URL on exactly [`SUPPORTED_HOST`] with no embedded
+/// True only for an `https` URL on a subdomain of [`SUPPORTED_DOMAIN`] with no embedded
 /// credentials. Anything else is treated as a local file path by the caller.
 pub(crate) fn is_supported_contract_url(input: &str) -> bool {
     url::Url::parse(input).is_ok_and(|parsed| {
         parsed.scheme() == "https"
             && parsed.username().is_empty()
             && parsed.password().is_none()
-            && parsed.host_str() == Some(SUPPORTED_HOST)
+            && parsed.host_str().is_some_and(|host| {
+                host.strip_suffix(SUPPORTED_DOMAIN)
+                    .and_then(|prefix| prefix.strip_suffix('.'))
+                    .is_some_and(|label| !label.is_empty())
+            })
     })
 }
 
@@ -117,8 +121,32 @@ async fn exchange_token(exchange: &TokenExchange<'_>) -> Result<String, PactBrok
     Ok(body.access_token)
 }
 
-/// Fetches the document at `url` with `client`, authenticating with a token
-/// obtained through `exchange`.
+/// Sends the document request, with a bearer token when one is given.
+async fn request_document(
+    client: &ClientWithMiddleware,
+    url: &str,
+    accept: &str,
+    access_token: Option<&str>,
+) -> Result<reqwest::Response, PactBrokerError> {
+    let mut request = client
+        .get(url)
+        .header("Accept", accept)
+        .timeout(REQUEST_TIMEOUT);
+    if let Some(token) = access_token {
+        request = request.bearer_auth(token);
+    }
+    request.send().await.map_err(|e| {
+        debug!("Contract request failed: {e}");
+        retrieve_failed()
+    })
+}
+
+/// Fetches the document at `url` with `client`.
+///
+/// The document is requested anonymously first, since it may be public. Only
+/// if the host answers 401, 403 or 404 (a private document may be hidden
+/// behind a 404) is the PactFlow token exchanged through
+/// `exchange` and the request repeated with the delegated token.
 ///
 /// `accept` is sent as the `Accept` header so the document is returned in the
 /// format the caller declared for the contract.
@@ -128,18 +156,15 @@ pub(crate) async fn fetch_remote_contract(
     url: &str,
     accept: &str,
 ) -> Result<String, PactBrokerError> {
-    let access_token = exchange_token(exchange).await?;
-    let mut response = client
-        .get(url)
-        .bearer_auth(access_token)
-        .header("Accept", accept)
-        .timeout(REQUEST_TIMEOUT)
-        .send()
-        .await
-        .map_err(|e| {
-            debug!("Contract request failed: {e}");
-            retrieve_failed()
-        })?;
+    let mut response = request_document(client, url, accept, None).await?;
+    if matches!(response.status().as_u16(), 401 | 403 | 404) {
+        debug!(
+            "Contract request returned {}, retrying with a delegated token",
+            response.status()
+        );
+        let access_token = exchange_token(exchange).await?;
+        response = request_document(client, url, accept, Some(&access_token)).await?;
+    }
     let status = response.status();
     if !status.is_success() {
         debug!("Contract request returned {status}");
@@ -197,7 +222,7 @@ mod tests {
 
     const OK_TOKEN: &str = r#"{"access_token":"pf-delegated-123","issued_token_type":"urn:ietf:params:oauth:token-type:access_token","token_type":"Bearer","expires_in":600,"scope":"registry:apis:read"}"#;
 
-    /// Serves `/auth/registry-token` and `/doc`, recording each request as
+    /// Serves `/auth/registry-token` and a private `/doc`, recording each request as
     /// `"<METHOD> <path> auth=<Authorization> accept=<Accept> content-type=<Content-Type> custom=<X-Custom>"`.
     async fn spawn(
         token_status: StatusCode,
@@ -236,7 +261,55 @@ mod tests {
             .route(
                 "/doc",
                 get(move |uri: Uri, headers: HeaderMap| async move {
+                    // A private document: anonymous requests are turned away.
+                    let anonymous = !headers.contains_key("authorization");
                     on_doc(uri, headers);
+                    if anonymous {
+                        (StatusCode::UNAUTHORIZED, "")
+                    } else {
+                        (doc_status, "openapi: 3.0.0")
+                    }
+                }),
+            );
+        let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+        let base = format!("http://{}", listener.local_addr().unwrap());
+        tokio::spawn(async move { axum::serve(listener, router).await.unwrap() });
+        (base, seen)
+    }
+
+    /// Serves `/doc` with `doc_status` to everyone, and a working token exchange.
+    async fn spawn_public(doc_status: StatusCode) -> (String, Seen) {
+        let seen: Seen = Arc::default();
+        let (on_token, on_doc) = (seen.clone(), seen.clone());
+        let log = |seen: Seen, method: &'static str, uri: Uri, headers: HeaderMap| {
+            let header = |name: &str| {
+                headers
+                    .get(name)
+                    .and_then(|v| v.to_str().ok())
+                    .unwrap_or("")
+                    .to_string()
+            };
+            seen.lock().unwrap().push(format!(
+                "{method} {} auth={} accept={} content-type={} custom={}",
+                uri.path(),
+                header("authorization"),
+                header("accept"),
+                header("content-type"),
+                header("x-custom")
+            ));
+        };
+        let router = Router::new()
+            .route(
+                "/auth/registry-token",
+                post(move |uri: Uri, headers: HeaderMap| async move {
+                    log(on_token, "POST", uri, headers);
+                    OK_TOKEN
+                }),
+            )
+            .route(
+                "/doc",
+                get(move |uri: Uri, headers: HeaderMap| async move {
+                    log(on_doc, "GET", uri, headers);
                     (doc_status, "openapi: 3.0.0")
                 }),
             );
@@ -274,6 +347,7 @@ mod tests {
         assert_eq!(
             *seen.lock().unwrap(),
             vec![
+                "GET /doc auth= accept=application/yaml content-type= custom=",
                 "POST /auth/registry-token auth=Bearer api-token accept=application/json, application/problem+json content-type=application/json custom=broker-only",
                 "GET /doc auth=Bearer pf-delegated-123 accept=application/yaml content-type= custom=",
             ]
@@ -333,9 +407,34 @@ mod tests {
         );
         assert_eq!(
             seen.lock().unwrap().len(),
-            1,
-            "the document must not be requested"
+            2,
+            "only the anonymous request and the exchange may happen"
         );
+    }
+
+    #[tokio::test]
+    async fn public_document_is_fetched_without_a_token_exchange() {
+        let (base, seen) = spawn_public(StatusCode::OK).await;
+
+        assert_eq!(fetch(&base).await.unwrap(), "openapi: 3.0.0");
+        assert_eq!(
+            *seen.lock().unwrap(),
+            vec!["GET /doc auth= accept=application/yaml content-type= custom="]
+        );
+    }
+
+    #[rstest]
+    #[case::unauthorized(StatusCode::UNAUTHORIZED)]
+    #[case::forbidden(StatusCode::FORBIDDEN)]
+    #[case::not_found(StatusCode::NOT_FOUND)]
+    #[tokio::test]
+    async fn anonymous_refusal_falls_back_to_the_token_exchange(#[case] refusal: StatusCode) {
+        let (base, seen) = spawn_public(refusal).await;
+        // The anonymous request is refused; the exchange then succeeds but this
+        // server still refuses, so the fetch fails after exactly one exchange.
+        assert!(fetch(&base).await.is_err());
+        let seen = seen.lock().unwrap();
+        assert_eq!(seen.iter().filter(|r| r.starts_with("POST")).count(), 1);
     }
 
     #[tokio::test]
@@ -369,6 +468,18 @@ mod tests {
     #[case::versioned_api("https://api.swaggerhub.com/apis/OWNER/petstore-api/1.0.0")]
     #[case::query_and_fragment("https://api.swaggerhub.com/apis/O/a/1?x=y#z")]
     #[case::upper_case("HTTPS://API.SWAGGERHUB.COM/apis/O/a/1")]
+    #[case::resolved_api(
+        "https://api.swaggerhub.com/apis/smartbear/SFT_test_API/1.0.0?resolved=true"
+    )]
+    #[case::resolved_swagger_yaml(
+        "https://api.swaggerhub.com/apis/smartbear/SFT_test_API/1.0.0/swagger.yaml?resolved=true"
+    )]
+    #[case::dev_host(
+        "https://api.dev.swaggerhub.com/apis/catflowadam/PublicOAS3/1.0.0?resolved=true"
+    )]
+    #[case::int_host("https://api.int.swaggerhub.com/apis/O/a/1")]
+    #[case::other_subdomain("https://acme.swaggerhub.com/apis/O/a/1")]
+    #[case::nested_subdomain("https://a.b.swaggerhub.com/apis/O/a/1")]
     fn supported_urls(#[case] url: &str) {
         assert!(is_supported_contract_url(url));
     }
@@ -381,7 +492,9 @@ mod tests {
     #[case::other_scheme("ftp://api.swaggerhub.com/apis/O/a/1")]
     #[case::other_host("https://example.com/apis/O/a/1")]
     #[case::suffixed_host("https://api.swaggerhub.com.evil.com/a")]
-    #[case::subdomain("https://evil.api.swaggerhub.com/a")]
+    #[case::apex_domain("https://swaggerhub.com/a")]
+    #[case::suffix_without_dot("https://evilswaggerhub.com/a")]
+    #[case::suffixed_subdomain("https://acme.swaggerhub.com.evil.com/a")]
     #[case::host_as_userinfo("https://api.swaggerhub.com@evil.com/a")]
     #[case::username("https://user@api.swaggerhub.com/a")]
     #[case::username_and_password("https://user:pw@api.swaggerhub.com/a")]
