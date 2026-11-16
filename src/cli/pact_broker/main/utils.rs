@@ -464,32 +464,22 @@ pub async fn get_broker_relation(
     relation: String,
     _broker_url: String,
 ) -> Result<String, PactBrokerError> {
-    let index_res: Result<Value, PactBrokerError> = hal_client.fetch("").await;
-    match index_res {
-        Ok(_) => {
-            let index_res_clone = index_res.clone().unwrap();
-            let relation_value = index_res_clone
-                .get("_links")
-                .and_then(|links| links.get(&relation));
+    let index: Value = hal_client.fetch("").await?;
+    relation_href(&index, &relation)
+}
 
-            if relation_value.is_none() {
-                return Err(PactBrokerError::NotFound(format!(
-                    "Could not find relation '{}'",
-                    relation
-                )));
-            }
-
-            relation_value
-                .unwrap()
-                .get("href")
-                .and_then(Value::as_str)
-                .map(str::to_string)
-                .ok_or_else(|| {
-                    PactBrokerError::LinkError(format!("Relation '{}' has no href", relation))
-                })
-        }
-        Err(err) => Err(err),
-    }
+/// The `href` of `relation` in the `_links` of an index document.
+pub(crate) fn relation_href(index: &Value, relation: &str) -> Result<String, PactBrokerError> {
+    index
+        .get("_links")
+        .and_then(|links| links.get(relation))
+        .ok_or_else(|| {
+            PactBrokerError::NotFound(format!("Could not find relation '{}'", relation))
+        })?
+        .get("href")
+        .and_then(Value::as_str)
+        .map(str::to_string)
+        .ok_or_else(|| PactBrokerError::LinkError(format!("Relation '{}' has no href", relation)))
 }
 
 pub async fn follow_broker_relation(
