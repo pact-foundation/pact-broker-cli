@@ -3,13 +3,19 @@ use tracing::error;
 
 use crate::cli::{
     pact_broker::main::utils::handle_error,
-    pactflow::main::{provider_contracts, subcommands::add_publish_provider_contract_subcommand},
+    pactflow::main::{
+        provider_contracts,
+        subcommands::{
+            add_delete_provider_contract_subcommand, add_publish_provider_contract_subcommand,
+        },
+    },
 };
 pub fn add_pactflow_client_command() -> Command {
     Command::new("pactflow")
         .about("PactFlow specific commands")
         .arg_required_else_help(true)
         .subcommand(add_publish_provider_contract_subcommand())
+        .subcommand(add_delete_provider_contract_subcommand())
 }
 
 pub fn run(args: &ArgMatches) -> Result<serde_json::Value, i32> {
@@ -21,6 +27,14 @@ pub fn run(args: &ArgMatches) -> Result<serde_json::Value, i32> {
                 Err(1)
             } else {
                 Ok(serde_json::to_value(res.unwrap()).unwrap())
+            }
+        }
+        Some(("delete-provider-contract", args)) => {
+            if let Err(err) = provider_contracts::delete::delete(args) {
+                handle_error(err);
+                Err(1)
+            } else {
+                Ok(serde_json::json!({}))
             }
         }
         _ => {

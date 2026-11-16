@@ -2362,6 +2362,65 @@ Options:
 
 </details>
 
+#### delete-provider-contract
+
+<details>
+<summary>Show help</summary>
+
+```console
+$ pact-broker-cli pactflow delete-provider-contract --help
+Delete one provider contract of a provider version from PactFlow
+
+Usage: pact-broker-cli pactflow delete-provider-contract [OPTIONS] --broker-base-url <PACT_BROKER_BASE_URL> --provider <PROVIDER> --provider-app-version <PROVIDER_APP_VERSION>
+
+Options:
+  -b, --broker-base-url <PACT_BROKER_BASE_URL>
+          The base URL of the Pact Broker [env: PACT_BROKER_BASE_URL=]
+  -u, --broker-username <PACT_BROKER_USERNAME>
+          Pact Broker basic auth username [env: PACT_BROKER_USERNAME=]
+  -p, --broker-password <PACT_BROKER_PASSWORD>
+          Pact Broker basic auth password [env: PACT_BROKER_PASSWORD=]
+  -k, --broker-token <PACT_BROKER_TOKEN>
+          Pact Broker bearer token [env: PACT_BROKER_TOKEN=]
+      --custom-header <HEADER>
+          Custom header(s) to send with requests (format: 'Header-Name: Value', can be used multiple times)
+      --retries <PACT_BROKER_HTTP_RETRIES>
+          The number of times to retry failed HTTP requests to the Pact Broker (retries on 5xx, 408, and 429). Delays use exponential back-off starting at 500 ms and doubling each attempt (0.5 s, 1 s, 2 s, 4 s, 8 s, …). 429 responses honour the Retry-After header when present. [env: PACT_BROKER_HTTP_RETRIES=] [default: 8]
+      --provider <PROVIDER>
+          The provider name
+  -a, --provider-app-version <PROVIDER_APP_VERSION>
+          The provider application version
+      --specification <SPECIFICATION>
+          The contract specification [default: oas]
+      --contract-name <NAME>
+          Name of the document to delete. Omit it to delete the unnamed document of the specification.
+  -c, --ssl-certificate <SSL_CERT_FILE>
+          The path to a valid SSL certificate file [env: SSL_CERT_FILE=]
+      --skip-ssl-verification
+          Skip SSL certificate verification [env: SSL_SKIP_VERIFICATION=]
+      --ssl-trust-store <SSL_TRUST_STORE>
+          Use the system's root trust store for SSL verification [env: SSL_TRUST_STORE=] [default: true] [possible values: true, false]
+      --enable-otel
+          Enable OpenTelemetry tracing
+      --enable-otel-logs
+          Enable OpenTelemetry logging
+      --enable-otel-traces
+          Enable OpenTelemetry traces
+      --otel-exporter <otel-exporter>
+          The OpenTelemetry exporter(s) to use, comma separated (stdout, otlp) [env: OTEL_TRACES_EXPORTER=]
+      --otel-exporter-endpoint <otel-exporter-endpoint>
+          The endpoint to use for the OTLP exporter (required if --otel-exporter=otlp) [env: OTEL_EXPORTER_OTLP_ENDPOINT=]
+      --otel-exporter-protocol <otel-exporter-protocol>
+          The protocol to use for the OTLP exporter (http/protobuf, http) [env: OTEL_EXPORTER_OTLP_PROTOCOL=] [default: http] [possible values: http, http/protobuf]
+      --log-level <LEVEL>
+          Set the log level (none, off, error, warn, info, debug, trace) [default: off] [possible values: off, none, error, warn, info, debug, trace]
+  -h, --help
+          Print help
+
+```
+
+</details>
+
 ## Connecting to a Pact Broker with a self signed certificate
 
 To connect to a Pact Broker that uses custom SSL cerificates, set the environment variable `SSL_CERT_FILE` to a path that contains the appropriate certificate. Read more at <https://docs.pact.io/pact_broker/advanced_topics/using-tls#for-non-jvm>
