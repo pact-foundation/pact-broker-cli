@@ -105,6 +105,14 @@ fn fetch_contract_content(
 }
 
 pub fn publish(args: &ArgMatches) -> Result<Value, PactBrokerError> {
+    publish_recording_warnings(args, &mut Vec::new())
+}
+
+/// [`publish`], also pushing each warning it prints onto `warnings`.
+fn publish_recording_warnings(
+    args: &ArgMatches,
+    warnings: &mut Vec<&'static str>,
+) -> Result<Value, PactBrokerError> {
     let contract_input = args
         .get_one::<String>("contract-file")
         .expect("CONTRACT_FILE is required");
@@ -255,6 +263,7 @@ pub fn publish(args: &ArgMatches) -> Result<Value, PactBrokerError> {
             if let Some(warning) = old_server_publish_warning(specification, contract_name, &index)
             {
                 println!("⚠️ {warning}");
+                warnings.push(warning);
             }
 
             // Add selfVerificationResults if provided
@@ -746,7 +755,7 @@ mod publish_contract_name_tests {
     use serde_json::{Value, json};
 
     use crate::cli::pact_broker::main::PactBrokerError;
-    use crate::cli::pactflow::main::provider_contracts::publish::publish;
+    use crate::cli::pactflow::main::provider_contracts::publish::publish_recording_warnings;
     use crate::cli::pactflow::main::subcommands::add_publish_provider_contract_subcommand;
 
     const OLD_SERVER_ERROR: &str = "This PactFlow server keeps one provider contract per provider version, so --contract-name cannot be honoured. Upgrade PactFlow, or publish one document per provider version without a name. Nothing was published.";
@@ -805,6 +814,19 @@ mod publish_contract_name_tests {
     }
 
     fn run(several: bool, extra: &[&str]) -> (Result<Value, PactBrokerError>, Vec<Value>) {
+        let (result, posts, _) = run_recording_warnings(several, extra);
+        (result, posts)
+    }
+
+    /// [`run`], also returning the warnings the publish printed.
+    fn run_recording_warnings(
+        several: bool,
+        extra: &[&str],
+    ) -> (
+        Result<Value, PactBrokerError>,
+        Vec<Value>,
+        Vec<&'static str>,
+    ) {
         let (base, posts) = spawn_broker(several);
         let mut argv = vec![
             "publish-provider-contract",
@@ -820,9 +842,10 @@ mod publish_contract_name_tests {
         ];
         argv.extend_from_slice(extra);
         let matches = add_publish_provider_contract_subcommand().get_matches_from(argv);
-        let result = publish(&matches);
+        let mut warnings = Vec::new();
+        let result = publish_recording_warnings(&matches, &mut warnings);
         let posts = posts.lock().unwrap().clone();
-        (result, posts)
+        (result, posts, warnings)
     }
 
     #[test]
@@ -853,6 +876,32 @@ mod publish_contract_name_tests {
         assert!(result.is_ok(), "{result:?}");
         assert_eq!(posts.len(), 1);
         assert!(posts[0]["contract"].get("name").is_none());
+    }
+
+    #[test]
+    fn warns_once_for_an_unnamed_non_oas_publish_to_an_old_server() {
+        let (result, _, warnings) = run_recording_warnings(false, &["--specification", "asyncapi"]);
+        assert!(result.is_ok(), "{result:?}");
+        assert_eq!(
+            warnings,
+            [
+                "This PactFlow server keeps one provider contract per provider version. Publishing replaces any contract of another type at this version."
+            ]
+        );
+    }
+
+    #[test]
+    fn does_not_warn_for_an_oas_publish_to_an_old_server() {
+        let (result, _, warnings) = run_recording_warnings(false, &[]);
+        assert!(result.is_ok(), "{result:?}");
+        assert!(warnings.is_empty(), "{warnings:?}");
+    }
+
+    #[test]
+    fn does_not_warn_when_the_server_keeps_several_contracts() {
+        let (result, _, warnings) = run_recording_warnings(true, &["--specification", "asyncapi"]);
+        assert!(result.is_ok(), "{result:?}");
+        assert!(warnings.is_empty(), "{warnings:?}");
     }
 
     #[test]
