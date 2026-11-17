@@ -487,27 +487,7 @@ pub fn can_i_deploy(
                     }
                 }
             }
-            Err(err) => {
-                match &err {
-                    crate::cli::pact_broker::main::PactBrokerError::ValidationErrorWithNotices(
-                        messages,
-                        notices,
-                    ) => {
-                        println!("❌ Can-i-deploy command failed:");
-                        for message in messages {
-                            println!("   {}", message);
-                        }
-                        if !notices.is_empty() {
-                            println!("\nDetails:");
-                            process_notices(notices);
-                        }
-                    }
-                    _ => {
-                        println!("❌ {}", err);
-                    }
-                }
-                Err(err)
-            }
+            Err(err) => Err(err),
         }
     })
 }

@@ -339,59 +339,38 @@ pub fn publish(args: &ArgMatches) -> Result<Value, PactBrokerError> {
                         }),
                     )
                     .await
-            });
-            match res {
-                Ok(res) => match output {
-                    Ok(Some(output)) => {
-                        if output == "pretty" {
-                            let json = serde_json::to_string_pretty(&res).unwrap();
-                            println!("{}", json);
-                        } else if output == "json" {
-                            return Ok(res.clone());
-                        } else {
-                            let parsed_res =
-                                serde_json::from_value::<ProviderContractPublishRoot>(res);
-                            match parsed_res {
-                                Ok(parsed_res) => {
-                                    print!("✅ ");
-                                    process_notices(&parsed_res.notices);
-                                }
-                                Err(err) => {
-                                    println!(
-                                        "✅ Provider contract published successfully for provider: {} version: {}",
-                                        provider_name,
-                                        provider_app_version.unwrap()
-                                    );
-                                    println!(
-                                        "⚠️ Warning: Failed to process response notices - Error: {:?}",
-                                        err
-                                    );
-                                    return Err(PactBrokerError::ContentError(err.to_string()));
-                                }
+            })?;
+            match output {
+                Ok(Some(output)) => {
+                    if output == "pretty" {
+                        let json = serde_json::to_string_pretty(&res).unwrap();
+                        println!("{}", json);
+                    } else if output == "json" {
+                        return Ok(res.clone());
+                    } else {
+                        let parsed_res = serde_json::from_value::<ProviderContractPublishRoot>(res);
+                        match parsed_res {
+                            Ok(parsed_res) => {
+                                print!("✅ ");
+                                process_notices(&parsed_res.notices);
+                            }
+                            Err(err) => {
+                                println!(
+                                    "✅ Provider contract published successfully for provider: {} version: {}",
+                                    provider_name,
+                                    provider_app_version.unwrap()
+                                );
+                                println!(
+                                    "⚠️ Warning: Failed to process response notices - Error: {:?}",
+                                    err
+                                );
+                                return Err(PactBrokerError::ContentError(err.to_string()));
                             }
                         }
                     }
-                    _ => {
-                        println!("{:?}", res.clone());
-                    }
-                },
-                Err(err) => {
-                    match &err {
-                        crate::cli::pact_broker::main::PactBrokerError::ValidationErrorWithNotices(messages, notices) => {
-                            println!("❌ Provider contract publication failed:");
-                            for message in messages {
-                                println!("   {}", message);
-                            }
-                            if !notices.is_empty() {
-                                println!("\nDetails:");
-                                process_notices(notices);
-                            }
-                        },
-                        _ => {
-                            println!("❌ {}", err);
-                        }
-                    }
-                    return Err(err);
+                }
+                _ => {
+                    println!("{:?}", res.clone());
                 }
             }
             Ok(json!({}))
