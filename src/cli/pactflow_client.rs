@@ -43,3 +43,82 @@ pub fn run(args: &ArgMatches) -> Result<serde_json::Value, i32> {
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use axum::{
+        Router,
+        http::{StatusCode, Uri},
+    };
+    use serde_json::{Value, json};
+
+    use super::*;
+
+    /// A PactFlow server that advertises `pf:provider-contracts` at `/` and
+    /// answers every other request with `status` and `body`. Returns its URL.
+    fn spawn_server(status: u16, body: Value) -> String {
+        let (tx, rx) = std::sync::mpsc::channel();
+        std::thread::spawn(move || {
+            tokio::runtime::Runtime::new().unwrap().block_on(async move {
+                let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+                tx.send(format!("http://{}", listener.local_addr().unwrap()))
+                    .unwrap();
+                let router = Router::new().fallback(move |uri: Uri| {
+                    let body = body.clone();
+                    async move {
+                        let (status, response) = if uri.path() == "/" {
+                            (
+                                200,
+                                json!({"_links": {"pf:provider-contracts": {
+                                    "href": "/provider-contracts/provider/{provider}/version/{version}",
+                                    "templated": true
+                                }}}),
+                            )
+                        } else {
+                            (status, body)
+                        };
+                        (
+                            StatusCode::from_u16(status).unwrap(),
+                            [("content-type", "application/hal+json")],
+                            response.to_string(),
+                        )
+                    }
+                });
+                axum::serve(listener, router).await.unwrap();
+            });
+        });
+        rx.recv().unwrap()
+    }
+
+    /// Runs `pactflow <subcommand> -b <base> <extra>`.
+    fn run_pactflow(subcommand: &str, base: &str, extra: &[&str]) -> Result<Value, i32> {
+        let mut argv = vec!["pactflow", subcommand, "-b", base];
+        argv.extend_from_slice(extra);
+        run(&add_pactflow_client_command().get_matches_from(argv))
+    }
+
+    #[test]
+    fn delete_exits_zero_when_the_contract_is_deleted() {
+        let base = spawn_server(200, json!({"notices": []}));
+        let result = run_pactflow(
+            "delete-provider-contract",
+            &base,
+            &["--provider", "Foo", "-a", "1.0"],
+        );
+        assert!(result.is_ok(), "{result:?}");
+    }
+
+    #[test]
+    fn delete_exits_one_when_the_delete_fails() {
+        let base = spawn_server(
+            409,
+            json!({"notices": [{"text": "still needed", "type": "danger"}]}),
+        );
+        let result = run_pactflow(
+            "delete-provider-contract",
+            &base,
+            &["--provider", "Foo", "-a", "1.0"],
+        );
+        assert_eq!(result, Err(1));
+    }
+}
