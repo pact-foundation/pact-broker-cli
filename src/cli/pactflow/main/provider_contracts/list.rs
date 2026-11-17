@@ -81,6 +81,21 @@ fn render_table(body: &Value, provider: &str, version: &str) -> Result<String, P
     Ok(table.to_string())
 }
 
+/// The text `list` prints for `output`: the body as compact JSON for `json`,
+/// otherwise the table.
+fn render(
+    body: &Value,
+    output: &str,
+    provider: &str,
+    version: &str,
+) -> Result<String, PactBrokerError> {
+    if output == "json" {
+        Ok(serde_json::to_string(body).unwrap())
+    } else {
+        render_table(body, provider, version)
+    }
+}
+
 pub fn list(args: &ArgMatches) -> Result<Value, PactBrokerError> {
     let provider = args
         .get_one::<String>("provider")
@@ -104,11 +119,7 @@ pub fn list(args: &ArgMatches) -> Result<Value, PactBrokerError> {
     let body = tokio::runtime::Runtime::new()
         .unwrap()
         .block_on(fetch_contracts(hal_client, provider, version))?;
-    if output == "json" {
-        println!("{}", serde_json::to_string(&body).unwrap());
-    } else {
-        println!("{}", render_table(&body, provider, version)?);
-    }
+    println!("{}", render(&body, output, provider, version)?);
     Ok(body)
 }
 
@@ -317,5 +328,22 @@ mod tests {
         let message = render_table(&body, "Foo", "1.0").unwrap_err().to_string();
         let quoted = message.split("Response: ").nth(1).unwrap();
         assert_eq!(quoted.chars().count(), QUOTED_BODY_LIMIT);
+    }
+
+    #[test]
+    fn json_output_prints_the_body() {
+        assert_eq!(
+            render(&body(), "json", "Foo", "1.0").unwrap(),
+            serde_json::to_string(&body()).unwrap()
+        );
+        assert_eq!(render(&json!({}), "json", "Foo", "1.0").unwrap(), "{}");
+    }
+
+    #[test]
+    fn table_output_prints_the_table() {
+        assert_eq!(
+            render(&body(), "table", "Foo", "1.0").unwrap(),
+            render_table(&body(), "Foo", "1.0").unwrap()
+        );
     }
 }
