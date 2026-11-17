@@ -61,26 +61,36 @@ use reqwest_tracing::TracingMiddleware;
 use crate::cli::pact_broker::main::types::SslOptions;
 
 pub fn process_notices(notices: &[Notice]) {
-    for notice in notices {
-        let notice_text = notice.text.to_string();
-        let formatted_text = notice_text
-            .split_whitespace()
-            .map(|word| {
-                if word.starts_with("https") || word.starts_with("http") {
-                    format!("{}", CYAN.apply_to(word))
-                } else {
-                    match notice.type_field.as_str() {
-                        "success" => format!("{}", GREEN.apply_to(word)),
-                        "warning" | "prompt" => format!("{}", YELLOW.apply_to(word)),
-                        "error" | "danger" => format!("{}", RED.apply_to(word)),
-                        _ => word.to_string(),
-                    }
-                }
-            })
-            .collect::<Vec<String>>()
-            .join(" ");
-        println!("{}", formatted_text);
+    for line in format_notices(notices) {
+        println!("{}", line);
     }
+}
+
+/// The lines [`process_notices`] prints: each notice coloured by its type, with
+/// links in cyan.
+pub fn format_notices(notices: &[Notice]) -> Vec<String> {
+    notices
+        .iter()
+        .map(|notice| {
+            let notice_text = notice.text.to_string();
+            notice_text
+                .split_whitespace()
+                .map(|word| {
+                    if word.starts_with("https") || word.starts_with("http") {
+                        format!("{}", CYAN.apply_to(word))
+                    } else {
+                        match notice.type_field.as_str() {
+                            "success" => format!("{}", GREEN.apply_to(word)),
+                            "warning" | "prompt" => format!("{}", YELLOW.apply_to(word)),
+                            "error" | "danger" => format!("{}", RED.apply_to(word)),
+                            _ => word.to_string(),
+                        }
+                    }
+                })
+                .collect::<Vec<String>>()
+                .join(" ")
+        })
+        .collect()
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]

@@ -11,7 +11,7 @@ use serde_json::Value;
 
 use crate::cli::pact_broker::main::types::SslOptions;
 
-use super::{CustomHeaders, HALClient, Link, PactBrokerError};
+use super::{CustomHeaders, HALClient, Link, PactBrokerError, format_notices};
 
 /// Computes how long to wait before the next retry attempt.
 ///
@@ -535,25 +535,43 @@ pub async fn delete_templated_broker_relation(
     hal_client.delete_url(&link, &template_values).await
 }
 
-// Helper function to handle errors
+/// Prints `err` for the user and returns it.
 pub(crate) fn handle_error(err: PactBrokerError) -> PactBrokerError {
-    match err.clone() {
+    for line in error_lines(&err) {
+        println!("{}", line);
+    }
+    err
+}
+
+/// The lines [`handle_error`] prints. A validation error gives one `❌` line per
+/// message, then its notices under `Details:`. A message that repeats a notice's
+/// text, as when the server sent notices without errors, is left to the notice.
+fn error_lines(err: &PactBrokerError) -> Vec<String> {
+    match err {
         PactBrokerError::LinkError(error)
         | PactBrokerError::ContentError(error)
         | PactBrokerError::IoError(error)
-        | PactBrokerError::NotFound(error) => {
-            println!("❌ {}", error);
-        }
+        | PactBrokerError::NotFound(error) => vec![format!("❌ {}", error)],
         PactBrokerError::ValidationError(errors) => {
-            for error in errors {
-                println!("❌ {}", error);
+            errors.iter().map(|error| format!("❌ {}", error)).collect()
+        }
+        PactBrokerError::ValidationErrorWithNotices(errors, notices) => {
+            let mut lines: Vec<String> = errors
+                .iter()
+                .filter(|error| !notices.iter().any(|notice| &notice.text == *error))
+                .map(|error| format!("❌ {}", error))
+                .collect();
+            if !notices.is_empty() {
+                if !lines.is_empty() {
+                    lines.push(String::new());
+                    lines.push("Details:".to_string());
+                }
+                lines.extend(format_notices(notices));
             }
+            lines
         }
-        _ => {
-            println!("❌ {}", err);
-        }
+        _ => vec![format!("❌ {}", err)],
     }
-    err
 }
 
 #[cfg(test)]
@@ -589,6 +607,89 @@ mod get_broker_relation_tests {
         assert!(
             matches!(result, Err(PactBrokerError::NotFound(_))),
             "{result:?}"
+        );
+    }
+}
+
+#[cfg(test)]
+mod handle_error_tests {
+    use axum::{Router, http::StatusCode};
+    use serde_json::json;
+    use tokio::net::TcpListener;
+
+    use super::error_lines;
+    use crate::cli::pact_broker::main::{HALClient, Notice, PactBrokerError, types::SslOptions};
+
+    fn plain(lines: Vec<String>) -> Vec<String> {
+        lines
+            .iter()
+            .map(|line| console::strip_ansi_codes(line).into_owned())
+            .collect()
+    }
+
+    fn notice(type_field: &str, text: &str) -> Notice {
+        Notice {
+            text: text.to_string(),
+            type_field: type_field.to_string(),
+        }
+    }
+
+    #[tokio::test]
+    async fn a_conflict_prints_its_error_and_its_prompt() {
+        let body = json!({
+            "errors": ["A contract of this specification is already published"],
+            "notices": [{"type": "prompt", "text": "Publish it with a name: --contract-name events"}]
+        });
+        let router = Router::new().fallback(move || {
+            let body = body.to_string();
+            async move {
+                (
+                    StatusCode::CONFLICT,
+                    [("content-type", "application/hal+json")],
+                    body,
+                )
+            }
+        });
+        let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
+        let base = format!("http://{}", listener.local_addr().unwrap());
+        tokio::spawn(async move { axum::serve(listener, router).await.unwrap() });
+
+        let err = HALClient::with_url(&base, None, SslOptions::default(), None)
+            .post_json(&format!("{base}/publish"), "{}", None)
+            .await
+            .unwrap_err();
+        assert_eq!(
+            plain(error_lines(&err)),
+            [
+                "❌ A contract of this specification is already published",
+                "",
+                "Details:",
+                "Publish it with a name: --contract-name events",
+            ]
+        );
+    }
+
+    #[test]
+    fn notices_without_errors_print_once() {
+        let err = PactBrokerError::ValidationErrorWithNotices(
+            vec!["still needed".to_string()],
+            vec![notice("danger", "still needed")],
+        );
+        assert_eq!(plain(error_lines(&err)), ["still needed"]);
+    }
+
+    #[test]
+    fn other_errors_print_one_line_each() {
+        assert_eq!(
+            error_lines(&PactBrokerError::ValidationError(vec![
+                "a".to_string(),
+                "b".to_string()
+            ])),
+            ["❌ a", "❌ b"]
+        );
+        assert_eq!(
+            error_lines(&PactBrokerError::NotFound("gone".to_string())),
+            ["❌ gone"]
         );
     }
 }
