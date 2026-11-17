@@ -54,7 +54,7 @@ struct Links {
 }
 
 /// The URL itself is left out of the message, since it may carry credentials.
-const UNSUPPORTED_CONTRACT_URL: &str = "Unsupported contract URL: only https://api.swaggerhub.com URLs without credentials are supported";
+const UNSUPPORTED_CONTRACT_URL: &str = "Unsupported contract URL: only https://*.swaggerhub.com URLs without credentials are supported";
 
 /// Reads a local contract file and returns it base64-encoded.
 fn read_contract_file(path: &str) -> Result<String, PactBrokerError> {
