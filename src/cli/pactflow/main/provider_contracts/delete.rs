@@ -6,14 +6,15 @@ use serde_json::{Value, json};
 use super::capability::{provider_contracts_template, unsupported_server_message};
 use crate::cli::pact_broker::main::{
     HALClient, Notice, PactBrokerError,
-    broker_path::{encode_path_value, expand_path_template},
+    broker_path::expand_path_template,
     process_notices,
     utils::{get_auth, get_broker_url, get_custom_headers, get_retries, get_ssl_options},
 };
 
-/// The URL of one provider contract: the server's templated list URL expanded
-/// for the provider version, then the specification and the optional name as
-/// path segments.
+/// The URL of one provider contract: the server's templated list URL with the
+/// specification and the optional name appended as path segments, then
+/// expanded. Only the last of those segments is checked for a suffix the
+/// broker strips, so a version such as `2.0.json` can be sent.
 fn item_url(
     template: &str,
     provider: &str,
@@ -21,26 +22,21 @@ fn item_url(
     specification: &str,
     name: Option<&str>,
 ) -> Result<String, PactBrokerError> {
-    let list_url = expand_path_template(
-        template,
-        &HashMap::from([
-            ("provider".to_string(), provider.to_string()),
-            ("version".to_string(), version.to_string()),
-        ]),
-    )?;
-    if let Some(placeholder) = leftover_placeholder(&list_url) {
+    let mut item_template = format!("{}/{{specification}}", template.trim_end_matches('/'));
+    let mut values = HashMap::from([
+        ("provider".to_string(), provider.to_string()),
+        ("version".to_string(), version.to_string()),
+        ("specification".to_string(), specification.to_string()),
+    ]);
+    if let Some(name) = name {
+        item_template.push_str("/{name}");
+        values.insert("name".to_string(), name.to_string());
+    }
+    let url = expand_path_template(&item_template, &values)?;
+    if let Some(placeholder) = leftover_placeholder(&url) {
         return Err(PactBrokerError::ContentError(format!(
             "The pf:provider-contracts template of this PactFlow server was not understood: {placeholder} is not a variable this command fills"
         )));
-    }
-    let mut url = format!(
-        "{}/{}",
-        list_url.trim_end_matches('/'),
-        encode_path_value("specification", specification, name.is_none())?
-    );
-    if let Some(name) = name {
-        url.push('/');
-        url.push_str(&encode_path_value("contract-name", name, true)?);
     }
     Ok(url)
 }
@@ -247,6 +243,28 @@ mod tests {
             item_url(TEMPLATE, "p", "v", "a/b", Some("n.1")).unwrap(),
             "/provider-contracts/provider/p/version/v/a%2Fb/n.1"
         );
+    }
+
+    #[test]
+    fn item_url_sends_a_version_ending_in_a_stripped_suffix() {
+        assert_eq!(
+            item_url(TEMPLATE, "p", "2.0.json", "oas", None).unwrap(),
+            "/provider-contracts/provider/p/version/2.0.json/oas"
+        );
+        assert_eq!(
+            item_url(TEMPLATE, "p", "build 1.zip", "asyncapi", Some("events")).unwrap(),
+            "/provider-contracts/provider/p/version/build%201.zip/asyncapi/events"
+        );
+    }
+
+    #[test]
+    fn item_url_refuses_a_stripped_suffix_in_the_final_segment() {
+        let err = item_url(TEMPLATE, "p", "v", "oas.json", None).unwrap_err();
+        assert_eq!(
+            err,
+            "specification value 'oas.json' cannot be sent: the Pact Broker strips a trailing '.json' from the final URL path segment"
+        );
+        assert!(item_url(TEMPLATE, "p", "v", "oas.json", Some("n")).is_ok());
     }
 
     #[tokio::test]
