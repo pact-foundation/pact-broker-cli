@@ -131,4 +131,26 @@ mod tests {
         );
         assert_eq!(result, Err(1));
     }
+
+    #[test]
+    fn list_exits_zero_when_the_list_is_fetched() {
+        let base = spawn_server(200, json!({"_embedded": {"contracts": []}}));
+        let result = run_pactflow(
+            "list-provider-contracts",
+            &base,
+            &["--provider", "Foo", "-a", "1.0"],
+        );
+        assert!(result.is_ok(), "{result:?}");
+    }
+
+    #[test]
+    fn list_exits_one_when_the_list_fails() {
+        let base = spawn_server(404, json!({}));
+        let result = run_pactflow(
+            "list-provider-contracts",
+            &base,
+            &["--provider", "Foo", "-a", "1.0"],
+        );
+        assert_eq!(result, Err(1));
+    }
 }

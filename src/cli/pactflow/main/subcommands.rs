@@ -274,4 +274,38 @@ mod tests {
             .unwrap_err();
         assert_eq!(error.kind(), clap::error::ErrorKind::ValueValidation);
     }
+
+    /// `list-provider-contracts` with a broker URL, then `extra`.
+    fn parse_list(extra: &[&str]) -> Result<clap::ArgMatches, clap::Error> {
+        let mut argv = vec!["list-provider-contracts", "-b", "http://localhost:1"];
+        argv.extend_from_slice(extra);
+        add_list_provider_contracts_subcommand().try_get_matches_from(argv)
+    }
+
+    #[test]
+    fn list_output_defaults_to_table_and_accepts_json() {
+        let output = |matches: clap::ArgMatches| matches.get_one::<String>("output").cloned();
+        assert_eq!(
+            output(parse_list(&["--provider", "Bar", "-a", "1"]).unwrap()).as_deref(),
+            Some("table")
+        );
+        assert_eq!(
+            output(parse_list(&["--provider", "Bar", "-a", "1", "-o", "json"]).unwrap()).as_deref(),
+            Some("json")
+        );
+        let error = parse_list(&["--provider", "Bar", "-a", "1", "-o", "text"]).unwrap_err();
+        assert_eq!(error.kind(), clap::error::ErrorKind::InvalidValue);
+    }
+
+    #[test]
+    fn list_requires_the_provider_and_its_version() {
+        for argv in [&["-a", "1"][..], &["--provider", "Bar"][..]] {
+            let error = parse_list(argv).unwrap_err();
+            assert_eq!(
+                error.kind(),
+                clap::error::ErrorKind::MissingRequiredArgument,
+                "{argv:?}"
+            );
+        }
+    }
 }
