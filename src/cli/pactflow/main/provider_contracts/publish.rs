@@ -906,7 +906,15 @@ mod publish_contract_name_tests {
 
     #[test]
     fn contract_name_is_validated_by_the_argument_parser() {
-        for bad in ["-bad", "", ".dot", "a b", &"a".repeat(65)] {
+        for bad in [
+            "-bad",
+            "",
+            ".dot",
+            "a b",
+            &"a".repeat(65),
+            "orders.json",
+            "orders.zip",
+        ] {
             let result = add_publish_provider_contract_subcommand().try_get_matches_from(vec![
                 "publish-provider-contract",
                 "f.yaml",
@@ -939,5 +947,22 @@ mod publish_contract_name_tests {
             ]);
             assert!(result.is_ok(), "{good:?} was rejected: {:?}", result.err());
         }
+    }
+
+    #[test]
+    fn contract_name_is_optional() {
+        let matches = add_publish_provider_contract_subcommand()
+            .try_get_matches_from(vec![
+                "publish-provider-contract",
+                "f.yaml",
+                "-b",
+                "http://localhost:1",
+                "--provider",
+                "Bar",
+                "--provider-app-version",
+                "1",
+            ])
+            .unwrap();
+        assert_eq!(matches.get_one::<String>("contract-name"), None);
     }
 }
