@@ -32,16 +32,26 @@ fn text<'a>(contract: &'a Value, field: &str) -> &'a str {
     contract.get(field).and_then(Value::as_str).unwrap_or("")
 }
 
+/// Longest part of a response body quoted in an error.
+const QUOTED_BODY_LIMIT: usize = 500;
+
 /// Renders the list as a table, or the empty-list message when it has no entries.
-/// `PUBLISHED` is `updatedAt`, which a republish bumps.
-fn render_table(body: &Value, provider: &str, version: &str) -> String {
-    let contracts = body
+/// `PUBLISHED` is `updatedAt`, which a republish bumps. A body without an
+/// `_embedded.contracts` array is an error.
+fn render_table(body: &Value, provider: &str, version: &str) -> Result<String, PactBrokerError> {
+    let Some(contracts) = body
         .pointer("/_embedded/contracts")
         .and_then(Value::as_array)
-        .map(Vec::as_slice)
-        .unwrap_or_default();
+    else {
+        let quoted: String = body.to_string().chars().take(QUOTED_BODY_LIMIT).collect();
+        return Err(PactBrokerError::ContentError(format!(
+            "The PactFlow server's response to list-provider-contracts was not understood: it has no _embedded.contracts array. Response: {quoted}"
+        )));
+    };
     if contracts.is_empty() {
-        return format!("No provider contracts are published for {provider} version {version}");
+        return Ok(format!(
+            "No provider contracts are published for {provider} version {version}"
+        ));
     }
     let mut table = Table::new();
     table.load_style(UTF8_FULL).set_header(vec![
@@ -68,7 +78,7 @@ fn render_table(body: &Value, provider: &str, version: &str) -> String {
             text(contract, "updatedAt"),
         ]);
     }
-    table.to_string()
+    Ok(table.to_string())
 }
 
 pub fn list(args: &ArgMatches) -> Result<Value, PactBrokerError> {
@@ -97,7 +107,7 @@ pub fn list(args: &ArgMatches) -> Result<Value, PactBrokerError> {
     if output == "json" {
         println!("{}", serde_json::to_string(&body).unwrap());
     } else {
-        println!("{}", render_table(&body, provider, version));
+        println!("{}", render_table(&body, provider, version)?);
     }
     Ok(body)
 }
@@ -225,7 +235,7 @@ mod tests {
 
     #[test]
     fn table_has_one_row_per_contract() {
-        let table = render_table(&body(), "Foo", "1.0");
+        let table = render_table(&body(), "Foo", "1.0").unwrap();
         let lines: Vec<&str> = table.lines().collect();
         assert!(lines[1].contains("KEY"));
         assert!(lines[1].contains("SPECIFICATION"));
@@ -241,7 +251,7 @@ mod tests {
 
     #[test]
     fn an_unnamed_document_has_an_empty_name() {
-        let table = render_table(&body(), "Foo", "1.0");
+        let table = render_table(&body(), "Foo", "1.0").unwrap();
         let row: Vec<&str> = table
             .lines()
             .nth(3)
@@ -261,7 +271,7 @@ mod tests {
             {"key": "asyncapi", "selfVerification": null},
             {"key": "graphql", "selfVerification": {"success": "true"}}
         ]}});
-        let table = render_table(&body, "Foo", "1.0");
+        let table = render_table(&body, "Foo", "1.0").unwrap();
         for line in [3, 5, 7] {
             let row: Vec<&str> = table
                 .lines()
@@ -279,12 +289,33 @@ mod tests {
     fn an_empty_list_prints_the_message() {
         let empty = json!({"_embedded": {"contracts": []}});
         assert_eq!(
-            render_table(&empty, "Foo", "1.0"),
+            render_table(&empty, "Foo", "1.0").unwrap(),
             "No provider contracts are published for Foo version 1.0"
         );
-        assert_eq!(
-            render_table(&json!({}), "Foo", "1.0"),
-            "No provider contracts are published for Foo version 1.0"
-        );
+    }
+
+    #[test]
+    fn a_body_without_a_contracts_array_is_not_understood() {
+        for body in [
+            json!({}),
+            json!({"_embedded": {}}),
+            json!({"_embedded": {"contracts": {"key": "oas"}}}),
+        ] {
+            let err = render_table(&body, "Foo", "1.0").unwrap_err();
+            assert_eq!(
+                err,
+                format!(
+                    "The PactFlow server's response to list-provider-contracts was not understood: it has no _embedded.contracts array. Response: {body}"
+                )
+            );
+        }
+    }
+
+    #[test]
+    fn a_long_body_is_quoted_in_part() {
+        let body = json!({"padding": "x".repeat(2 * QUOTED_BODY_LIMIT)});
+        let message = render_table(&body, "Foo", "1.0").unwrap_err().to_string();
+        let quoted = message.split("Response: ").nth(1).unwrap();
+        assert_eq!(quoted.chars().count(), QUOTED_BODY_LIMIT);
     }
 }
