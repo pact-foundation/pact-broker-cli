@@ -9,7 +9,7 @@ use crate::cli::pact_broker::main::PactBrokerError;
 
 /// Extensions the Pact Broker strips from the end of a request path, converting
 /// them into an `Accept` header. Its lookup is case-sensitive.
-const STRIPPED_EXTENSIONS: [&str; 4] = [".json", ".csv", ".svg", ".yaml"];
+pub(crate) const STRIPPED_EXTENSIONS: [&str; 5] = [".csv", ".svg", ".json", ".yaml", ".zip"];
 
 /// Validates `value` as a single URL path segment and percent-encodes it.
 ///
@@ -189,7 +189,7 @@ mod tests {
 
     #[test]
     fn rejects_stripped_extensions_only_in_final_segment() {
-        for ext in [".json", ".csv", ".svg", ".yaml"] {
+        for ext in [".json", ".csv", ".svg", ".yaml", ".zip"] {
             let value = format!("release{ext}");
             assert_eq!(
                 err_message(encode_path_value("branch", &value, true)),
