@@ -1,4 +1,8 @@
+use std::collections::HashMap;
+
 use serde_json::Value;
+
+use crate::cli::pact_broker::main::{PactBrokerError, broker_path::expand_path_template};
 
 /// Index relation a PactFlow server advertises when it keeps several provider
 /// contracts per provider version.
@@ -42,10 +46,92 @@ pub(crate) fn provider_contracts_template(index: &Value) -> Option<String> {
         .map(str::to_string)
 }
 
+/// The list URL of a provider version: the server's templated href expanded
+/// with the percent-encoded provider and version. The version ends the path.
+pub(crate) fn list_url(
+    template: &str,
+    provider: &str,
+    version: &str,
+) -> Result<String, PactBrokerError> {
+    expand_contracts_template(
+        template,
+        &HashMap::from([
+            ("provider".to_string(), provider.to_string()),
+            ("version".to_string(), version.to_string()),
+        ]),
+    )
+}
+
+/// Expands a template built on the `pf:provider-contracts` href with
+/// [`expand_path_template`]. A template that still holds a `{...}` variable
+/// afterwards is an error, since the request would carry the literal braces.
+pub(crate) fn expand_contracts_template(
+    template: &str,
+    values: &HashMap<String, String>,
+) -> Result<String, PactBrokerError> {
+    let url = expand_path_template(template, values)?;
+    if let Some(start) = url.find('{')
+        && let Some(length) = url[start..].find('}')
+    {
+        let placeholder = &url[start..=start + length];
+        return Err(PactBrokerError::ContentError(format!(
+            "The pf:provider-contracts template of this PactFlow server was not understood: {placeholder} is not a variable this command fills"
+        )));
+    }
+    Ok(url)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
     use serde_json::json;
+
+    #[test]
+    fn list_url_expands_provider_and_version() {
+        assert_eq!(
+            list_url(
+                "http://x/provider-contracts/provider/{provider}/version/{version}",
+                "Foo Bar",
+                "1/2"
+            )
+            .unwrap(),
+            "http://x/provider-contracts/provider/Foo%20Bar/version/1%2F2"
+        );
+    }
+
+    #[test]
+    fn list_url_refuses_a_version_ending_in_a_stripped_suffix() {
+        let err = list_url(
+            "http://x/provider/{provider}/version/{version}",
+            "p",
+            "2.0.json",
+        )
+        .unwrap_err();
+        assert_eq!(
+            err,
+            "version value '2.0.json' cannot be sent: the Pact Broker strips a trailing '.json' from the final URL path segment"
+        );
+    }
+
+    #[test]
+    fn list_url_rejects_a_variable_it_cannot_fill() {
+        let err = list_url(
+            "http://x/provider-contracts/provider/{provider}/version/{providerApplicationVersion}",
+            "p",
+            "v",
+        )
+        .unwrap_err();
+        let message = err.to_string();
+        assert!(
+            message.contains("{providerApplicationVersion}"),
+            "{message}"
+        );
+        assert!(
+            message.contains("pf:provider-contracts template"),
+            "{message}"
+        );
+        assert!(message.contains("not understood"), "{message}");
+    }
 
     #[test]
     fn supported_when_the_relation_is_present() {

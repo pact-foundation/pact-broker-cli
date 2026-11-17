@@ -6,7 +6,8 @@ use crate::cli::{
     pactflow::main::{
         provider_contracts,
         subcommands::{
-            add_delete_provider_contract_subcommand, add_publish_provider_contract_subcommand,
+            add_delete_provider_contract_subcommand, add_list_provider_contracts_subcommand,
+            add_publish_provider_contract_subcommand,
         },
     },
 };
@@ -16,6 +17,7 @@ pub fn add_pactflow_client_command() -> Command {
         .arg_required_else_help(true)
         .subcommand(add_publish_provider_contract_subcommand())
         .subcommand(add_delete_provider_contract_subcommand())
+        .subcommand(add_list_provider_contracts_subcommand())
 }
 
 pub fn run(args: &ArgMatches) -> Result<serde_json::Value, i32> {
@@ -31,6 +33,14 @@ pub fn run(args: &ArgMatches) -> Result<serde_json::Value, i32> {
         }
         Some(("delete-provider-contract", args)) => {
             if let Err(err) = provider_contracts::delete::delete(args) {
+                handle_error(err);
+                Err(1)
+            } else {
+                Ok(serde_json::json!({}))
+            }
+        }
+        Some(("list-provider-contracts", args)) => {
+            if let Err(err) = provider_contracts::list::list(args) {
                 handle_error(err);
                 Err(1)
             } else {
