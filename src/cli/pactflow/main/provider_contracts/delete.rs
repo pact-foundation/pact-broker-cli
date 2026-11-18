@@ -3,11 +3,11 @@ use std::collections::HashMap;
 use clap::ArgMatches;
 use serde_json::{Value, json};
 
-use super::capability::{provider_contracts_template, unsupported_server_message};
+use super::capability::{
+    expand_contracts_template, provider_contracts_template, unsupported_server_message,
+};
 use crate::cli::pact_broker::main::{
-    HALClient, Notice, PactBrokerError,
-    broker_path::expand_path_template,
-    process_notices,
+    HALClient, Notice, PactBrokerError, process_notices,
     utils::{get_auth, get_broker_url, get_custom_headers, get_retries, get_ssl_options},
 };
 
@@ -32,20 +32,7 @@ fn item_url(
         item_template.push_str("/{name}");
         values.insert("name".to_string(), name.to_string());
     }
-    let url = expand_path_template(&item_template, &values)?;
-    if let Some(placeholder) = leftover_placeholder(&url) {
-        return Err(PactBrokerError::ContentError(format!(
-            "The pf:provider-contracts template of this PactFlow server was not understood: {placeholder} is not a variable this command fills"
-        )));
-    }
-    Ok(url)
-}
-
-/// The first `{...}` placeholder still in an expanded URL, braces included.
-fn leftover_placeholder(url: &str) -> Option<&str> {
-    let start = url.find('{')?;
-    let end = url[start..].find('}')? + start;
-    Some(&url[start..=end])
+    expand_contracts_template(&item_template, &values)
 }
 
 /// The key of a provider contract: its specification, then `/` and its name
@@ -209,28 +196,6 @@ mod tests {
             item_url(template, "p", "v", "asyncapi", Some("events")).unwrap(),
             "https://h/provider-contracts/provider/p/version/v/asyncapi/events"
         );
-    }
-
-    #[test]
-    fn item_url_rejects_a_template_variable_it_cannot_fill() {
-        let err = item_url(
-            "http://x/provider-contracts/provider/{provider}/version/{providerApplicationVersion}",
-            "p",
-            "v",
-            "oas",
-            None,
-        )
-        .unwrap_err();
-        let message = err.to_string();
-        assert!(
-            message.contains("{providerApplicationVersion}"),
-            "{message}"
-        );
-        assert!(
-            message.contains("pf:provider-contracts template"),
-            "{message}"
-        );
-        assert!(message.contains("not understood"), "{message}");
     }
 
     #[test]

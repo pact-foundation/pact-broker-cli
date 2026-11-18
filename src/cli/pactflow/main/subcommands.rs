@@ -131,6 +131,29 @@ pub fn add_delete_provider_contract_subcommand() -> Command {
         .args(crate::cli::add_ssl_arguments())
 }
 
+pub fn add_list_provider_contracts_subcommand() -> Command {
+    Command::new("list-provider-contracts")
+        .about("List the provider contracts of a provider version in PactFlow")
+        .args(crate::cli::pact_broker::main::subcommands::add_broker_auth_arguments())
+        .arg(
+            Arg::new("provider")
+                .long("provider")
+                .value_name("PROVIDER")
+                .required(true)
+                .help("The provider name"),
+        )
+        .arg(
+            Arg::new("provider-app-version")
+                .short('a')
+                .long("provider-app-version")
+                .value_name("PROVIDER_APP_VERSION")
+                .required(true)
+                .help("The provider application version"),
+        )
+        .args(add_output_arguments(["json", "table"].to_vec(), "table"))
+        .args(crate::cli::add_ssl_arguments())
+}
+
 /// A contract name starts with a letter or digit, then allows `.`, `_` and `-`, up to 64 characters.
 /// It may not end in a suffix PactFlow reads as a file-format request, since a document name ending
 /// in one could never be addressed.
@@ -250,5 +273,39 @@ mod tests {
         let error = parse_delete(&["--provider", "Bar", "-a", "1", "--contract-name", "e.zip"])
             .unwrap_err();
         assert_eq!(error.kind(), clap::error::ErrorKind::ValueValidation);
+    }
+
+    /// `list-provider-contracts` with a broker URL, then `extra`.
+    fn parse_list(extra: &[&str]) -> Result<clap::ArgMatches, clap::Error> {
+        let mut argv = vec!["list-provider-contracts", "-b", "http://localhost:1"];
+        argv.extend_from_slice(extra);
+        add_list_provider_contracts_subcommand().try_get_matches_from(argv)
+    }
+
+    #[test]
+    fn list_output_defaults_to_table_and_accepts_json() {
+        let output = |matches: clap::ArgMatches| matches.get_one::<String>("output").cloned();
+        assert_eq!(
+            output(parse_list(&["--provider", "Bar", "-a", "1"]).unwrap()).as_deref(),
+            Some("table")
+        );
+        assert_eq!(
+            output(parse_list(&["--provider", "Bar", "-a", "1", "-o", "json"]).unwrap()).as_deref(),
+            Some("json")
+        );
+        let error = parse_list(&["--provider", "Bar", "-a", "1", "-o", "text"]).unwrap_err();
+        assert_eq!(error.kind(), clap::error::ErrorKind::InvalidValue);
+    }
+
+    #[test]
+    fn list_requires_the_provider_and_its_version() {
+        for argv in [&["-a", "1"][..], &["--provider", "Bar"][..]] {
+            let error = parse_list(argv).unwrap_err();
+            assert_eq!(
+                error.kind(),
+                clap::error::ErrorKind::MissingRequiredArgument,
+                "{argv:?}"
+            );
+        }
     }
 }

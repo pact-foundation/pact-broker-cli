@@ -6,7 +6,8 @@ use crate::cli::{
     pactflow::main::{
         provider_contracts,
         subcommands::{
-            add_delete_provider_contract_subcommand, add_publish_provider_contract_subcommand,
+            add_delete_provider_contract_subcommand, add_list_provider_contracts_subcommand,
+            add_publish_provider_contract_subcommand,
         },
     },
 };
@@ -16,6 +17,7 @@ pub fn add_pactflow_client_command() -> Command {
         .arg_required_else_help(true)
         .subcommand(add_publish_provider_contract_subcommand())
         .subcommand(add_delete_provider_contract_subcommand())
+        .subcommand(add_list_provider_contracts_subcommand())
 }
 
 pub fn run(args: &ArgMatches) -> Result<serde_json::Value, i32> {
@@ -31,6 +33,14 @@ pub fn run(args: &ArgMatches) -> Result<serde_json::Value, i32> {
         }
         Some(("delete-provider-contract", args)) => {
             if let Err(err) = provider_contracts::delete::delete(args) {
+                handle_error(err);
+                Err(1)
+            } else {
+                Ok(serde_json::json!({}))
+            }
+        }
+        Some(("list-provider-contracts", args)) => {
+            if let Err(err) = provider_contracts::list::list(args) {
                 handle_error(err);
                 Err(1)
             } else {
@@ -116,6 +126,28 @@ mod tests {
         );
         let result = run_pactflow(
             "delete-provider-contract",
+            &base,
+            &["--provider", "Foo", "-a", "1.0"],
+        );
+        assert_eq!(result, Err(1));
+    }
+
+    #[test]
+    fn list_exits_zero_when_the_list_is_fetched() {
+        let base = spawn_server(200, json!({"_embedded": {"contracts": []}}));
+        let result = run_pactflow(
+            "list-provider-contracts",
+            &base,
+            &["--provider", "Foo", "-a", "1.0"],
+        );
+        assert!(result.is_ok(), "{result:?}");
+    }
+
+    #[test]
+    fn list_exits_one_when_the_list_fails() {
+        let base = spawn_server(404, json!({}));
+        let result = run_pactflow(
+            "list-provider-contracts",
             &base,
             &["--provider", "Foo", "-a", "1.0"],
         );
