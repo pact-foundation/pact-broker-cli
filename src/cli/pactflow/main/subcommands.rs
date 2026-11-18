@@ -102,6 +102,35 @@ pub fn add_publish_provider_contract_subcommand() -> Command {
     .args(crate::cli::add_ssl_arguments())
 }
 
+pub fn add_delete_provider_contract_subcommand() -> Command {
+    Command::new("delete-provider-contract")
+        .about("Delete one provider contract of a provider version from PactFlow")
+        .args(crate::cli::pact_broker::main::subcommands::add_broker_auth_arguments())
+        .arg(Arg::new("provider")
+            .long("provider")
+            .value_name("PROVIDER")
+            .required(true)
+            .help("The provider name"))
+        .arg(Arg::new("provider-app-version")
+            .short('a')
+            .long("provider-app-version")
+            .value_name("PROVIDER_APP_VERSION")
+            .required(true)
+            .help("The provider application version"))
+        .arg(Arg::new("specification")
+            .long("specification")
+            .value_name("SPECIFICATION")
+            .default_value("oas")
+            .help("The contract specification"))
+        .arg(Arg::new("contract-name")
+            .long("contract-name")
+            .value_name("NAME")
+            .allow_hyphen_values(true)
+            .value_parser(parse_contract_name)
+            .help("Name of the document to delete. Omit it to delete the unnamed document of the specification."))
+        .args(crate::cli::add_ssl_arguments())
+}
+
 /// A contract name starts with a letter or digit, then allows `.`, `_` and `-`, up to 64 characters.
 /// It may not end in a suffix PactFlow reads as a file-format request, since a document name ending
 /// in one could never be addressed.
@@ -166,5 +195,60 @@ mod tests {
         ] {
             assert_eq!(parse_contract_name(name), Ok(name.to_string()), "{name}");
         }
+    }
+
+    /// `delete-provider-contract` with a broker URL, then `extra`.
+    fn parse_delete(extra: &[&str]) -> Result<clap::ArgMatches, clap::Error> {
+        let mut argv = vec!["delete-provider-contract", "-b", "http://localhost:1"];
+        argv.extend_from_slice(extra);
+        add_delete_provider_contract_subcommand().try_get_matches_from(argv)
+    }
+
+    #[test]
+    fn delete_defaults_the_specification_to_oas_and_needs_no_name() {
+        let matches = parse_delete(&["--provider", "Bar", "-a", "1"]).unwrap();
+        assert_eq!(
+            matches
+                .get_one::<String>("specification")
+                .map(String::as_str),
+            Some("oas")
+        );
+        assert_eq!(matches.get_one::<String>("contract-name"), None);
+    }
+
+    #[test]
+    fn delete_requires_the_provider_and_its_version() {
+        for argv in [&["-a", "1"][..], &["--provider", "Bar"][..]] {
+            let error = parse_delete(argv).unwrap_err();
+            assert_eq!(
+                error.kind(),
+                clap::error::ErrorKind::MissingRequiredArgument,
+                "{argv:?}"
+            );
+        }
+    }
+
+    #[test]
+    fn delete_validates_the_contract_name() {
+        let matches = parse_delete(&[
+            "--provider",
+            "Bar",
+            "-a",
+            "1",
+            "--specification",
+            "asyncapi",
+            "--contract-name",
+            "events",
+        ])
+        .unwrap();
+        assert_eq!(
+            matches
+                .get_one::<String>("contract-name")
+                .map(String::as_str),
+            Some("events")
+        );
+        let error = parse_delete(&["--provider", "Bar", "-a", "1", "--contract-name", "e.zip"])
+            .unwrap_err();
+        assert_eq!(error.kind(), clap::error::ErrorKind::ValueValidation);
     }
 }
