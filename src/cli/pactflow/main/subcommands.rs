@@ -1,4 +1,5 @@
 use crate::cli::add_output_arguments;
+use crate::cli::pact_broker::main::broker_path::STRIPPED_EXTENSIONS;
 use clap::{Arg, Command};
 
 pub fn add_publish_provider_contract_subcommand() -> Command {
@@ -37,6 +38,12 @@ pub fn add_publish_provider_contract_subcommand() -> Command {
         .value_name("SPECIFICATION")
         .default_value("oas")
         .help("The contract specification"))
+    .arg(Arg::new("contract-name")
+        .long("contract-name")
+        .value_name("NAME")
+        .allow_hyphen_values(true)
+        .value_parser(parse_contract_name)
+        .help("Name that tells this document apart from others of the same specification at this provider version. Needed only when a provider version has more than one document of a specification."))
     .arg(Arg::new("content-type")
         .long("content-type")
         .value_name("CONTENT_TYPE")
@@ -93,4 +100,71 @@ pub fn add_publish_provider_contract_subcommand() -> Command {
         .help("Tag provider version with the name of the current git branch. Supports Buildkite, Circle CI, Travis CI, GitHub Actions, Jenkins, Hudson, AppVeyor, GitLab, CodeShip, Bitbucket and Azure DevOps."))
     .args(add_output_arguments(["json", "text"].to_vec(), "text"))
     .args(crate::cli::add_ssl_arguments())
+}
+
+/// A contract name starts with a letter or digit, then allows `.`, `_` and `-`, up to 64 characters.
+/// It may not end in a suffix PactFlow reads as a file-format request, since a document name ending
+/// in one could never be addressed.
+fn parse_contract_name(value: &str) -> Result<String, String> {
+    static PATTERN: std::sync::LazyLock<regex::Regex> = std::sync::LazyLock::new(|| {
+        regex::Regex::new(r"^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$").unwrap()
+    });
+    if !PATTERN.is_match(value) {
+        return Err("must match ^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$".to_string());
+    }
+    if let Some(suffix) = STRIPPED_EXTENSIONS
+        .iter()
+        .find(|suffix| value.ends_with(**suffix))
+    {
+        return Err(format!(
+            "may not end in {suffix} because PactFlow reads it as a file-format request"
+        ));
+    }
+    Ok(value.to_string())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn accepts_a_plain_name() {
+        assert_eq!(parse_contract_name("admin"), Ok("admin".to_string()));
+        assert_eq!(
+            parse_contract_name("orders.v2"),
+            Ok("orders.v2".to_string())
+        );
+    }
+
+    #[test]
+    fn rejects_a_name_outside_the_pattern() {
+        assert!(parse_contract_name("-admin").is_err());
+        assert!(parse_contract_name("a b").is_err());
+    }
+
+    #[test]
+    fn rejects_each_stripped_suffix() {
+        for suffix in STRIPPED_EXTENSIONS {
+            let err = parse_contract_name(&format!("orders{suffix}")).unwrap_err();
+            assert_eq!(
+                err,
+                format!(
+                    "may not end in {suffix} because PactFlow reads it as a file-format request"
+                )
+            );
+        }
+    }
+
+    #[test]
+    fn accepts_a_near_miss_of_a_stripped_suffix() {
+        for name in [
+            "json-api",
+            "orders.json2",
+            "orders-json",
+            "yaml",
+            "orders.JSON",
+        ] {
+            assert_eq!(parse_contract_name(name), Ok(name.to_string()), "{name}");
+        }
+    }
 }

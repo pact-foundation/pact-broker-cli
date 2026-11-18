@@ -8,6 +8,9 @@ use serde_json::{Value, json};
 
 use pact_models::http_utils::HttpAuth;
 
+use super::capability::{
+    old_server_publish_warning, supports_several_contracts, unsupported_server_message,
+};
 use super::remote_contract::{
     TokenExchange, fetch_remote_contract, is_supported_contract_url, is_web_url,
 };
@@ -17,8 +20,8 @@ use crate::cli::{
         broker_path::expand_path_template,
         process_notices,
         utils::{
-            get_auth, get_broker_relation, get_broker_url, get_custom_headers, get_retries,
-            get_ssl_options,
+            get_auth, get_broker_url, get_custom_headers, get_retries, get_ssl_options,
+            relation_href,
         },
     },
     utils::git_info,
@@ -102,6 +105,14 @@ fn fetch_contract_content(
 }
 
 pub fn publish(args: &ArgMatches) -> Result<Value, PactBrokerError> {
+    publish_recording_warnings(args, &mut Vec::new())
+}
+
+/// [`publish`], also pushing each warning it prints onto `warnings`.
+fn publish_recording_warnings(
+    args: &ArgMatches,
+    warnings: &mut Vec<&'static str>,
+) -> Result<Value, PactBrokerError> {
     let contract_input = args
         .get_one::<String>("contract-file")
         .expect("CONTRACT_FILE is required");
@@ -139,16 +150,19 @@ pub fn publish(args: &ArgMatches) -> Result<Value, PactBrokerError> {
         read_contract_file(contract_input)?
     };
 
+    let index: Value = tokio::runtime::Runtime::new()
+        .unwrap()
+        .block_on(hal_client.clone().fetch(""))?;
+    let contract_name = args.get_one::<String>("contract-name").map(String::as_str);
+    if contract_name.is_some() && !supports_several_contracts(&index) {
+        return Err(PactBrokerError::ContentError(format!(
+            "{} Nothing was published.",
+            unsupported_server_message("--contract-name")
+        )));
+    }
+
     // Use pf:publish-provider-contract relation
-    let publish_contract_href_path = tokio::runtime::Runtime::new().unwrap().block_on(async {
-        get_broker_relation(
-            hal_client.clone(),
-            "pf:publish-provider-contract".to_string(),
-            broker_url.to_string(),
-        )
-        .await
-    });
-    match publish_contract_href_path {
+    match relation_href(&index, "pf:publish-provider-contract") {
         Ok(publish_contract_href) => {
             let provider_name = args
                 .get_one::<String>("provider")
@@ -243,6 +257,14 @@ pub fn publish(args: &ArgMatches) -> Result<Value, PactBrokerError> {
                 "specification": specification,
                 "contentType": content_type,
             });
+            if let Some(name) = contract_name {
+                contract_params["name"] = Value::String(name.to_string());
+            }
+            if let Some(warning) = old_server_publish_warning(specification, contract_name, &index)
+            {
+                println!("⚠️ {warning}");
+                warnings.push(warning);
+            }
 
             // Add selfVerificationResults if provided
             if verification_results_content.is_some()
@@ -718,5 +740,229 @@ mod publish_provider_contract_url_tests {
         );
         assert!(!error.to_string().contains("pw"), "{error}");
         assert!(requests.lock().unwrap().is_empty());
+    }
+}
+
+#[cfg(test)]
+mod publish_contract_name_tests {
+    use std::sync::{Arc, Mutex};
+
+    use axum::{
+        Router,
+        body::Bytes,
+        http::{Method, Uri},
+    };
+    use serde_json::{Value, json};
+
+    use crate::cli::pact_broker::main::PactBrokerError;
+    use crate::cli::pactflow::main::provider_contracts::publish::publish_recording_warnings;
+    use crate::cli::pactflow::main::subcommands::add_publish_provider_contract_subcommand;
+
+    const OLD_SERVER_ERROR: &str = "This PactFlow server keeps one provider contract per provider version, so --contract-name cannot be honoured. Upgrade PactFlow, or publish one document per provider version without a name. Nothing was published.";
+
+    /// Serves an index with the publish relation, plus `pf:provider-contracts`
+    /// when `several` is set. Returns the base URL and the bodies of the `POST`s.
+    fn spawn_broker(several: bool) -> (String, Arc<Mutex<Vec<Value>>>) {
+        let posts = Arc::new(Mutex::new(Vec::new()));
+        let recorded = posts.clone();
+        let (tx, rx) = std::sync::mpsc::channel();
+        std::thread::spawn(move || {
+            tokio::runtime::Runtime::new().unwrap().block_on(async move {
+                let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+                let base = format!("http://{}", listener.local_addr().unwrap());
+                let mut links = json!({
+                    "pf:publish-provider-contract": {
+                        "href": format!("{base}/provider-contracts/provider/{{provider}}/publish"),
+                        "templated": true
+                    }
+                });
+                if several {
+                    links["pf:provider-contracts"] = json!({
+                        "href": format!("{base}/provider-contracts/provider/{{provider}}/version/{{version}}"),
+                        "templated": true
+                    });
+                }
+                let index = json!({ "_links": links }).to_string();
+                tx.send(base).unwrap();
+                let router = Router::new().fallback(
+                    move |method: Method, _uri: Uri, body: Bytes| {
+                        let recorded = recorded.clone();
+                        let index = index.clone();
+                        async move {
+                            let reply = if method == Method::POST {
+                                recorded
+                                    .lock()
+                                    .unwrap()
+                                    .push(serde_json::from_slice(&body).unwrap());
+                                json!({
+                                    "notices": [],
+                                    "_embedded": {"version": {"number": "1.0.0"}},
+                                    "_links": {"pb:pacticipant-version-tags": []}
+                                })
+                                .to_string()
+                            } else {
+                                index
+                            };
+                            ([("content-type", "application/hal+json")], reply)
+                        }
+                    },
+                );
+                axum::serve(listener, router).await.unwrap();
+            });
+        });
+        (rx.recv().unwrap(), posts)
+    }
+
+    fn run(several: bool, extra: &[&str]) -> (Result<Value, PactBrokerError>, Vec<Value>) {
+        let (result, posts, _) = run_recording_warnings(several, extra);
+        (result, posts)
+    }
+
+    /// [`run`], also returning the warnings the publish printed.
+    fn run_recording_warnings(
+        several: bool,
+        extra: &[&str],
+    ) -> (
+        Result<Value, PactBrokerError>,
+        Vec<Value>,
+        Vec<&'static str>,
+    ) {
+        let (base, posts) = spawn_broker(several);
+        let mut argv = vec![
+            "publish-provider-contract",
+            "tests/fixtures/provider-contract.yaml",
+            "-b",
+            base.as_str(),
+            "--provider",
+            "Bar",
+            "--provider-app-version",
+            "1.0.0",
+            "--output",
+            "json",
+        ];
+        argv.extend_from_slice(extra);
+        let matches = add_publish_provider_contract_subcommand().get_matches_from(argv);
+        let mut warnings = Vec::new();
+        let result = publish_recording_warnings(&matches, &mut warnings);
+        let posts = posts.lock().unwrap().clone();
+        (result, posts, warnings)
+    }
+
+    #[test]
+    fn contract_name_is_sent_as_contract_name() {
+        let (result, posts) = run(true, &["--contract-name", "admin"]);
+        assert!(result.is_ok(), "{result:?}");
+        assert_eq!(posts.len(), 1);
+        assert_eq!(posts[0]["contract"]["name"], "admin");
+    }
+
+    #[test]
+    fn no_name_is_sent_without_a_contract_name() {
+        let (result, posts) = run(true, &[]);
+        assert!(result.is_ok(), "{result:?}");
+        assert!(posts[0]["contract"].get("name").is_none());
+    }
+
+    #[test]
+    fn contract_name_against_an_old_server_fails_before_posting() {
+        let (result, posts) = run(false, &["--contract-name", "admin"]);
+        assert_eq!(result.unwrap_err(), OLD_SERVER_ERROR);
+        assert!(posts.is_empty());
+    }
+
+    #[test]
+    fn unnamed_asyncapi_against_an_old_server_still_publishes() {
+        let (result, posts) = run(false, &["--specification", "asyncapi"]);
+        assert!(result.is_ok(), "{result:?}");
+        assert_eq!(posts.len(), 1);
+        assert!(posts[0]["contract"].get("name").is_none());
+    }
+
+    #[test]
+    fn warns_once_for_an_unnamed_non_oas_publish_to_an_old_server() {
+        let (result, _, warnings) = run_recording_warnings(false, &["--specification", "asyncapi"]);
+        assert!(result.is_ok(), "{result:?}");
+        assert_eq!(
+            warnings,
+            [
+                "This PactFlow server keeps one provider contract per provider version. Publishing replaces any contract of another type at this version."
+            ]
+        );
+    }
+
+    #[test]
+    fn does_not_warn_for_an_oas_publish_to_an_old_server() {
+        let (result, _, warnings) = run_recording_warnings(false, &[]);
+        assert!(result.is_ok(), "{result:?}");
+        assert!(warnings.is_empty(), "{warnings:?}");
+    }
+
+    #[test]
+    fn does_not_warn_when_the_server_keeps_several_contracts() {
+        let (result, _, warnings) = run_recording_warnings(true, &["--specification", "asyncapi"]);
+        assert!(result.is_ok(), "{result:?}");
+        assert!(warnings.is_empty(), "{warnings:?}");
+    }
+
+    #[test]
+    fn contract_name_is_validated_by_the_argument_parser() {
+        for bad in [
+            "-bad",
+            "",
+            ".dot",
+            "a b",
+            &"a".repeat(65),
+            "orders.json",
+            "orders.zip",
+        ] {
+            let result = add_publish_provider_contract_subcommand().try_get_matches_from(vec![
+                "publish-provider-contract",
+                "f.yaml",
+                "-b",
+                "http://localhost:1",
+                "--provider",
+                "Bar",
+                "--provider-app-version",
+                "1",
+                &format!("--contract-name={bad}"),
+            ]);
+            let error = result.expect_err(&format!("{bad:?} was accepted"));
+            assert_eq!(
+                error.kind(),
+                clap::error::ErrorKind::ValueValidation,
+                "{bad:?}"
+            );
+        }
+        for good in ["admin", "a", "v1.2_x-y", &"a".repeat(64)] {
+            let result = add_publish_provider_contract_subcommand().try_get_matches_from(vec![
+                "publish-provider-contract",
+                "f.yaml",
+                "-b",
+                "http://localhost:1",
+                "--provider",
+                "Bar",
+                "--provider-app-version",
+                "1",
+                &format!("--contract-name={good}"),
+            ]);
+            assert!(result.is_ok(), "{good:?} was rejected: {:?}", result.err());
+        }
+    }
+
+    #[test]
+    fn contract_name_is_optional() {
+        let matches = add_publish_provider_contract_subcommand()
+            .try_get_matches_from(vec![
+                "publish-provider-contract",
+                "f.yaml",
+                "-b",
+                "http://localhost:1",
+                "--provider",
+                "Bar",
+                "--provider-app-version",
+                "1",
+            ])
+            .unwrap();
+        assert_eq!(matches.get_one::<String>("contract-name"), None);
     }
 }

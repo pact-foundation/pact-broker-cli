@@ -2307,6 +2307,8 @@ Options:
           Tag name for provider version. Can be specified multiple times (delimiter ,).
       --specification <SPECIFICATION>
           The contract specification [default: oas]
+      --contract-name <NAME>
+          Name that tells this document apart from others of the same specification at this provider version. Needed only when a provider version has more than one document of a specification.
       --content-type <CONTENT_TYPE>
           The content type. eg. application/yml
       --verification-success
