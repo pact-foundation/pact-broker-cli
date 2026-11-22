@@ -116,7 +116,7 @@ axum = "=0.8.9"
 expectest = "=0.12.0"
 pact_consumer = "=1.4.11"
 pretty_assertions = "=1.4.1"
-rstest = "=0.28.0"
+rstest = "=0.29.0"
 test-log = { version = "=0.2.21", features = ["trace"] }
 tokio = { version = "=1.54.1", features = ["macros", "net", "rt-multi-thread"] }
 trycmd = "=1.2.1"
