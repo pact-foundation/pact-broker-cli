@@ -2,6 +2,30 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.0.0] _2026-11-23_
+
+### 🚀 Features
+
+-   _(pactflow)_ Name a provider contract on publish
+-   _(pactflow)_ Delete a provider contract
+-   _(pactflow)_ List the provider contracts of a provider version
+
+### 🐛 Bug Fixes
+
+-   Do not exchange token if contract url is public ([#247](https://github.com/pact-foundation/pact-broker-cli/issues/247))
+-   Refuse a final path segment ending in .zip
+-   Print a failed request once, with its notices
+-   _(pactflow)_ Delete a contract whose version ends in a stripped suffix
+-   _(pactflow)_ Refuse a list response without a contracts array
+
+### 🧪 Testing
+
+-   _(pactflow)_ Cover the old-server warning of a publish
+-   _(pactflow)_ Parse --contract-name from argv
+-   _(pactflow)_ Cover the delete-provider-contract command layer
+-   _(pactflow)_ Cover the list-provider-contracts command layer
+
+
 ## [0.9.2] _2026-11-13_
 
 ### 🛠️ Miscellaneous Tasks
