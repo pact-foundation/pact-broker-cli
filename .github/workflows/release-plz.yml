@@ -16,7 +16,7 @@ jobs:
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     concurrency:
-      group: release-plz-${{ github.ref }}
+      group: release-plz-pr-${{ github.ref }}
       cancel-in-progress: false
     steps:
       - name: Generate GitHub App token
@@ -54,7 +54,7 @@ jobs:
     runs-on: ubuntu-latest
     environment: crates-io
     concurrency:
-      group: release-plz-${{ github.ref }}
+      group: release-plz-release-${{ github.ref }}
       cancel-in-progress: false
     steps:
       - name: Authenticate with crates.io
