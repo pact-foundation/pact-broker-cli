@@ -4,6 +4,11 @@ All notable changes to this project will be documented in this file.
 
 ## [1.0.0] _2026-11-23_
 
+> [!NOTE]
+>
+> Version 1.0.0 contains no breaking changes.
+> The major version marks a commitment to stability, following the deprecation of the Ruby-based Pact CLI.
+
 ### 🚀 Features
 
 -   _(pactflow)_ Name a provider contract on publish
