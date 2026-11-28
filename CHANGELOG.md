@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.0.1] _2026-11-28_
+
+### 📚 Documentation
+
+-   Note v1.0.0 has no breaking changes
+
+
 ## [1.0.0] _2026-11-23_
 
 > [!NOTE]
